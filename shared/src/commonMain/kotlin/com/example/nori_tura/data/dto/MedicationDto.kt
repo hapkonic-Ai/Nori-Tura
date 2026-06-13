@@ -1,0 +1,15 @@
+package com.example.nori_tura.data.dto
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class MedicationDto(
+    val id: String? = null,
+    @SerialName("opd_record_id") val opdRecordId: String? = null,
+    val name: String? = null,
+    val dose: String? = null,
+    val frequency: String? = null,
+    val duration: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
