@@ -90,7 +90,7 @@ class AuthViewModel(
         val token = repository.getToken() ?: return
         _uiState.value = AuthUiState.Loading
         viewModelScope.launch {
-            repository.getMe(token)
+            repository.getMe()
                 .onSuccess { me ->
                     val role = me.role ?: repository.getRole()
                     if (role != null) {
