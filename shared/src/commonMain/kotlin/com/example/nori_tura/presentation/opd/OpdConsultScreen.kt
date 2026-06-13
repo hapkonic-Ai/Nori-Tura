@@ -125,6 +125,25 @@ fun OpdConsultScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
+                    if (isNurse) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        ) {
+                            Text(
+                                text = "For Surgeon Review",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
+                item {
                     VisitTypeDropdown(
                         selected = visitType,
                         onSelectedChange = { visitType = it }
@@ -157,7 +176,7 @@ fun OpdConsultScreen(
                     OutlinedTextField(
                         value = diagnosis,
                         onValueChange = { diagnosis = it },
-                        label = { Text("Diagnosis") },
+                        label = { Text(if (isNurse) "Provisional Findings" else "Diagnosis") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                         maxLines = 4
@@ -233,21 +252,23 @@ fun OpdConsultScreen(
                     )
                 }
 
-                item {
-                    AiPanel(
-                        uiState = uiState,
-                        onGetSuggestions = {
-                            viewModel.requestAiSuggestions(complaint, examination)
-                        },
-                        onUseInvestigations = { suggestedTypes ->
-                            val existing = investigations.map { it.type }.toSet()
-                            val new = suggestedTypes
-                                .filter { it.isNotBlank() && it !in existing }
-                                .map { InvestigationFormData(it) }
-                            investigations = investigations + new
-                            viewModel.clearAiSuggestions()
-                        }
-                    )
+                if (!isNurse) {
+                    item {
+                        AiPanel(
+                            uiState = uiState,
+                            onGetSuggestions = {
+                                viewModel.requestAiSuggestions(complaint, examination)
+                            },
+                            onUseInvestigations = { suggestedTypes ->
+                                val existing = investigations.map { it.type }.toSet()
+                                val new = suggestedTypes
+                                    .filter { it.isNotBlank() && it !in existing }
+                                    .map { InvestigationFormData(it) }
+                                investigations = investigations + new
+                                viewModel.clearAiSuggestions()
+                            }
+                        )
+                    }
                 }
 
                 item {
@@ -279,7 +300,7 @@ fun OpdConsultScreen(
                         enabled = uiState !is OpdConsultViewModel.UiState.Loading,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Save OPD Record")
+                        Text(if (isNurse) "Submit for Surgeon Review" else "Save OPD Record")
                     }
                 }
             }

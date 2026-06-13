@@ -194,6 +194,7 @@ fun App(
             composable("nurse_home") {
                 NurseHomeScreen(
                     onNavigateToPatientList = { navController.navigate("patient_list") },
+                    onNavigateToAddPatient = { navController.navigate("add_patient") },
                     onNavigateToAppointments = { navController.navigate("appointments") }
                 )
             }

@@ -2,6 +2,7 @@ package com.example.nori_tura.presentation.home
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,33 +14,49 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NurseHomeScreen(
+    viewModel: NurseDashboardViewModel = viewModel { NurseDashboardViewModel() },
     onNavigateToPatientList: () -> Unit,
+    onNavigateToAddPatient: () -> Unit,
     onNavigateToAppointments: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Nurse Dashboard") }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNavigateToAddPatient) {
+                Icon(Icons.Default.Add, contentDescription = "Add Patient")
+            }
         }
     ) { paddingValues ->
         Column(
@@ -62,8 +79,76 @@ fun NurseHomeScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            when (val state = uiState) {
+                is NurseDashboardViewModel.UiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                is NurseDashboardViewModel.UiState.Error -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = state.message,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(onClick = { viewModel.loadMetrics() }) {
+                                Text("Retry")
+                            }
+                        }
+                    }
+                }
+
+                is NurseDashboardViewModel.UiState.Success -> {
+                    val metrics = state.metrics
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MetricChip(
+                            value = metrics.patientsAddedToday.toString(),
+                            label = "Patients Today",
+                            modifier = Modifier.weight(1f)
+                        )
+                        MetricChip(
+                            value = metrics.upcomingAppointments.toString(),
+                            label = "Upcoming Appts",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MetricChip(
+                            value = metrics.activeIpdAdmissions.toString(),
+                            label = "Active IPD",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Quick Actions",
+                style = MaterialTheme.typography.titleMedium
+            )
+
             DashboardCard(
-                title = "Patients",
+                title = "Patient List",
                 subtitle = "View and manage surgeon's patients",
                 icon = Icons.Default.Person,
                 onClick = onNavigateToPatientList
@@ -75,12 +160,36 @@ fun NurseHomeScreen(
                 icon = Icons.Default.DateRange,
                 onClick = onNavigateToAppointments
             )
+        }
+    }
+}
 
-            DashboardCard(
-                title = "Tasks",
-                subtitle = "Vitals, pre-op prep, and ward tasks (coming soon)",
-                icon = Icons.Default.CheckCircle,
-                onClick = { }
+@Composable
+private fun MetricChip(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.height(80.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(12.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }
@@ -90,7 +199,7 @@ fun NurseHomeScreen(
 private fun DashboardCard(
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onClick: () -> Unit
 ) {
     Card(

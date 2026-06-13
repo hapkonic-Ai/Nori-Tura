@@ -84,11 +84,13 @@ async def create_opd_record(
             detail="Nurses cannot set surgical decision",
         )
 
+    is_nurse = user.is_nurse()
     data = {
         "patient_id": patient_id,
         "doctor_id": doctor_id,
-        "nurse_id": user.nurse_id if user.is_nurse() else None,
-        "created_by": "nurse" if user.is_nurse() else "surgeon",
+        "nurse_id": user.nurse_id if is_nurse else None,
+        "created_by": "nurse" if is_nurse else "surgeon",
+        "review_status": "pending_review" if is_nurse else "reviewed",
         "visit_type": req.visit_type,
         "complaint": req.complaint,
         "examination": req.examination,
