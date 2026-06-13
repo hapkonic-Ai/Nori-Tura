@@ -22,6 +22,7 @@ import com.example.nori_tura.presentation.home.ParentHomeScreen
 import com.example.nori_tura.presentation.ipd.AdmissionsListScreen
 import com.example.nori_tura.presentation.ipd.AdmissionDetailScreen
 import com.example.nori_tura.presentation.opd.OpdConsultScreen
+import com.example.nori_tura.presentation.surgeon.AddPatientScreen
 import com.example.nori_tura.presentation.surgeon.PatientListScreen
 import com.example.nori_tura.presentation.surgeon.PatientProfileScreen
 import com.example.nori_tura.presentation.surgeon.SurgeonDashboardScreen
@@ -128,6 +129,16 @@ fun App(
                     onBack = { navController.popBackStack() },
                     onPatientClick = { patientId ->
                         navController.navigate("patient_profile/$patientId")
+                    },
+                    onAddPatient = { navController.navigate("add_patient") }
+                )
+            }
+
+            composable("add_patient") {
+                AddPatientScreen(
+                    onBack = { navController.popBackStack() },
+                    onPatientAdded = {
+                        navController.popBackStack()
                     }
                 )
             }

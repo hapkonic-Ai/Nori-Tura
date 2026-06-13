@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -35,7 +36,8 @@ import com.example.nori_tura.data.dto.PatientDto
 fun PatientListScreen(
     viewModel: PatientListViewModel = viewModel { PatientListViewModel() },
     onBack: () -> Unit,
-    onPatientClick: (String) -> Unit
+    onPatientClick: (String) -> Unit,
+    onAddPatient: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -50,6 +52,11 @@ fun PatientListScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddPatient) {
+                Text("+")
+            }
         }
     ) { paddingValues ->
         Box(
