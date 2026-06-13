@@ -175,8 +175,9 @@ async def get_me(user: CurrentUser = Depends(get_current_user)):
         doctor = await prisma.doctors.find_first(where={"id": profile.doctor_id}) if profile else None
         return {"role": "nurse", "profile": profile, "doctor": doctor}
 
-    if user.patient_id:
-        patient = await prisma.patients.find_first(where={"id": user.patient_id})
+    patient_id = user.patient_id
+    if patient_id and isinstance(patient_id, str) and patient_id.strip():
+        patient = await prisma.patients.find_first(where={"id": patient_id})
         doctor = await prisma.doctors.find_first(where={"id": patient.doctor_id}) if patient else None
         return {
             "role": "patient_parent",
