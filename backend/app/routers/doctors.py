@@ -12,6 +12,7 @@ router = APIRouter(prefix="/doctors", tags=["Doctors"])
 class DoctorResponse(BaseModel):
     id: str
     name: str
+    phone: str
     hospital: Optional[str] = None
     specialty: Optional[str] = None
     is_active: bool = True
@@ -21,6 +22,24 @@ class AvailableSlotsResponse(BaseModel):
     doctor_id: str
     date: str
     slots: List[str]
+
+
+@router.get("/{doctor_id}", response_model=DoctorResponse)
+async def get_doctor(
+    doctor_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
+    return DoctorResponse(
+        id=doctor.id,
+        name=doctor.name,
+        phone=doctor.phone,
+        hospital=doctor.hospital,
+        specialty=doctor.specialty,
+        is_active=doctor.is_active,
+    )
 
 
 @router.get("", response_model=List[DoctorResponse])
@@ -38,6 +57,7 @@ async def list_doctors(
         DoctorResponse(
             id=d.id,
             name=d.name,
+            phone=d.phone,
             hospital=d.hospital,
             specialty=d.specialty,
             is_active=d.is_active,

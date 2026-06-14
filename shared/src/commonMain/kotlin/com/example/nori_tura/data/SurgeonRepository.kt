@@ -4,6 +4,7 @@ import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.AiDiagnosisRequest
 import com.example.nori_tura.data.dto.AiDiagnosisResponse
 import com.example.nori_tura.data.dto.AppointmentDto
+import com.example.nori_tura.data.dto.DoctorDto
 import com.example.nori_tura.data.dto.OpdRecordCreateRequest
 import com.example.nori_tura.data.dto.OpdRecordDto
 import com.example.nori_tura.data.dto.PatientCreateRequest
@@ -45,6 +46,10 @@ class SurgeonRepository(
 
     suspend fun getAdmissions(token: String): Result<List<AdmissionDto>> = safeApiCall {
         client.get("/ipd/admissions").body()
+    }
+
+    suspend fun getDoctor(token: String, doctorId: String): Result<DoctorDto> = safeApiCall {
+        client.get("/doctors/$doctorId").body()
     }
 
     suspend fun createOpdRecord(

@@ -8,8 +8,7 @@ data class DoctorDto(
     val id: String,
     val name: String,
     val phone: String,
-    val hospital: String,
-    val specialty: String,
-    @SerialName("is_active") val isActive: Boolean = false,
-    @SerialName("created_at") val createdAt: String? = null
+    val hospital: String? = null,
+    val specialty: String? = null,
+    @SerialName("is_active") val isActive: Boolean = true
 )
