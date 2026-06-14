@@ -1,5 +1,6 @@
 package com.example.nori_tura.presentation.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.data.dto.ConsentFormDto
 import com.example.nori_tura.data.dto.PatientDto
 import com.example.nori_tura.presentation.components.ActionCard
 import com.example.nori_tura.presentation.components.Avatar
@@ -49,6 +53,7 @@ fun ParentHomeScreen(
     viewModel: ParentDashboardViewModel = viewModel { ParentDashboardViewModel() },
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToRecords: () -> Unit = {},
+    onNavigateToConsentView: (String) -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -183,6 +188,23 @@ fun ParentHomeScreen(
                             }
                         }
                     }
+
+                    val pendingConsents = dashboard.admissions
+                        .flatMap { it.consentForms }
+                        .filter { it.status != "signed" }
+                        .sortedByDescending { it.generatedAt }
+
+                    if (pendingConsents.isNotEmpty()) {
+                        SectionTitle(title = "Consent Forms Awaiting Signature")
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            pendingConsents.forEach { consent ->
+                                PendingConsentCard(
+                                    consent = consent,
+                                    onClick = { consent.id?.let(onNavigateToConsentView) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -244,6 +266,52 @@ private fun ChildCard(child: PatientDto) {
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PendingConsentCard(
+    consent: ConsentFormDto,
+    onClick: () -> Unit
+) {
+    val patientName = consent.contentJson?.get("patient_name")?.toString()?.removeSurrounding("\"") ?: "Your Child"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = consent.formType ?: "Consent Form",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "Pending",
+                    color = NorituraColors.Warning,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Patient: $patientName",
+                color = NorituraColors.TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "Generated: ${consent.generatedAt?.take(10) ?: "-"}",
+                color = NorituraColors.TextTertiary,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }

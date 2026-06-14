@@ -118,14 +118,14 @@ async def list_admissions(user: CurrentUser = Depends(get_current_user)):
         admissions = await prisma.ipd_admissions.find_many(
             where={"patient_id": {"in": patient_ids}},
             order={"admitted_at": "desc"},
-            include={"patient": True},
+            include={"patient": True, "consent_forms": {"order": {"generated_at": "desc"}}},
         )
     else:
         doctor_id = await resolve_doctor_id(user)
         admissions = await prisma.ipd_admissions.find_many(
             where={"doctor_id": doctor_id},
             order={"admitted_at": "desc"},
-            include={"patient": True},
+            include={"patient": True, "consent_forms": {"order": {"generated_at": "desc"}}},
         )
     return admissions
 

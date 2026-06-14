@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from prisma import Json
 
 from app.core.database import prisma
-from app.core.auth_deps import get_current_surgeon, CurrentUser, resolve_doctor_id
+from app.core.auth_deps import get_current_user, get_current_surgeon, CurrentUser, resolve_doctor_id
 from app.services.consent_service import generate_consent_pdf
 from app.core.config import get_settings
 
@@ -113,19 +113,28 @@ async def create_consent_form(
     return {"consent_form": consent, "pdf_url": pdf_url}
 
 
+async def _require_consent_access(user: CurrentUser, consent):
+    if user.is_parent():
+        patient = await prisma.patients.find_first(where={"id": consent.patient_id})
+        if not patient or patient.parent_phone != user.phone:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    else:
+        doctor_id = await resolve_doctor_id(user)
+        if consent.doctor_id != doctor_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+
 @router.get("/forms/{consent_id}")
 async def get_consent_form(
     consent_id: str,
-    user: CurrentUser = Depends(get_current_surgeon),
+    user: CurrentUser = Depends(get_current_user),
 ):
-    doctor_id = await resolve_doctor_id(user)
     consent = await prisma.consent_forms.find_first(
         where={"id": consent_id},
     )
     if not consent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
-    if consent.doctor_id != doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    await _require_consent_access(user, consent)
     return consent
 
 
@@ -133,16 +142,17 @@ async def get_consent_form(
 async def sign_consent_form(
     consent_id: str,
     req: ConsentSignRequest,
-    user: CurrentUser = Depends(get_current_surgeon),
+    user: CurrentUser = Depends(get_current_user),
 ):
-    doctor_id = await resolve_doctor_id(user)
     consent = await prisma.consent_forms.find_first(
         where={"id": consent_id},
     )
     if not consent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
-    if consent.doctor_id != doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    await _require_consent_access(user, consent)
+
+    if consent.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
 
     updated = await prisma.consent_forms.update(
         where={"id": consent_id},

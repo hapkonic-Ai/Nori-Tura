@@ -260,12 +260,25 @@ fun App(
 
             composable("parent_home") {
                 ParentHomeScreen(
+                    onNavigateToConsentView = { consentId ->
+                        navController.navigate("parent_consent_view/$consentId")
+                    },
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate("login") {
                             popUpTo("parent_home") { inclusive = true }
                         }
                     }
+                )
+            }
+
+            composable("parent_consent_view/{consentId}") { backStackEntry ->
+                val consentId = backStackEntry.arguments?.getString("consentId") ?: ""
+                ConsentViewScreen(
+                    consentId = consentId,
+                    onBack = { navController.popBackStack() },
+                    topBarInitials = "PT",
+                    topBarTitle = "Review & Sign Consent"
                 )
             }
         }

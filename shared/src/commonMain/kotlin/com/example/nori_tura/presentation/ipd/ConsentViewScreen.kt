@@ -45,15 +45,17 @@ import com.example.nori_tura.util.openUrl
 fun ConsentViewScreen(
     consentId: String,
     viewModel: ConsentViewViewModel = viewModel(key = consentId) { ConsentViewViewModel(consentId) },
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    topBarInitials: String = "DR",
+    topBarTitle: String = "Consent Form"
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     NorituraScaffold(
         topBar = {
             BrandTopBar(
-                initials = "DR",
-                title = "Consent Form",
+                initials = topBarInitials,
+                title = topBarTitle,
                 onBack = onBack,
                 notificationCount = 0
             )
