@@ -48,7 +48,9 @@ import com.example.nori_tura.data.dto.DischargeSummaryCreateRequest
 import com.example.nori_tura.data.dto.IntraOpNoteCreateRequest
 import com.example.nori_tura.data.dto.PostOpNoteCreateRequest
 import com.example.nori_tura.data.dto.PreOpNoteCreateRequest
+import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.data.dto.WardRoundNoteCreateRequest
+import com.example.nori_tura.presentation.components.TemplatePickerDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +60,7 @@ fun AdmissionDetailScreen(
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val templates by viewModel.templates.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
@@ -107,6 +110,7 @@ fun AdmissionDetailScreen(
                 is AdmissionDetailViewModel.UiState.Success -> {
                     AdmissionDetailContent(
                         admission = state.admission,
+                        templates = templates,
                         viewModel = viewModel
                     )
                 }
@@ -118,6 +122,7 @@ fun AdmissionDetailScreen(
 @Composable
 private fun AdmissionDetailContent(
     admission: AdmissionDto,
+    templates: List<SurgicalTemplateDto>,
     viewModel: AdmissionDetailViewModel
 ) {
     var showPreOp by remember { mutableStateOf(false) }
@@ -227,6 +232,7 @@ private fun AdmissionDetailContent(
     if (showPreOp) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showPreOp = false }) {
             PreOpForm(
+                templates = templates,
                 onDismiss = { showPreOp = false },
                 onSave = { request ->
                     viewModel.createPreOpNote(request)
@@ -239,6 +245,7 @@ private fun AdmissionDetailContent(
     if (showIntraOp) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showIntraOp = false }) {
             IntraOpForm(
+                templates = templates,
                 onDismiss = { showIntraOp = false },
                 onSave = { request ->
                     viewModel.createIntraOpNote(request)
@@ -309,6 +316,7 @@ private fun NoteCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun PreOpForm(
+    templates: List<SurgicalTemplateDto>,
     onDismiss: () -> Unit,
     onSave: (PreOpNoteCreateRequest) -> Unit
 ) {
@@ -318,8 +326,33 @@ private fun PreOpForm(
     var investigations by remember { mutableStateOf("") }
     var riskLevel by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
+    var showTemplatePicker by remember { mutableStateOf(false) }
+
+    if (showTemplatePicker) {
+        TemplatePickerDialog(
+            templates = templates,
+            onDismiss = { showTemplatePicker = false },
+            onSelect = { template ->
+                procedure = template.procedure
+                approach = template.approach ?: approach
+                anaesthesia = template.anaesthesia.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: anaesthesia
+                investigations = (investigations.split(",").map { it.trim() }.filter { it.isNotBlank() } +
+                    template.investigations).distinct().joinToString(", ")
+                riskLevel = template.riskLevel ?: riskLevel
+                instructions = template.specialInstructions ?: instructions
+                showTemplatePicker = false
+            }
+        )
+    }
 
     FormCard(title = "Pre-Op Note") {
+        OutlinedButton(
+            onClick = { showTemplatePicker = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Apply from Template")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
         FormTextField(procedure, { procedure = it }, "Procedure *")
         FormTextField(approach, { approach = it }, "Approach")
         FormTextField(anaesthesia, { anaesthesia = it }, "Anaesthesia")
@@ -347,6 +380,7 @@ private fun PreOpForm(
 
 @Composable
 private fun IntraOpForm(
+    templates: List<SurgicalTemplateDto>,
     onDismiss: () -> Unit,
     onSave: (IntraOpNoteCreateRequest) -> Unit
 ) {
@@ -357,8 +391,28 @@ private fun IntraOpForm(
     var bloodLoss by remember { mutableStateOf("") }
     var otStart by remember { mutableStateOf("") }
     var otEnd by remember { mutableStateOf("") }
+    var showTemplatePicker by remember { mutableStateOf(false) }
+
+    if (showTemplatePicker) {
+        TemplatePickerDialog(
+            templates = templates,
+            onDismiss = { showTemplatePicker = false },
+            onSelect = { template ->
+                procedure = template.procedure
+                technique = template.technique ?: technique
+                showTemplatePicker = false
+            }
+        )
+    }
 
     FormCard(title = "Intra-Op Note") {
+        OutlinedButton(
+            onClick = { showTemplatePicker = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Apply from Template")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
         FormTextField(procedure, { procedure = it }, "Procedure Done *")
         FormTextField(findings, { findings = it }, "Findings")
         FormTextField(technique, { technique = it }, "Technique")

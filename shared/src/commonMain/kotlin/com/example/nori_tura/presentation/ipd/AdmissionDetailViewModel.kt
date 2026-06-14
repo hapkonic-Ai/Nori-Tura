@@ -3,11 +3,13 @@ package com.example.nori_tura.presentation.ipd
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nori_tura.data.IpdRepository
+import com.example.nori_tura.data.SurgicalTemplateRepository
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.DischargeSummaryCreateRequest
 import com.example.nori_tura.data.dto.IntraOpNoteCreateRequest
 import com.example.nori_tura.data.dto.PostOpNoteCreateRequest
 import com.example.nori_tura.data.dto.PreOpNoteCreateRequest
+import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.data.dto.WardRoundNoteCreateRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,14 +18,27 @@ import kotlinx.coroutines.launch
 
 class AdmissionDetailViewModel(
     private val admissionId: String,
-    private val repository: IpdRepository = IpdRepository()
+    private val repository: IpdRepository = IpdRepository(),
+    private val templateRepository: SurgicalTemplateRepository = SurgicalTemplateRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private val _templates = MutableStateFlow<List<SurgicalTemplateDto>>(emptyList())
+    val templates: StateFlow<List<SurgicalTemplateDto>> = _templates.asStateFlow()
+
     init {
         loadAdmission()
+        loadTemplates()
+    }
+
+    fun loadTemplates() {
+        viewModelScope.launch {
+            templateRepository.listTemplates()
+                .onSuccess { _templates.value = it }
+                .onFailure { _templates.value = emptyList() }
+        }
     }
 
     fun loadAdmission() {
