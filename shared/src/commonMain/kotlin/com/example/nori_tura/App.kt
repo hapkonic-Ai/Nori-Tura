@@ -1,6 +1,5 @@
 package com.example.nori_tura
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,15 +24,16 @@ import com.example.nori_tura.presentation.opd.OpdConsultScreen
 import com.example.nori_tura.presentation.surgeon.AddPatientScreen
 import com.example.nori_tura.presentation.surgeon.PatientListScreen
 import com.example.nori_tura.presentation.surgeon.PatientProfileScreen
-import com.example.nori_tura.presentation.surgeon.SurgeonDashboardScreen
+import com.example.nori_tura.presentation.surgeon.SurgeonMainScreen
 import com.example.nori_tura.presentation.surgeon.SurgicalTemplatesScreen
+import com.example.nori_tura.ui.theme.NorituraTheme
 
 @Composable
 fun App(
     navController: NavHostController = rememberNavController(),
     authViewModel: AuthViewModel = viewModel { AuthViewModel() }
 ) {
-    MaterialTheme {
+    NorituraTheme {
         val uiState by authViewModel.uiState.collectAsState()
 
         LaunchedEffect(Unit) {
@@ -44,7 +44,7 @@ fun App(
             when (val state = uiState) {
                 is AuthUiState.Authenticated -> {
                     val destination = when (state.role.lowercase()) {
-                        "surgeon" -> "surgeon_home"
+                        "surgeon" -> "surgeon_main"
                         "nurse" -> "nurse_home"
                         "patient_parent" -> "parent_home"
                         "admin" -> "admin_home"
@@ -112,14 +112,20 @@ fun App(
                 )
             }
 
-            composable("surgeon_home") {
-                SurgeonDashboardScreen(
-                    onNavigateToPatientList = { navController.navigate("patient_list") },
+            composable("surgeon_main") {
+                SurgeonMainScreen(
+                    onNavigateToPatientProfile = { patientId ->
+                        navController.navigate("patient_profile/$patientId")
+                    },
+                    onNavigateToAddPatient = { navController.navigate("add_patient") },
                     onNavigateToAppointments = { navController.navigate("appointments") },
                     onNavigateToSurgicalTemplates = { navController.navigate("surgical_templates") },
                     onNavigateToAdmissions = { navController.navigate("admissions") },
-                    onNavigateToPatientProfile = { patientId ->
-                        navController.navigate("patient_profile/$patientId")
+                    onLogout = {
+                        authViewModel.logout()
+                        navController.navigate("login") {
+                            popUpTo("surgeon_main") { inclusive = true }
+                        }
                     }
                 )
             }
@@ -224,7 +230,14 @@ fun App(
             }
 
             composable("parent_home") {
-                ParentHomeScreen()
+                ParentHomeScreen(
+                    onLogout = {
+                        authViewModel.logout()
+                        navController.navigate("login") {
+                            popUpTo("parent_home") { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }
