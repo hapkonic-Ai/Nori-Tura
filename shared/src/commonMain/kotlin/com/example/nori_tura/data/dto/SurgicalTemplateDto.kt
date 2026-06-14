@@ -28,3 +28,15 @@ data class SurgicalTemplateCreateRequest(
     val technique: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null
 )
+
+@Serializable
+data class SurgicalTemplateUpdateRequest(
+    val name: String? = null,
+    val procedure: String? = null,
+    val approach: String? = null,
+    val anaesthesia: List<String>? = null,
+    val investigations: List<String>? = null,
+    @SerialName("risk_level") val riskLevel: String? = null,
+    val technique: String? = null,
+    @SerialName("special_instructions") val specialInstructions: String? = null
+)

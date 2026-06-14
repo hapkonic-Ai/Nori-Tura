@@ -2,6 +2,7 @@ package com.example.nori_tura.data
 
 import com.example.nori_tura.data.dto.SurgicalTemplateCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
+import com.example.nori_tura.data.dto.SurgicalTemplateUpdateRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -21,6 +22,16 @@ class SurgicalTemplateRepository(
 
     suspend fun createTemplate(request: SurgicalTemplateCreateRequest): Result<SurgicalTemplateDto> = safeApiCall {
         client.post("/surgical-templates") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
+
+    suspend fun updateTemplate(
+        id: String,
+        request: SurgicalTemplateUpdateRequest
+    ): Result<SurgicalTemplateDto> = safeApiCall {
+        client.patch("/surgical-templates/$id") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()

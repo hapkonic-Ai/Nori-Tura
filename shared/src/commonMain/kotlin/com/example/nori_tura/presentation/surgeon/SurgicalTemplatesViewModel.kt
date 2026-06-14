@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nori_tura.data.SurgicalTemplateRepository
 import com.example.nori_tura.data.dto.SurgicalTemplateCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
+import com.example.nori_tura.data.dto.SurgicalTemplateUpdateRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +45,20 @@ class SurgicalTemplatesViewModel(
                 }
                 .onFailure { error ->
                     _uiState.value = UiState.Error(error.message ?: "Failed to create template")
+                }
+        }
+    }
+
+    fun updateTemplate(id: String, request: SurgicalTemplateUpdateRequest) {
+        val current = (_uiState.value as? UiState.Success)?.templates ?: emptyList()
+        _uiState.value = UiState.Loading
+        viewModelScope.launch {
+            repository.updateTemplate(id, request)
+                .onSuccess { updated ->
+                    _uiState.value = UiState.Success(current.map { if (it.id == id) updated else it })
+                }
+                .onFailure { error ->
+                    _uiState.value = UiState.Error(error.message ?: "Failed to update template")
                 }
         }
     }

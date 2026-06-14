@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.SurgicalTemplateCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
+import com.example.nori_tura.data.dto.SurgicalTemplateUpdateRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +56,7 @@ fun SurgicalTemplatesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
+    var editingTemplate by remember { mutableStateOf<SurgicalTemplateDto?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
@@ -114,6 +117,7 @@ fun SurgicalTemplatesScreen(
                         items(state.templates) { template ->
                             TemplateCard(
                                 template = template,
+                                onEdit = { editingTemplate = template },
                                 onDelete = { viewModel.deleteTemplate(template.id) }
                             )
                         }
@@ -125,11 +129,27 @@ fun SurgicalTemplatesScreen(
 
     if (showCreateDialog) {
         Dialog(onDismissRequest = { showCreateDialog = false }) {
-            CreateTemplateDialog(
+            TemplateFormDialog(
+                title = "New Surgical Template",
+                initial = null,
                 onDismiss = { showCreateDialog = false },
-                onCreate = { request ->
+                onSave = { request ->
                     viewModel.createTemplate(request)
                     showCreateDialog = false
+                }
+            )
+        }
+    }
+
+    editingTemplate?.let { template ->
+        Dialog(onDismissRequest = { editingTemplate = null }) {
+            TemplateFormDialog(
+                title = "Edit Surgical Template",
+                initial = template,
+                onDismiss = { editingTemplate = null },
+                onSave = { request ->
+                    viewModel.updateTemplate(template.id, request.toUpdateRequest())
+                    editingTemplate = null
                 }
             )
         }
@@ -139,6 +159,7 @@ fun SurgicalTemplatesScreen(
 @Composable
 private fun TemplateCard(
     template: SurgicalTemplateDto,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -156,6 +177,13 @@ private fun TemplateCard(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = onEdit) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
@@ -203,19 +231,33 @@ private fun TemplateCard(
     }
 }
 
+private fun SurgicalTemplateCreateRequest.toUpdateRequest(): SurgicalTemplateUpdateRequest =
+    SurgicalTemplateUpdateRequest(
+        name = name,
+        procedure = procedure,
+        approach = approach,
+        anaesthesia = anaesthesia,
+        investigations = investigations,
+        riskLevel = riskLevel,
+        technique = technique,
+        specialInstructions = specialInstructions
+    )
+
 @Composable
-private fun CreateTemplateDialog(
+private fun TemplateFormDialog(
+    title: String,
+    initial: SurgicalTemplateDto?,
     onDismiss: () -> Unit,
-    onCreate: (SurgicalTemplateCreateRequest) -> Unit
+    onSave: (SurgicalTemplateCreateRequest) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var procedure by remember { mutableStateOf("") }
-    var approach by remember { mutableStateOf("") }
-    var anaesthesia by remember { mutableStateOf("") }
-    var investigations by remember { mutableStateOf("") }
-    var riskLevel by remember { mutableStateOf("") }
-    var technique by remember { mutableStateOf("") }
-    var instructions by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var procedure by remember { mutableStateOf(initial?.procedure ?: "") }
+    var approach by remember { mutableStateOf(initial?.approach ?: "") }
+    var anaesthesia by remember { mutableStateOf(initial?.anaesthesia?.joinToString(", ") ?: "") }
+    var investigations by remember { mutableStateOf(initial?.investigations?.joinToString(", ") ?: "") }
+    var riskLevel by remember { mutableStateOf(initial?.riskLevel ?: "") }
+    var technique by remember { mutableStateOf(initial?.technique ?: "") }
+    var instructions by remember { mutableStateOf(initial?.specialInstructions ?: "") }
 
     Card(
         modifier = Modifier
@@ -229,7 +271,7 @@ private fun CreateTemplateDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "New Surgical Template",
+                text = title,
                 style = MaterialTheme.typography.headlineSmall
             )
             OutlinedTextField(
@@ -292,7 +334,7 @@ private fun CreateTemplateDialog(
                 }
                 Button(
                     onClick = {
-                        onCreate(
+                        onSave(
                             SurgicalTemplateCreateRequest(
                                 name = name,
                                 procedure = procedure,
@@ -307,7 +349,7 @@ private fun CreateTemplateDialog(
                     },
                     enabled = name.isNotBlank() && procedure.isNotBlank()
                 ) {
-                    Text("Create")
+                    Text(if (initial == null) "Create" else "Save")
                 }
             }
         }
