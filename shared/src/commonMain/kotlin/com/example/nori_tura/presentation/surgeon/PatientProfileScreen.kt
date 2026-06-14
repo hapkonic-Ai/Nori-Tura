@@ -31,8 +31,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.AdmissionDto
+import com.example.nori_tura.data.dto.ConsentFormDto
 import com.example.nori_tura.data.dto.OpdRecordDto
 import com.example.nori_tura.data.dto.PatientDto
+import androidx.compose.foundation.clickable
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
@@ -45,7 +47,9 @@ fun PatientProfileScreen(
     patientId: String,
     viewModel: PatientProfileViewModel = viewModel(key = patientId) { PatientProfileViewModel(patientId) },
     onBack: () -> Unit,
-    onAddOpdRecord: () -> Unit
+    onAddOpdRecord: () -> Unit,
+    onNavigateToConsentForm: (admissionId: String) -> Unit = {},
+    onNavigateToConsentView: (consentId: String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -74,7 +78,9 @@ fun PatientProfileScreen(
                 ProfileContent(
                     patient = state.patient,
                     opdRecords = state.opdRecords,
-                    onAddOpdRecord = onAddOpdRecord
+                    onAddOpdRecord = onAddOpdRecord,
+                    onNavigateToConsentForm = onNavigateToConsentForm,
+                    onNavigateToConsentView = onNavigateToConsentView
                 )
             }
         }
@@ -85,7 +91,9 @@ fun PatientProfileScreen(
 private fun ProfileContent(
     patient: PatientDto,
     opdRecords: List<OpdRecordDto>,
-    onAddOpdRecord: () -> Unit
+    onAddOpdRecord: () -> Unit,
+    onNavigateToConsentForm: (admissionId: String) -> Unit,
+    onNavigateToConsentView: (consentId: String) -> Unit
 ) {
     val activeStatuses = setOf("admitted", "pre-op", "in-surgery", "recovery")
     val activeAdmission = patient.ipdAdmissions?.firstOrNull {
@@ -128,6 +136,39 @@ private fun ProfileContent(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 AdmissionCard(admission = activeAdmission)
+            }
+        }
+
+        item {
+            Text(
+                text = "Documents & Consents",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (activeAdmission != null) {
+                val consents = activeAdmission.consentForms.sortedByDescending { it.generatedAt }
+                if (consents.isEmpty()) {
+                    InlineEmptyProfile("No consent forms yet.")
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        consents.forEach { consent ->
+                            ConsentFormListCard(
+                                consent = consent,
+                                onClick = { consent.id?.let(onNavigateToConsentView) }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { activeAdmission.id?.let(onNavigateToConsentForm) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Generate New Consent")
+                }
+            } else {
+                InlineEmptyProfile("No active admission.")
             }
         }
 
@@ -302,5 +343,47 @@ private fun InlineEmptyProfile(message: String) {
             color = NorituraColors.TextSecondary,
             style = MaterialTheme.typography.bodyMedium
         )
+    }
+}
+
+@Composable
+private fun ConsentFormListCard(
+    consent: ConsentFormDto,
+    onClick: () -> Unit
+) {
+    val isSigned = consent.status == "signed"
+    val statusColor = if (isSigned) NorituraColors.PostOp else NorituraColors.Warning
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = consent.formType ?: "Consent Form",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = consent.status?.replaceFirstChar { it.uppercase() } ?: "Pending",
+                    color = statusColor,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Generated: ${consent.generatedAt?.take(10) ?: "-"}",
+                color = NorituraColors.TextTertiary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     }
 }
