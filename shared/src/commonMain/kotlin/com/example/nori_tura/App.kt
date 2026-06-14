@@ -18,6 +18,7 @@ import com.example.nori_tura.presentation.auth.RegisterDoctorScreen
 import com.example.nori_tura.presentation.auth.VerifyOtpScreen
 import com.example.nori_tura.presentation.home.NurseHomeScreen
 import com.example.nori_tura.presentation.home.ParentHomeScreen
+import com.example.nori_tura.presentation.parent.ParentProfileScreen
 import com.example.nori_tura.presentation.ipd.AdmissionsListScreen
 import com.example.nori_tura.presentation.ipd.AdmissionDetailScreen
 import com.example.nori_tura.presentation.ipd.ConsentFormScreen
@@ -156,7 +157,13 @@ fun App(
                 PatientProfileScreen(
                     patientId = patientId,
                     onBack = { navController.popBackStack() },
-                    onAddOpdRecord = { navController.navigate("opd_consult/$patientId") }
+                    onAddOpdRecord = { navController.navigate("opd_consult/$patientId") },
+                    onNavigateToConsentForm = { admissionId ->
+                        navController.navigate("consent_form/$admissionId")
+                    },
+                    onNavigateToConsentView = { consentId ->
+                        navController.navigate("consent_view/$consentId")
+                    }
                 )
             }
 
@@ -263,10 +270,28 @@ fun App(
                     onNavigateToConsentView = { consentId ->
                         navController.navigate("parent_consent_view/$consentId")
                     },
+                    onNavigateToProfile = {
+                        navController.navigate("parent_profile")
+                    },
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate("login") {
                             popUpTo("parent_home") { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable("parent_profile") {
+                ParentProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToConsentView = { consentId ->
+                        navController.navigate("parent_consent_view/$consentId")
+                    },
+                    onLogout = {
+                        authViewModel.logout()
+                        navController.navigate("login") {
+                            popUpTo("parent_profile") { inclusive = true }
                         }
                     }
                 )

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
@@ -54,6 +55,7 @@ fun ParentHomeScreen(
     onNavigateToAppointments: () -> Unit = {},
     onNavigateToRecords: () -> Unit = {},
     onNavigateToConsentView: (String) -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -166,6 +168,18 @@ fun ParentHomeScreen(
                             label = "Records",
                             icon = Icons.AutoMirrored.Filled.List,
                             onClick = onNavigateToRecords,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        ActionCard(
+                            label = "Profile",
+                            icon = Icons.Default.Person,
+                            onClick = onNavigateToProfile,
                             modifier = Modifier.weight(1f)
                         )
                     }
