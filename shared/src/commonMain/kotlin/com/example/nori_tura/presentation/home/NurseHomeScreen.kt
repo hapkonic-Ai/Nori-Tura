@@ -1,8 +1,6 @@
 package com.example.nori_tura.presentation.home
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,34 +8,37 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.presentation.components.ActionCard
+import com.example.nori_tura.presentation.components.BrandTopBar
+import com.example.nori_tura.presentation.components.ErrorState
+import com.example.nori_tura.presentation.components.KpiTile
+import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.presentation.components.SectionTitle
+import com.example.nori_tura.ui.theme.NorituraColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NurseHomeScreen(
     viewModel: NurseDashboardViewModel = viewModel { NurseDashboardViewModel() },
@@ -47,14 +48,21 @@ fun NurseHomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
+    NorituraScaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Nurse Dashboard") }
+            BrandTopBar(
+                initials = "NR",
+                title = "SurgiCare",
+                notificationCount = 0
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToAddPatient) {
+            FloatingActionButton(
+                onClick = onNavigateToAddPatient,
+                containerColor = NorituraColors.PrimaryBlue,
+                contentColor = NorituraColors.Surface,
+                shape = RoundedCornerShape(16.dp)
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Patient")
             }
         }
@@ -63,66 +71,59 @@ fun NurseHomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Welcome",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = "Manage patients, appointments, and daily tasks for your supervising surgeon.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             Spacer(modifier = Modifier.height(8.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Welcome back, Nurse",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                )
+                Text(
+                    text = "Manage patients, appointments, and daily tasks for your supervising surgeon.",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             when (val state = uiState) {
                 is NurseDashboardViewModel.UiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                    LoadingState(message = "Loading dashboard...")
                 }
 
                 is NurseDashboardViewModel.UiState.Error -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedButton(onClick = { viewModel.loadMetrics() }) {
-                                Text("Retry")
-                            }
-                        }
-                    }
+                    ErrorState(
+                        message = state.message,
+                        onRetry = { viewModel.loadMetrics() }
+                    )
                 }
 
                 is NurseDashboardViewModel.UiState.Success -> {
                     val metrics = state.metrics
+
+                    SectionTitle(title = "Today's Summary")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        MetricChip(
-                            value = metrics.patientsAddedToday.toString(),
+                        KpiTile(
                             label = "Patients Today",
+                            value = metrics.patientsAddedToday.toString(),
+                            icon = Icons.Default.Person,
+                            iconTint = NorituraColors.PrimaryBlue,
+                            accentColor = NorituraColors.PrimaryBlue,
                             modifier = Modifier.weight(1f)
                         )
-                        MetricChip(
-                            value = metrics.upcomingAppointments.toString(),
+                        KpiTile(
                             label = "Upcoming Appts",
+                            value = metrics.upcomingAppointments.toString(),
+                            icon = Icons.Default.DateRange,
+                            iconTint = NorituraColors.AccentGreen,
+                            accentColor = NorituraColors.AccentGreen,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -131,110 +132,38 @@ fun NurseHomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        MetricChip(
-                            value = metrics.activeIpdAdmissions.toString(),
+                        KpiTile(
                             label = "Active IPD",
+                            value = metrics.activeIpdAdmissions.toString(),
+                            icon = Icons.Default.MedicalServices,
+                            iconTint = NorituraColors.Warning,
+                            accentColor = NorituraColors.Warning,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    SectionTitle(title = "Quick Actions")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        ActionCard(
+                            label = "Patient List",
+                            icon = Icons.AutoMirrored.Filled.List,
+                            onClick = onNavigateToPatientList,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ActionCard(
+                            label = "Appointments",
+                            icon = Icons.Default.CalendarMonth,
+                            onClick = onNavigateToAppointments,
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Quick Actions",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            DashboardCard(
-                title = "Patient List",
-                subtitle = "View and manage surgeon's patients",
-                icon = Icons.Default.Person,
-                onClick = onNavigateToPatientList
-            )
-
-            DashboardCard(
-                title = "Appointments",
-                subtitle = "Check today's schedule",
-                icon = Icons.Default.DateRange,
-                onClick = onNavigateToAppointments
-            )
-        }
-    }
-}
-
-@Composable
-private fun MetricChip(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.height(80.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(12.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-    }
-}
-
-@Composable
-private fun DashboardCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
