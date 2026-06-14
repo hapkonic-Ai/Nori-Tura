@@ -175,6 +175,7 @@ async def get_admission(
             "post_op_notes": {"take": 1},
             "ward_round_notes": {"take": 1},
             "discharge_summaries": True,
+            "consent_forms": {"order": {"generated_at": "desc"}},
         },
     )
     if not admission:

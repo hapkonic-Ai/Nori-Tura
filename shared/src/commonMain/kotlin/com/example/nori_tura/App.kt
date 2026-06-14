@@ -20,6 +20,8 @@ import com.example.nori_tura.presentation.home.NurseHomeScreen
 import com.example.nori_tura.presentation.home.ParentHomeScreen
 import com.example.nori_tura.presentation.ipd.AdmissionsListScreen
 import com.example.nori_tura.presentation.ipd.AdmissionDetailScreen
+import com.example.nori_tura.presentation.ipd.ConsentFormScreen
+import com.example.nori_tura.presentation.ipd.ConsentViewScreen
 import com.example.nori_tura.presentation.opd.OpdConsultScreen
 import com.example.nori_tura.presentation.surgeon.AddPatientScreen
 import com.example.nori_tura.presentation.surgeon.PatientListScreen
@@ -193,6 +195,33 @@ fun App(
                 val admissionId = backStackEntry.arguments?.getString("admissionId") ?: ""
                 AdmissionDetailScreen(
                     admissionId = admissionId,
+                    onBack = { navController.popBackStack() },
+                    onNavigateToConsentForm = {
+                        navController.navigate("consent_form/$admissionId")
+                    },
+                    onNavigateToConsentView = { consentId ->
+                        navController.navigate("consent_view/$consentId")
+                    }
+                )
+            }
+
+            composable("consent_form/{admissionId}") { backStackEntry ->
+                val admissionId = backStackEntry.arguments?.getString("admissionId") ?: ""
+                ConsentFormScreen(
+                    admissionId = admissionId,
+                    onBack = { navController.popBackStack() },
+                    onConsentCreated = { consentId ->
+                        navController.navigate("consent_view/$consentId") {
+                            popUpTo("consent_form/$admissionId") { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable("consent_view/{consentId}") { backStackEntry ->
+                val consentId = backStackEntry.arguments?.getString("consentId") ?: ""
+                ConsentViewScreen(
+                    consentId = consentId,
                     onBack = { navController.popBackStack() }
                 )
             }

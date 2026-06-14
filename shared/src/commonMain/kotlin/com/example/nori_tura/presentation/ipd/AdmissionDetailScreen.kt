@@ -1,5 +1,6 @@
 package com.example.nori_tura.presentation.ipd
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +58,9 @@ import com.example.nori_tura.presentation.components.TemplatePickerDialog
 fun AdmissionDetailScreen(
     admissionId: String,
     viewModel: AdmissionDetailViewModel = viewModel(key = admissionId) { AdmissionDetailViewModel(admissionId) },
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToConsentForm: () -> Unit,
+    onNavigateToConsentView: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val templates by viewModel.templates.collectAsState()
@@ -111,7 +114,9 @@ fun AdmissionDetailScreen(
                     AdmissionDetailContent(
                         admission = state.admission,
                         templates = templates,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onNavigateToConsentForm = onNavigateToConsentForm,
+                        onNavigateToConsentView = onNavigateToConsentView
                     )
                 }
             }
@@ -123,7 +128,9 @@ fun AdmissionDetailScreen(
 private fun AdmissionDetailContent(
     admission: AdmissionDto,
     templates: List<SurgicalTemplateDto>,
-    viewModel: AdmissionDetailViewModel
+    viewModel: AdmissionDetailViewModel,
+    onNavigateToConsentForm: () -> Unit,
+    onNavigateToConsentView: (String) -> Unit
 ) {
     var showPreOp by remember { mutableStateOf(false) }
     var showIntraOp by remember { mutableStateOf(false) }
@@ -227,6 +234,17 @@ private fun AdmissionDetailContent(
                 Text("Discharge Patient")
             }
         }
+
+        SectionTitle("Consent Forms")
+        admission.consentForms.forEach { consent ->
+            ConsentListCard(
+                consent = consent,
+                onClick = { consent.id.let(onNavigateToConsentView) }
+            )
+        }
+        OutlinedButton(onClick = onNavigateToConsentForm, modifier = Modifier.fillMaxWidth()) {
+            Text("Add Consent Form")
+        }
     }
 
     if (showPreOp) {
@@ -310,6 +328,44 @@ private fun NoteCard(content: @Composable ColumnScope.() -> Unit) {
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             content()
+        }
+    }
+}
+
+@Composable
+private fun ConsentListCard(
+    consent: com.example.nori_tura.data.dto.ConsentFormDto,
+    onClick: () -> Unit
+) {
+    val statusColor = if (consent.status == "signed") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = consent.formType,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = consent.status?.replaceFirstChar { it.uppercase() } ?: "Pending",
+                    color = statusColor,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Generated: ${consent.generatedAt?.take(10) ?: "-"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
