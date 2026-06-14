@@ -8,7 +8,7 @@ from prisma import Json
 
 from app.core.database import prisma
 from app.core.auth_deps import get_current_user, get_current_surgeon, CurrentUser, resolve_doctor_id
-from app.services.consent_service import generate_consent_pdf
+from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -154,13 +154,26 @@ async def sign_consent_form(
     if consent.status != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
 
+    signed_at = datetime.now(timezone.utc)
+    form_data = consent.content_json if isinstance(consent.content_json, dict) else dict(consent.content_json or {})
+    signed_pdf_bytes = generate_signed_consent_pdf(
+        form_data=form_data,
+        parent_signature_url=req.parent_signature_url,
+        witness_name=req.witness_name,
+        witness_signature_url=req.witness_signature_url,
+        signed_at=signed_at.isoformat(),
+    )
+    signed_filename = f"signed_consent_{consent_id}_{signed_at.isoformat()}"
+    signed_pdf_url = _upload_consent_pdf(signed_pdf_bytes, signed_filename)
+
     updated = await prisma.consent_forms.update(
         where={"id": consent_id},
         data={
             "parent_signature_url": req.parent_signature_url,
             "witness_name": req.witness_name,
             "witness_signature_url": req.witness_signature_url,
-            "signed_at": datetime.now(timezone.utc),
+            "signed_at": signed_at,
+            "signed_pdf_url": signed_pdf_url,
             "status": "signed",
         },
     )

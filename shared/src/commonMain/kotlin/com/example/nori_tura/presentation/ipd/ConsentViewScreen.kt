@@ -1,7 +1,9 @@
 package com.example.nori_tura.presentation.ipd
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,11 +11,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -97,6 +104,9 @@ private fun ConsentViewContent(
     var witnessName by remember { mutableStateOf(consent.witnessName ?: "") }
     val parentSignaturePaths = remember { mutableStateListOf<List<Offset>>() }
     var parentSignatureDataUrl by remember { mutableStateOf("") }
+    val witnessSignaturePaths = remember { mutableStateListOf<List<Offset>>() }
+    var witnessSignatureDataUrl by remember { mutableStateOf("") }
+    var acknowledged by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -133,16 +143,16 @@ private fun ConsentViewContent(
             }
         }
 
-        consent.pdfUrl?.let { pdfUrl ->
-            OutlinedButton(
-                onClick = { openUrl(pdfUrl) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("View Generated PDF")
-            }
-        }
-
         if (!isSigned) {
+            consent.pdfUrl?.let { pdfUrl ->
+                OutlinedButton(
+                    onClick = { openUrl(pdfUrl) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View Generated PDF")
+                }
+            }
+
             Text(
                 text = "Parent / Guardian Signature",
                 color = NorituraColors.TextPrimary,
@@ -162,6 +172,25 @@ private fun ConsentViewContent(
                 }
             )
 
+            Text(
+                text = "Witness Signature (optional)",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+
+            SignaturePad(
+                modifier = Modifier.fillMaxWidth(),
+                onPathsChange = { paths ->
+                    witnessSignaturePaths.clear()
+                    witnessSignaturePaths.addAll(paths)
+                    witnessSignatureDataUrl = if (paths.isNotEmpty()) {
+                        encodeSignatureToPngBase64(paths, 800, 300)
+                    } else {
+                        ""
+                    }
+                }
+            )
+
             OutlinedTextField(
                 value = witnessName,
                 onValueChange = { witnessName = it },
@@ -169,55 +198,106 @@ private fun ConsentViewContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = acknowledged,
+                    onCheckedChange = { acknowledged = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = NorituraColors.PrimaryBlue,
+                        uncheckedColor = NorituraColors.Outline
+                    )
+                )
+                Text(
+                    text = "I have read and understood the information above and voluntarily consent to the procedure.",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
             Button(
                 onClick = {
                     if (parentSignatureDataUrl.isNotBlank()) {
                         onSign(
                             ConsentSignRequest(
                                 parentSignatureUrl = parentSignatureDataUrl,
-                                witnessName = witnessName.takeIf { it.isNotBlank() }
+                                witnessName = witnessName.takeIf { it.isNotBlank() },
+                                witnessSignatureUrl = witnessSignatureDataUrl.takeIf { it.isNotBlank() }
                             )
                         )
                     }
                 },
-                enabled = parentSignatureDataUrl.isNotBlank(),
+                enabled = parentSignatureDataUrl.isNotBlank() && acknowledged,
                 colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.PrimaryBlue),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Sign Consent")
             }
         } else {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = NorituraColors.PrimaryBlueLight),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "This consent form has been signed.",
-                        color = NorituraColors.PrimaryBlue,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                    )
-                    consent.signedAt?.let {
-                        Text(
-                            text = "Signed on ${it.take(10)}",
-                            color = NorituraColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    consent.witnessName?.let {
-                        Text(
-                            text = "Witness: $it",
-                            color = NorituraColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
+            SignedSuccessCard(consent = consent)
         }
 
         Spacer(modifier = Modifier.height(80.dp))
+    }
+}
+
+@Composable
+private fun SignedSuccessCard(
+    consent: com.example.nori_tura.data.dto.ConsentFormDto
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.PrimaryBlueLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Signed",
+                    tint = NorituraColors.PostOp
+                )
+                Text(
+                    text = "Consent signed successfully",
+                    color = NorituraColors.PostOp,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+
+            consent.signedAt?.let {
+                Text(
+                    text = "Signed on ${it.take(10)}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            consent.witnessName?.let {
+                Text(
+                    text = "Witness: $it",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            AnimatedVisibility(visible = consent.signedPdfUrl != null) {
+                OutlinedButton(
+                    onClick = { consent.signedPdfUrl?.let { openUrl(it) } },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View Signed PDF")
+                }
+            }
+        }
     }
 }
 
