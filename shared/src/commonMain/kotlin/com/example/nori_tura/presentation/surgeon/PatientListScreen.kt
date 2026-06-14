@@ -1,39 +1,53 @@
 package com.example.nori_tura.presentation.surgeon
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.PatientDto
+import com.example.nori_tura.presentation.components.Avatar
+import com.example.nori_tura.presentation.components.BrandTopBar
+import com.example.nori_tura.presentation.components.EmptyState
+import com.example.nori_tura.presentation.components.ErrorState
+import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.SearchField
+import com.example.nori_tura.presentation.components.StatusChip
+import com.example.nori_tura.ui.theme.NorituraColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatientListScreen(
+    modifier: Modifier = Modifier,
     viewModel: PatientListViewModel = viewModel { PatientListViewModel() },
     onBack: () -> Unit,
     onPatientClick: (String) -> Unit,
@@ -43,87 +57,80 @@ fun PatientListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     Scaffold(
+        modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text("Patients") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text("←")
-                    }
-                }
+            BrandTopBar(
+                initials = "DR",
+                title = "Patients",
+                onBack = onBack,
+                notificationCount = 0
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddPatient) {
-                Text("+")
+            FloatingActionButton(
+                onClick = onAddPatient,
+                containerColor = NorituraColors.PrimaryBlue,
+                contentColor = NorituraColors.Surface,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Patient",
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(NorituraColors.Background)
                 .padding(paddingValues)
+                .padding(horizontal = 20.dp)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChange(it) },
-                    label = { Text("Search by name or parent phone") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                )
+            Spacer(modifier = Modifier.height(8.dp))
+            SearchField(
+                value = searchQuery,
+                onValueChange = { viewModel.onSearchQueryChange(it) },
+                placeholder = "Search by name or parent phone"
+            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                when (val state = uiState) {
-                    is PatientListViewModel.UiState.Loading -> {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
-
-                    is PatientListViewModel.UiState.Error -> {
-                        Column(
+            when (val state = uiState) {
+                is PatientListViewModel.UiState.Loading -> {
+                    LoadingState(modifier = Modifier.fillMaxSize())
+                }
+                is PatientListViewModel.UiState.Error -> {
+                    ErrorState(
+                        message = state.message,
+                        onRetry = { viewModel.loadPatients() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                is PatientListViewModel.UiState.Success -> {
+                    if (state.patients.isEmpty()) {
+                        EmptyState(
+                            title = "No patients found",
+                            subtitle = if (searchQuery.isBlank()) {
+                                "You haven't added any patients yet."
+                            } else {
+                                "Try a different search term."
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            contentPadding = PaddingValues(bottom = 100.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedButton(onClick = { viewModel.loadPatients() }) {
-                                Text("Retry")
-                            }
-                        }
-                    }
-
-                    is PatientListViewModel.UiState.Success -> {
-                        if (state.patients.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No patients found.",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            items(state.patients, key = { it.id ?: it.hashCode() }) { patient ->
+                                PatientListRow(
+                                    patient = patient,
+                                    onClick = {
+                                        patient.id?.let(onPatientClick)
+                                    }
                                 )
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(state.patients, key = { it.id ?: it.hashCode() }) { patient ->
-                                    PatientListItem(
-                                        patient = patient,
-                                        onClick = {
-                                            patient.id?.let(onPatientClick)
-                                        }
-                                    )
-                                }
                             }
                         }
                     }
@@ -134,29 +141,59 @@ fun PatientListScreen(
 }
 
 @Composable
-private fun PatientListItem(
+private fun PatientListRow(
     patient: PatientDto,
     onClick: () -> Unit
 ) {
+    val status = when (patient.ipdAdmissions?.firstOrNull()?.status?.lowercase()) {
+        "pre-op" -> "Pre-op" to NorituraColors.PreOp
+        "in-surgery" -> "In OT" to NorituraColors.InOt
+        "recovery" -> "Recovery" to NorituraColors.PostOp
+        else -> "Outpatient" to NorituraColors.TextTertiary
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = patient.name ?: "Unknown",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Avatar(name = patient.name ?: "?", size = 48.dp)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = patient.name ?: "Unknown",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "ID: ${patient.id ?: "-"} • ${patient.age ?: "-"} yrs • ${patient.gender ?: "-"}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            StatusChip(
+                label = status.first,
+                color = status.second,
+                showDot = true
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "${patient.age ?: "-"} yrs • ${patient.gender ?: "-"}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "Parent: ${patient.parentPhone ?: "-"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = "Open",
+                tint = NorituraColors.TextTertiary,
+                modifier = Modifier.size(16.dp)
             )
         }
     }

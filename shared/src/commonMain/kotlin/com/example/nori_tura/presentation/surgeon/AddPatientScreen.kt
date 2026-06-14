@@ -29,6 +29,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.PatientCreateRequest
+import com.example.nori_tura.presentation.components.BrandTopBar
+import com.example.nori_tura.presentation.components.NorituraScaffold
 
 @Composable
 fun AddPatientScreen(
@@ -53,18 +55,28 @@ fun AddPatientScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Add Patient",
-            style = MaterialTheme.typography.headlineMedium
-        )
+    NorituraScaffold(
+        topBar = {
+            BrandTopBar(
+                initials = "DR",
+                title = "Add Patient",
+                onBack = onBack,
+                notificationCount = 0
+            )
+        }
+    ) { _ ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Add Patient",
+                style = MaterialTheme.typography.headlineMedium
+            )
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -189,6 +201,7 @@ fun AddPatientScreen(
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium
             )
+        }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.nori_tura.presentation.surgeon
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,30 +11,35 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.OpdRecordDto
 import com.example.nori_tura.data.dto.PatientDto
+import com.example.nori_tura.presentation.components.BrandTopBar
+import com.example.nori_tura.presentation.components.EmptyState
+import com.example.nori_tura.presentation.components.ErrorState
+import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.ui.theme.NorituraColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatientProfileScreen(
     patientId: String,
@@ -43,53 +49,33 @@ fun PatientProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
+    NorituraScaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Patient Profile") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Text("←")
-                    }
-                }
+            BrandTopBar(
+                initials = "DR",
+                title = "Patient Profile",
+                onBack = onBack,
+                notificationCount = 0
             )
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (val state = uiState) {
-                is PatientProfileViewModel.UiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-
-                is PatientProfileViewModel.UiState.Error -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = state.message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedButton(onClick = { viewModel.loadProfile() }) {
-                            Text("Retry")
-                        }
-                    }
-                }
-
-                is PatientProfileViewModel.UiState.Success -> {
-                    ProfileContent(
-                        patient = state.patient,
-                        opdRecords = state.opdRecords,
-                        onAddOpdRecord = onAddOpdRecord
-                    )
-                }
+    ) { _ ->
+        when (val state = uiState) {
+            is PatientProfileViewModel.UiState.Loading -> {
+                LoadingState(modifier = Modifier.fillMaxSize())
+            }
+            is PatientProfileViewModel.UiState.Error -> {
+                ErrorState(
+                    message = state.message,
+                    onRetry = { viewModel.loadProfile() },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            is PatientProfileViewModel.UiState.Success -> {
+                ProfileContent(
+                    patient = state.patient,
+                    opdRecords = state.opdRecords,
+                    onAddOpdRecord = onAddOpdRecord
+                )
             }
         }
     }
@@ -108,28 +94,28 @@ private fun ProfileContent(
     val latestOpd = opdRecords.firstOrNull() ?: patient.opdRecords?.firstOrNull()
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NorituraColors.Background)
+            .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
+            Spacer(modifier = Modifier.height(8.dp))
             PatientHeaderCard(patient = patient)
         }
 
         item {
             Text(
                 text = "Latest OPD Record",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
             Spacer(modifier = Modifier.height(8.dp))
             if (latestOpd != null) {
                 OpdRecordCard(opdRecord = latestOpd)
             } else {
-                Text(
-                    text = "No OPD records available.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                InlineEmptyProfile("No OPD records available.")
             }
         }
 
@@ -137,8 +123,8 @@ private fun ProfileContent(
             item {
                 Text(
                     text = "Active Admission",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 AdmissionCard(admission = activeAdmission)
@@ -148,18 +134,14 @@ private fun ProfileContent(
         item {
             Text(
                 text = "OPD History",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
         }
 
         if (opdRecords.isEmpty()) {
             item {
-                Text(
-                    text = "No OPD history.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                InlineEmptyProfile("No OPD history.")
             }
         } else {
             items(opdRecords, key = { it.id ?: it.hashCode() }) { record ->
@@ -170,10 +152,13 @@ private fun ProfileContent(
         item {
             Button(
                 onClick = onAddOpdRecord,
+                colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.PrimaryBlue),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Add OPD Record")
             }
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
@@ -182,18 +167,23 @@ private fun ProfileContent(
 private fun PatientHeaderCard(patient: PatientDto) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = patient.name ?: "Unknown",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             InfoRow(label = "Age / Gender", value = "${patient.age ?: "-"} / ${patient.gender ?: "-"}")
+            HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
             InfoRow(label = "Blood Group", value = patient.bloodGroup ?: "-")
+            HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
             InfoRow(label = "Allergies", value = patient.allergies ?: "None")
+            HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
             InfoRow(label = "Parent", value = "${patient.parentName ?: "-"} (${patient.parentPhone ?: "-"})")
         }
     }
@@ -201,47 +191,56 @@ private fun PatientHeaderCard(patient: PatientDto) {
 
 @Composable
 private fun InfoRow(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 2.dp)) {
+    Column {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = NorituraColors.TextTertiary,
+            style = MaterialTheme.typography.bodySmall
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium
+            color = NorituraColors.TextPrimary,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
         )
     }
 }
 
 @Composable
 private fun OpdRecordCard(opdRecord: OpdRecordDto) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = opdRecord.createdAt ?: "OPD Record",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = NorituraColors.TextTertiary,
+                style = MaterialTheme.typography.bodySmall
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Complaint: ${opdRecord.chiefComplaint ?: "-"}",
+                color = NorituraColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
                 text = "Diagnosis: ${opdRecord.diagnosis ?: "-"}",
+                color = NorituraColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
                 text = "Surgical Decision: ${opdRecord.surgicalDecision ?: "-"}",
+                color = NorituraColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium
             )
             if (!opdRecord.medications.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Medications: ${opdRecord.medications.mapNotNull { it.name }.joinToString(", ")}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -250,32 +249,58 @@ private fun OpdRecordCard(opdRecord: OpdRecordDto) {
 
 @Composable
 private fun AdmissionCard(admission: AdmissionDto) {
+    val statusColor = when (admission.status?.lowercase()) {
+        "pre-op" -> NorituraColors.PreOp
+        "in-surgery" -> NorituraColors.InOt
+        "recovery" -> NorituraColors.PostOp
+        else -> NorituraColors.TextTertiary
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+            containerColor = statusColor.copy(alpha = 0.08f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "Status: ${admission.status ?: "-"}",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
+                color = statusColor,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Ward: ${admission.ward ?: "-"}, Bed: ${admission.bedNo ?: "-"}",
+                color = NorituraColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
                 text = "Procedure: ${admission.procedure ?: "-"}",
+                color = NorituraColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
                 text = "Admitted: ${admission.admittedAt ?: "-"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = NorituraColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
             )
         }
+    }
+}
+
+@Composable
+private fun InlineEmptyProfile(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = NorituraColors.TextSecondary,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
