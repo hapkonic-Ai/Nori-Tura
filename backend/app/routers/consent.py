@@ -7,7 +7,12 @@ from pydantic import BaseModel
 from prisma import Json
 
 from app.core.database import prisma
-from app.core.auth_deps import get_current_user, get_current_surgeon, CurrentUser, resolve_doctor_id
+from app.core.auth_deps import (
+    get_current_user,
+    get_current_nurse_or_surgeon,
+    CurrentUser,
+    resolve_doctor_id,
+)
 from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
 from app.core.config import get_settings
 
@@ -62,7 +67,7 @@ def _upload_consent_pdf(pdf_bytes: bytes, filename: str) -> Optional[str]:
 @router.post("/forms", status_code=status.HTTP_201_CREATED)
 async def create_consent_form(
     req: ConsentFormCreate,
-    user: CurrentUser = Depends(get_current_surgeon),
+    user: CurrentUser = Depends(get_current_nurse_or_surgeon),
 ):
     doctor_id = await resolve_doctor_id(user)
 
@@ -105,7 +110,7 @@ async def create_consent_form(
             "form_type": req.form_type,
             "content_json": Json(form_data),
             "pdf_url": pdf_url,
-            "generated_by": "surgeon",
+            "generated_by": user.role,
             "status": "pending",
         }
     )
