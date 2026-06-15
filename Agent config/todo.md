@@ -26,7 +26,7 @@
 ## Phase 3 — WhatsApp & Push Notifications
 - [x] Task 3.1 — WhatsApp + Push Service Backend stubs (Meta Cloud API + FCM) → backend stubs done
 - [ ] Task 3.2 — WhatsApp Preview Screen (S12)
-- [ ] Task 3.3 — Follow-up Reminder Cron + Push
+- [x] Task 3.3 — Follow-up Reminder Cron + Push
 - [ ] Task 3.4 — Nurse notification preferences & events
 
 ## Phase 4 — IPD & Surgery Flow + Consent Forms
@@ -38,7 +38,7 @@
 - [x] Task 4.6 — Daily Ward Round (S8) → backend done
 - [x] Task 4.7 — Discharge (S9) → backend done
 - [x] Task 4.8 — Consent Form Generation Backend → backend done
-- [~] Task 4.9 — Consent Form UI (digital signature + PDF view) → depends on 4.8
+- [x] Task 4.9 — Consent Form UI (digital signature + PDF view) → depends on 4.8
 - [x] Task 4.10 — Nurse admission creation (no surgical decision) → backend done
 
 ## Phase 5 — Schedule
@@ -46,10 +46,10 @@
 - [~] Task 5.2 — Nurse schedule view & management → depends on 5.1
 
 ## Phase 6 — Parent Flow: Surgery Tracking & Records
-- [ ] Task 6.1 — Parent Home (P3)
+- [~] Task 6.1 — Parent Home (P3) — pending consents visible; live surgery status card remaining
 - [ ] Task 6.2 — Surgery Status Detail (P4)
 - [ ] Task 6.3 — OPD Records List + Detail (P5, P6)
-- [ ] Task 6.4 — Consent form view/download in Documents tab
+- [x] Task 6.4 — Consent form view/download in Documents tab
 
 ## Phase 7 — Appointment Booking
 - [x] Task 7.1 — 3-Step Booking Flow backend (P7, P8, P9, P10) → backend done
@@ -60,8 +60,8 @@
 - [x] Task 8.2 — Nurse management section (view/add/remove nurses) → backend done
 
 ## Phase 9 — Parent Profile & Settings
-- [ ] Task 9.1 — Parent Profile (P11)
-- [ ] Task 9.2 — Consent form history in parent profile
+- [x] Task 9.1 — Parent Profile (P11)
+- [x] Task 9.2 — Consent form history in parent profile
 
 ## Phase 10 — QA, Native Store Deployment & Launch
 - [ ] Task 10.1 — Android AAB Generation & Play Store Setup
@@ -87,8 +87,8 @@
 - [x] Task CF.1 — Consent form template engine (HTML→PDF)
 - [x] Task CF.2 — Indian MCI/NABH standard field mapping
 - [x] Task CF.3 — Backend PDF generation & Cloudinary upload stub
-- [ ] Task CF.4 — Digital signature capture (canvas/touch)
-- [ ] Task CF.5 — Consent form viewer in Patient Profile & Parent Profile
+- [x] Task CF.4 — Digital signature capture (canvas/touch)
+- [x] Task CF.5 — Consent form viewer in Patient Profile & Parent Profile
 
 ## Nurse Module
 - [x] Task NM.1 — Nurse table & schema
@@ -105,8 +105,9 @@
 
 ## Next Immediate Tasks
 
-1. **Task 1.4 — KMM Auth UI** (Login / Verify OTP / role-based routing)
-2. **Task 2.1 / 2.2 / 2.4 — KMM Surgeon Dashboard, Patient List, Patient Profile**
-3. **Task 3.3 — Follow-up reminder cron job** using APScheduler
-4. **Task 4.3 — Surgical Templates CRUD backend + KMM UI**
+1. **Task 4.3 — Surgical Templates CRUD backend + KMM UI**
+2. **Task 5.1 — Schedule Screen (S11)**
+3. **Task 6.2 — Surgery Status Detail (P4)**
+4. **Task AI.4 — KMM AI Diagnosis Panel in OPD form**
+5. **Nurse Module screens (N1–N6)**
 
