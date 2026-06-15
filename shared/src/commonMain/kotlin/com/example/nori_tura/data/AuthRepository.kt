@@ -45,6 +45,13 @@ class AuthRepository(
         client.get("/auth/me").body()
     }
 
+    suspend fun registerFcm(fcmToken: String, platform: String): Result<Unit> = safeApiCall {
+        client.post("/auth/register-fcm") {
+            contentType(ContentType.Application.Json)
+            setBody(RegisterFcmRequest(fcmToken, platform))
+        }
+    }
+
     fun saveToken(token: String) {
         settings[KEY_TOKEN] = token
     }

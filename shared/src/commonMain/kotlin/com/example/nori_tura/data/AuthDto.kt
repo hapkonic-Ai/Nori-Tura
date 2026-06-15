@@ -43,6 +43,12 @@ data class AuthResponse(
 )
 
 @Serializable
+data class RegisterFcmRequest(
+    @SerialName("fcm_token") val fcmToken: String,
+    val platform: String
+)
+
+@Serializable
 data class MeResponse(
     val id: String? = null,
     val phone: String? = null,

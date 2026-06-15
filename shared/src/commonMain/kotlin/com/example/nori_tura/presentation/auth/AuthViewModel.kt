@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.MeResponse
 import com.example.nori_tura.data.RegisterDoctorRequest
+import com.example.nori_tura.util.PushTokenProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,6 +48,7 @@ class AuthViewModel(
                 .onSuccess { response ->
                     repository.saveToken(response.access_token)
                     repository.saveRole(response.role)
+                    registerFcmToken()
                     _uiState.value = AuthUiState.Authenticated(response.role, profile = null)
                 }
                 .onFailure { error ->
@@ -94,6 +96,7 @@ class AuthViewModel(
                 .onSuccess { me ->
                     val role = me.role ?: repository.getRole()
                     if (role != null) {
+                        registerFcmToken()
                         _uiState.value = AuthUiState.Authenticated(role, me)
                     } else {
                         repository.clearAll()
@@ -122,5 +125,12 @@ class AuthViewModel(
         return phone.startsWith("+91") &&
                 phone.length == 13 &&
                 phone.drop(3).all { it.isDigit() }
+    }
+
+    private fun registerFcmToken() {
+        viewModelScope.launch {
+            val token = PushTokenProvider.getToken() ?: return@launch
+            repository.registerFcm(token, PushTokenProvider.getPlatform())
+        }
     }
 }
