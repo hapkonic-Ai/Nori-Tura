@@ -183,7 +183,7 @@ private fun DoctorApprovalCard(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                     Text(
-                        text = doctor.specialty,
+                        text = doctor.specialty ?: "-",
                         color = NorituraColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -200,7 +200,7 @@ private fun DoctorApprovalCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             InfoRow(label = "Phone", value = doctor.phone)
-            InfoRow(label = "Hospital", value = doctor.hospital)
+            InfoRow(label = "Hospital", value = doctor.hospital ?: "-")
 
             Spacer(modifier = Modifier.height(16.dp))
             Button(
