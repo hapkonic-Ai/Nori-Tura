@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 from app.core.database import prisma
 from app.core.auth_deps import CurrentUser, get_current_staff, get_current_superadmin
+from app.jobs.reminders import send_follow_up_reminders
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -74,3 +75,10 @@ async def create_admin(
 async def list_admins(user: CurrentUser = Depends(get_current_superadmin)):
     admins = await prisma.admins.find_many(order={"created_at": "desc"})
     return admins
+
+
+@router.post("/trigger-follow-up-reminders", status_code=202)
+async def trigger_follow_up_reminders(user: CurrentUser = Depends(get_current_staff)):
+    """Manually trigger the daily follow-up reminder job (for testing)."""
+    await send_follow_up_reminders()
+    return {"message": "Follow-up reminders triggered"}

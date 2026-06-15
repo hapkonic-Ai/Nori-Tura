@@ -4,18 +4,27 @@ from typing import Optional
 
 import httpx
 
+from app.core.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 WHATSAPP_API_URL = os.getenv(
     "WHATSAPP_API_URL",
     "https://graph.facebook.com/v19.0/{phone_number_id}/messages",
 )
-WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
-WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+
+
+def _get_whatsapp_config():
+    """Return WhatsApp credentials from settings, falling back to env vars."""
+    settings = get_settings()
+    phone_number_id = settings.META_WA_PHONE_ID or os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    access_token = settings.META_WA_TOKEN or os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+    return phone_number_id, access_token
 
 
 def is_configured() -> bool:
-    return bool(WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN)
+    phone_number_id, access_token = _get_whatsapp_config()
+    return bool(phone_number_id and access_token)
 
 
 async def send_template_message(
@@ -33,7 +42,8 @@ async def send_template_message(
         )
         return {"status": "skipped", "reason": "not_configured"}
 
-    url = WHATSAPP_API_URL.format(phone_number_id=WHATSAPP_PHONE_NUMBER_ID)
+    phone_number_id, access_token = _get_whatsapp_config()
+    url = WHATSAPP_API_URL.format(phone_number_id=phone_number_id)
     payload = {
         "messaging_product": "whatsapp",
         "recipient_type": "individual",
@@ -55,7 +65,7 @@ async def send_template_message(
         ]
 
     headers = {
-        "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
+        "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
 
