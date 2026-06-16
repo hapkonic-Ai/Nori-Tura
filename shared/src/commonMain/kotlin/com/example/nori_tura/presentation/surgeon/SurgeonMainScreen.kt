@@ -1,7 +1,14 @@
 package com.example.nori_tura.presentation.surgeon
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.ui.unit.dp
+import com.example.nori_tura.ui.theme.NorituraColors
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.filled.Dashboard
@@ -48,6 +55,22 @@ fun SurgeonMainScreen(
                 selectedIndex = selectedTab,
                 onItemSelected = { selectedTab = it }
             )
+        },
+        floatingActionButton = {
+            if (selectedTab == 1) {
+                FloatingActionButton(
+                    onClick = onNavigateToAddPatient,
+                    containerColor = NorituraColors.PrimaryBlue,
+                    contentColor = NorituraColors.Surface,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Add Patient",
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
         }
     ) {
         when (selectedTab) {

@@ -1,5 +1,6 @@
 import json
 import logging
+import types
 from typing import Optional
 
 from firebase_admin import credentials, get_app, initialize_app, messaging
@@ -8,10 +9,10 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-_messaging: Optional[messaging.ModuleType] = None
+_messaging: Optional[types.ModuleType] = None
 
 
-def get_messaging() -> Optional[messaging.ModuleType]:
+def get_messaging() -> Optional[types.ModuleType]:
     """Return Firebase Admin messaging module, initializing if credentials are provided.
 
     Supports FIREBASE_CREDENTIALS_JSON as either a JSON string or a file path.

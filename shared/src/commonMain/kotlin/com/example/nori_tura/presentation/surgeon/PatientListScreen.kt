@@ -51,7 +51,7 @@ fun PatientListScreen(
     viewModel: PatientListViewModel = viewModel { PatientListViewModel() },
     onBack: () -> Unit,
     onPatientClick: (String) -> Unit,
-    onAddPatient: () -> Unit
+    onAddPatient: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -67,17 +67,19 @@ fun PatientListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddPatient,
-                containerColor = NorituraColors.PrimaryBlue,
-                contentColor = NorituraColors.Surface,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Patient",
-                    modifier = Modifier.size(28.dp)
-                )
+            onAddPatient?.let {
+                FloatingActionButton(
+                    onClick = it,
+                    containerColor = NorituraColors.PrimaryBlue,
+                    contentColor = NorituraColors.Surface,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Patient",
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
             }
         }
     ) { paddingValues ->

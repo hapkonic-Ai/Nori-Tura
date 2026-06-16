@@ -11,7 +11,6 @@ fun SurgeonPatientsTab(
     PatientListScreen(
         modifier = modifier,
         onBack = {},
-        onPatientClick = onPatientClick,
-        onAddPatient = {}
+        onPatientClick = onPatientClick
     )
 }
