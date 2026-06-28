@@ -55,6 +55,7 @@ import com.example.nori_tura.data.dto.DifferentialDiagnosis
 import com.example.nori_tura.data.dto.InvestigationCreateDto
 import com.example.nori_tura.data.dto.MedicationCreateDto
 import com.example.nori_tura.data.dto.OpdRecordCreateRequest
+import com.example.nori_tura.presentation.components.ImageAttachmentPicker
 import com.example.nori_tura.util.epochDaysToIsoDate
 
 private data class MedicationFormData(
@@ -90,6 +91,7 @@ fun OpdConsultScreen(
     var followUpDate by remember { mutableStateOf("") }
     var medications by remember { mutableStateOf(listOf<MedicationFormData>()) }
     var investigations by remember { mutableStateOf(listOf<InvestigationFormData>()) }
+    var imageUrls by remember { mutableStateOf(listOf<String>()) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -262,6 +264,14 @@ fun OpdConsultScreen(
                     )
                 }
 
+                item {
+                    ImageAttachmentPicker(
+                        imageUrls = imageUrls,
+                        onImageUrlsChange = { imageUrls = it },
+                        label = "Prescription images"
+                    )
+                }
+
                 if (!isNurse) {
                     item {
                         AiPanel(
@@ -303,7 +313,8 @@ fun OpdConsultScreen(
                                 },
                                 investigations = investigations.map {
                                     InvestigationCreateDto(type = it.type)
-                                }
+                                },
+                                prescriptionImageUrls = imageUrls
                             )
                             viewModel.saveOpdRecord(request)
                         },

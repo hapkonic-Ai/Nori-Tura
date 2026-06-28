@@ -58,6 +58,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             api(libs.navigation.compose)
             implementation(libs.multiplatform.settings)
+            implementation(libs.filekit.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
