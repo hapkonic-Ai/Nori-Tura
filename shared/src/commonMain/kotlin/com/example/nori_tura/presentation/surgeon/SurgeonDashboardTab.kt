@@ -70,8 +70,14 @@ fun SurgeonDashboardTab(
                 notificationCount = 3
             )
         }
-    ) { _ ->
-        when (val state = uiState) {
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(NorituraColors.Background)
+        ) {
+            when (val state = uiState) {
             is SurgeonDashboardViewModel.UiState.Loading -> {
                 LoadingState(modifier = Modifier.fillMaxSize())
             }
@@ -93,6 +99,7 @@ fun SurgeonDashboardTab(
                     onNavigateToPatientProfile = onNavigateToPatientProfile
                 )
             }
+        }
         }
     }
 }
