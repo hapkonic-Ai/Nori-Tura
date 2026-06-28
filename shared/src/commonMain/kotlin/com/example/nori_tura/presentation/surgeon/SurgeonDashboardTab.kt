@@ -131,8 +131,8 @@ private fun DashboardContent(
             .fillMaxSize()
             .background(NorituraColors.Background)
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        contentPadding = PaddingValues(bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Text(
@@ -144,7 +144,7 @@ private fun DashboardContent(
 
         item {
             SectionTitle(title = "Today's Summary")
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -172,7 +172,7 @@ private fun DashboardContent(
 
         item {
             SectionTitle(title = "Surgical Status")
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -203,7 +203,7 @@ private fun DashboardContent(
 
         item {
             SectionTitle(title = "Quick Actions")
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
