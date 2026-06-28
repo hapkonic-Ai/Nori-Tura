@@ -13,13 +13,14 @@ model doctors {
   id          String   @id @default(uuid())
   name        String
   phone       String   @unique
-  hospital    String
+  hospital_id String?
   specialty   String
   is_active   Boolean  @default(false)
   fcm_token   String?
   platform    String?
   created_at  DateTime @default(now())
-  
+
+  hospital        hospitals?         @relation(fields: [hospital_id], references: [id])
   patients        patients[]
   opd_records     opd_records[]
   ipd_admissions  ipd_admissions[]
@@ -30,6 +31,8 @@ model doctors {
   consent_forms   consent_forms[]
   ai_diagnosis_logs ai_diagnosis_logs[]
   surgical_templates surgical_templates[]
+
+  @@index([hospital_id])
 }
 
 model nurses {
@@ -37,15 +40,17 @@ model nurses {
   doctor_id   String
   name        String
   phone       String   @unique
-  hospital    String
+  hospital_id String?
   fcm_token   String?
   platform    String?
   is_active   Boolean  @default(true)
   created_at  DateTime @default(now())
-  
-  doctor      doctors  @relation(fields: [doctor_id], references: [id])
-  
+
+  doctor      doctors   @relation(fields: [doctor_id], references: [id])
+  hospital    hospitals? @relation(fields: [hospital_id], references: [id])
+
   @@index([doctor_id])
+  @@index([hospital_id])
 }
 
 model admins {
@@ -57,9 +62,30 @@ model admins {
   created_at DateTime @default(now())
 }
 
+model hospitals {
+  id                  String   @id @default(uuid())
+  name                String
+  logo_url            String?
+  address             String?
+  contact             String?
+  registration_number String?
+  created_at          DateTime @default(now())
+
+  doctors        doctors[]
+  nurses         nurses[]
+  patients       patients[]
+  opd_records    opd_records[]
+  ipd_admissions ipd_admissions[]
+  documents      documents[]
+  consent_forms  consent_forms[]
+
+  @@index([name])
+}
+
 model patients {
   id           String   @id @default(uuid())
   doctor_id    String
+  hospital_id  String?
   name         String
   age          Int
   gender       String
@@ -70,44 +96,52 @@ model patients {
   fcm_token    String?
   platform     String?
   created_at   DateTime @default(now())
-  
+
   doctor        doctors         @relation(fields: [doctor_id], references: [id])
+  hospital      hospitals?      @relation(fields: [hospital_id], references: [id])
   opd_records   opd_records[]
   ipd_admissions ipd_admissions[]
   appointments  appointments[]
   documents     documents[]
   whatsapp_logs whatsapp_logs[]
   consent_forms consent_forms[]
-  
+
   @@index([doctor_id])
+  @@index([hospital_id])
 }
 
 model opd_records {
-  id                String   @id @default(uuid())
-  patient_id        String
-  doctor_id         String
-  nurse_id          String?
-  created_by        String   @default("surgeon")
-  review_status     String   @default("reviewed")
-  visit_type        String
-  complaint         String
-  examination       String
-  diagnosis         String?
-  surgical_decision String?
-  planned_procedure String?
-  advice            String?
-  follow_up_date    DateTime?
-  reminder_sent     Boolean  @default(false)
-  created_at        DateTime @default(now())
-  
+  id                       String     @id @default(uuid())
+  patient_id               String
+  doctor_id                String
+  nurse_id                 String?
+  hospital_id              String?
+  hospital_name            String?
+  hospital_logo_url        String?
+  created_by               String     @default("surgeon")
+  review_status            String     @default("reviewed")
+  visit_type               String
+  complaint                String
+  examination              String
+  diagnosis                String?
+  surgical_decision        String?
+  planned_procedure        String?
+  advice                   String?
+  follow_up_date           DateTime?
+  reminder_sent            Boolean    @default(false)
+  prescription_image_urls  String[]
+  created_at               DateTime   @default(now())
+
   patient           patients @relation(fields: [patient_id], references: [id])
   doctor            doctors  @relation(fields: [doctor_id], references: [id])
+  hospital          hospitals? @relation(fields: [hospital_id], references: [id])
   medications       medications[]
   investigations    investigations[]
   ai_diagnosis_logs ai_diagnosis_logs[]
-  
+
   @@index([doctor_id])
   @@index([patient_id])
+  @@index([hospital_id])
 }
 
 model medications {
@@ -135,43 +169,49 @@ model investigations {
 }
 
 model ipd_admissions {
-  id              String   @id @default(uuid())
-  patient_id      String
-  doctor_id       String
-  bed_no          String?
-  ward            String?
-  admitted_at     DateTime @default(now())
-  discharge_at    DateTime?
-  urgency         String
-  consent_status  String   @default("pending")
-  status          String   @default("admitted")
-  
-  patient          patients           @relation(fields: [patient_id], references: [id])
-  doctor           doctors            @relation(fields: [doctor_id], references: [id])
-  pre_op_notes     pre_op_notes[]
-  intra_op_notes   intra_op_notes[]
-  post_op_notes    post_op_notes[]
-  ward_round_notes ward_round_notes[]
+  id                String   @id @default(uuid())
+  patient_id        String
+  doctor_id         String
+  hospital_id       String?
+  hospital_name     String?
+  hospital_logo_url String?
+  bed_no            String?
+  ward              String?
+  admitted_at       DateTime @default(now())
+  discharge_at      DateTime?
+  urgency           String
+  consent_status    String   @default("pending")
+  status            String   @default("admitted")
+
+  patient             patients           @relation(fields: [patient_id], references: [id])
+  doctor              doctors            @relation(fields: [doctor_id], references: [id])
+  hospital            hospitals?         @relation(fields: [hospital_id], references: [id])
+  pre_op_notes        pre_op_notes[]
+  intra_op_notes      intra_op_notes[]
+  post_op_notes       post_op_notes[]
+  ward_round_notes    ward_round_notes[]
   discharge_summaries discharge_summaries[]
-  consent_forms    consent_forms[]
-  
+  consent_forms       consent_forms[]
+
   @@index([doctor_id])
   @@index([patient_id])
+  @@index([hospital_id])
 }
 
 model pre_op_notes {
-  id                   String  @id @default(uuid())
-  admission_id         String  @unique
+  id                   String   @id @default(uuid())
+  admission_id         String   @unique
   procedure            String
   approach             String?
   anaesthesia          String?
   investigations       String[]
   risk_level           String?
   special_instructions String?
+  image_urls           String[]
   completed_at         DateTime?
-  
+
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
-  
+
   @@index([admission_id])
 }
 
@@ -185,10 +225,12 @@ model intra_op_notes {
   blood_loss      String?
   ot_start        DateTime?
   ot_end          DateTime?
+  image_urls      String[]
+  video_urls      String[]
   created_at      DateTime @default(now())
-  
+
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
-  
+
   @@index([admission_id])
 }
 
@@ -202,10 +244,11 @@ model post_op_notes {
   pain_score        Int?
   diet              String?
   medications_json  Json?
+  image_urls        String[]
   created_at        DateTime @default(now())
-  
+
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
-  
+
   @@index([admission_id])
 }
 
@@ -219,10 +262,11 @@ model ward_round_notes {
   assessment          String?
   plan                String?
   ready_for_discharge Boolean  @default(false)
+  image_urls          String[]
   created_at          DateTime @default(now())
-  
+
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
-  
+
   @@index([admission_id])
 }
 
@@ -237,10 +281,11 @@ model discharge_summaries {
   diet_instructions          String?
   follow_up_date             DateTime?
   red_flags                  String?
+  image_urls                 String[]
   created_at                 DateTime @default(now())
-  
+
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
-  
+
   @@index([admission_id])
 }
 
@@ -250,6 +295,8 @@ model appointments {
   doctor_id     String
   slot_datetime DateTime
   visit_type    String
+  procedure     String?
+  urgency       String?
   status        String   @default("booked")
   booked_by     String   @default("parent")
   created_at    DateTime @default(now())
@@ -262,19 +309,25 @@ model appointments {
 }
 
 model documents {
-  id          String   @id @default(uuid())
-  patient_id  String
-  doctor_id   String
-  name        String
-  url         String
-  type        String
-  uploaded_at DateTime @default(now())
-  
-  patient patients @relation(fields: [patient_id], references: [id])
-  doctor  doctors  @relation(fields: [doctor_id], references: [id])
-  
+  id               String   @id @default(uuid())
+  patient_id       String
+  doctor_id        String
+  hospital_id      String?
+  name             String
+  url              String
+  type             String
+  category         String?
+  uploaded_by_role String   @default("surgeon")
+  recorded_at      DateTime @default(now())
+  uploaded_at      DateTime @default(now())
+
+  patient patients   @relation(fields: [patient_id], references: [id])
+  doctor  doctors    @relation(fields: [doctor_id], references: [id])
+  hospital hospitals? @relation(fields: [hospital_id], references: [id])
+
   @@index([patient_id])
   @@index([doctor_id])
+  @@index([hospital_id])
 }
 
 model whatsapp_logs {
@@ -306,29 +359,64 @@ model otp_sessions {
 }
 
 model consent_forms {
-  id                    String    @id @default(uuid())
-  admission_id          String
-  patient_id            String
-  doctor_id             String
-  form_type             String
-  content_json          Json
-  pdf_url               String?
-  signed_pdf_url        String?
-  parent_signature_url  String?
-  witness_name          String?
-  witness_signature_url String?
-  generated_at          DateTime  @default(now())
-  signed_at             DateTime?
-  generated_by          String    @default("surgeon")
-  status                String    @default("pending")
-  
+  id                         String    @id @default(uuid())
+  admission_id               String
+  patient_id                 String
+  doctor_id                  String
+  form_type                  String
+  content_json               Json
+  pdf_url                    String?
+  signed_pdf_url             String?
+  parent_signature_url       String?
+  witness_name               String?
+  witness_signature_url      String?
+  generated_at               DateTime  @default(now())
+  signed_at                  DateTime?
+  generated_by               String    @default("surgeon")
+  status                     String    @default("pending")
+
+  // Enhanced consent metadata and compliance fields
+  consent_number             String?   @unique
+  version                    String    @default("v2.1")
+  language                   String    @default("English")
+  guardian_relationship      String?
+  witness_relationship       String?
+  witness_mobile             String?
+  pdf_hash                   String?
+  signed_pdf_hash            String?
+
+  // Hospital information
+  hospital_id                String?
+  hospital_name              String?
+  hospital_address           String?
+  hospital_contact           String?
+  hospital_registration_number String?
+  hospital_logo_url          String?
+
+  // Department / ward context
+  department                 String?
+
+  // Doctor information (denormalised for the consent record)
+  doctor_qualification       String?
+  doctor_registration_number String?
+
+  // Clinical information (also present in content_json; mirrored for queryability)
+  diagnosis                  String?
+  procedure_description      String?
+  expected_recovery          String?
+  possible_complications     String?
+  material_risks             String?
+
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
   patient   patients        @relation(fields: [patient_id], references: [id])
   doctor    doctors         @relation(fields: [doctor_id], references: [id])
-  
+  hospital  hospitals?      @relation(fields: [hospital_id], references: [id])
+
   @@index([doctor_id])
   @@index([patient_id])
   @@index([admission_id])
+  @@index([hospital_id])
+  @@index([consent_number])
 }
 
 model ai_diagnosis_logs {
