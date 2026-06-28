@@ -12,11 +12,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,30 +49,36 @@ fun NorituraBottomNav(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(72.dp)
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(28.dp),
-                ambientColor = NorituraColors.PrimaryBlue.copy(alpha = 0.08f),
-                spotColor = NorituraColors.PrimaryBlue.copy(alpha = 0.12f)
-            )
-            .clip(RoundedCornerShape(28.dp))
-            .background(NorituraColors.Surface)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
-            .navigationBarsPadding()
+            .safeDrawingPadding()
+            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            items.forEachIndexed { index, item ->
-                val selected = index == selectedIndex
-                NavItem(
-                    item = item,
-                    selected = selected,
-                    onClick = { onItemSelected(index) }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(32.dp),
+                    ambientColor = NorituraColors.PrimaryBlue.copy(alpha = 0.12f),
+                    spotColor = NorituraColors.PrimaryBlue.copy(alpha = 0.18f)
                 )
+                .clip(RoundedCornerShape(32.dp))
+                .background(NorituraColors.Surface)
+                .padding(horizontal = 10.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEachIndexed { index, item ->
+                    val selected = index == selectedIndex
+                    NavItem(
+                        item = item,
+                        selected = selected,
+                        onClick = { onItemSelected(index) }
+                    )
+                }
             }
         }
     }
@@ -99,9 +104,9 @@ private fun NavItem(
 
     Box(
         modifier = Modifier
-            .height(48.dp)
+            .height(52.dp)
             .width(pillWidth)
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(26.dp))
             .background(if (selected) NorituraColors.PrimaryBlueLight else NorituraColors.Surface)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -114,7 +119,7 @@ private fun NavItem(
                 imageVector = if (selected && item.selectedIcon != null) item.selectedIcon else item.icon,
                 contentDescription = item.label,
                 tint = iconColor,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(24.dp)
             )
             AnimatedVisibility(
                 visible = selected,
