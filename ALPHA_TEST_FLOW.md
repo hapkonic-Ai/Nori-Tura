@@ -10,12 +10,15 @@ This document covers the full Alpha test matrix for the KMM app (Android / iOS /
    ```bash
    cd backend
    docker compose up -d
+   source .venv/bin/activate
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 2. **Prisma schema in sync**
    ```bash
    cd backend
-   prisma migrate dev
+   source .venv/bin/activate
+   prisma generate
+   prisma db push
    ```
 3. **Mobile/Web app** pointed at the backend:
    - Android emulator: `http://10.0.2.2:8000`
@@ -31,74 +34,58 @@ This document covers the full Alpha test matrix for the KMM app (Android / iOS /
 
 ## 2. Test Data Setup
 
-Use these representative Indian phone numbers:
+Run the provided seed scripts from the `backend` directory (with the virtual environment activated):
 
-| Role | Phone |
-|------|-------|
-| Surgeon | `+919876543210` |
-| Nurse | `+919876543215` |
-| Parent A | `+919876543212` |
-| Parent B (isolation test) | `+919876543213` |
-| Admin | `+919876543214` |
+```bash
+cd backend
+source .venv/bin/activate
+
+# Schema + Prisma client
+prisma generate
+prisma db push
+
+# Seed records
+python scripts/seed_superadmin.py
+python scripts/backfill_hospitals.py
+python scripts/seed_test_data.py
+```
+
+This creates the following test environment:
+
+| Role | Phone | Name / Notes |
+|------|-------|--------------|
+| Superadmin | `+919999999999` | Super Admin |
+| Surgeon (Test Hospital) | `+919876543210` | Dr. Arjun Mehta — Pediatric Surgery |
+| Surgeon (CMC) | `+919304155460` | Dr. Priya Sharma — Pediatric Urology |
+| Nurse | `+919876543211` | Nurse Renu (under Dr. Arjun Mehta) |
+| Nurse | `+919876543212` | Nurse Karthik (under Dr. Arjun Mehta) |
+| Nurse | `+919876543213` | Nurse Anjali (under Dr. Priya Sharma) |
+| Nurse | `+919876543214` | Nurse David (under Dr. Priya Sharma) |
+| Parent A / Patient | `+918000000001` | Parent: Raj Patel — Patient: Aarav Patel |
+| Parent B | `+918000000002` | Parent: Sunita Singh — Patient: Diya Singh |
+| Parent C | `+918000000003` | Parent: Pooja Gupta — Patient: Vihaan Gupta |
+| Parent D (isolation test) | `+918000000004` | Parent: Mohan Reddy — Patient: Isha Reddy |
+| Parent E | `+918000000005` | Parent: Fatima Khan — Patient: Kabir Khan |
+| Parent F | `+918000000006` | Parent: Suresh Iyer — Patient: Ananya Iyer |
 
 > **Important:** Each phone number must map to only one role. Auth resolves `admin → surgeon → nurse → parent` in that order. If a parent phone is already registered as staff, login will route to the staff role instead of the parent flow.
 
-### 2.1 Register & activate the surgeon
+Seeded data also includes:
+- **6 OPD records** with medications and investigations
+- **2 IPD admissions** (Aarav Patel in PICU, Vihaan Gupta in Pediatric Ward)
+- **3 appointments**
+- **2 hospitals**: `Test Hospital` and `CMC`
+
+If you need a fresh database, run:
 
 ```bash
-curl -X POST http://localhost:8000/auth/register-doctor \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Dr. Priya Mehta","phone":"+919876543210","hospital":"ABC Childrens Hospital","specialty":"Pediatric Surgery"}'
-
-# Activate via psql
-psql "postgresql://postgres:postgres@localhost:5432/noritura" \
-  -c "UPDATE doctors SET is_active = true WHERE phone = '+919876543210';"
+cd backend
+source .venv/bin/activate
+prisma db push --force-reset
+python scripts/seed_superadmin.py
+python scripts/backfill_hospitals.py
+python scripts/seed_test_data.py
 ```
-
-### 2.2 Create a nurse
-
-```bash
-# Get surgeon token
-curl -X POST http://localhost:8000/auth/send-otp -H "Content-Type: application/json" -d '{"phone":"+919876543210"}'
-curl -X POST http://localhost:8000/auth/verify-otp -H "Content-Type: application/json" -d '{"phone":"+919876543210","otp":"<DEV_OTP>"}'
-
-# Create nurse
-curl -X POST http://localhost:8000/nurses \
-  -H "Authorization: Bearer <SURGEON_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Nurse Rani","phone":"+919876543215","hospital":"ABC Childrens Hospital"}'
-```
-
-### 2.3 Create patients
-
-```bash
-curl -X POST http://localhost:8000/patients \
-  -H "Authorization: Bearer <SURGEON_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name":"Rohan Sharma",
-    "age":7,
-    "gender":"Male",
-    "blood_group":"B+",
-    "allergies":"Pollen",
-    "parent_name":"Mr. Rajesh Sharma",
-    "parent_phone":"+919876543212"
-  }'
-
-curl -X POST http://localhost:8000/patients \
-  -H "Authorization: Bearer <SURGEON_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name":"Ananya Iyer",
-    "age":4,
-    "gender":"Female",
-    "blood_group":"O+",
-    "parent_name":"Mrs. Deepa Iyer",
-    "parent_phone":"+919876543213"
-  }'
-```
-
-Save `patient.id` values as `PATIENT_ID_A` and `PATIENT_ID_B`.
 
 ---
 
@@ -113,15 +100,15 @@ Save `patient.id` values as `PATIENT_ID_A` and `PATIENT_ID_B`.
 
 ### Flow 3.2 — Nurse login
 
-1. Login with `+919876543215`.
+1. Login with `+919876543211` (or any seeded nurse number: `+919876543212`, `+919876543213`, `+919876543214`).
 
 **Expected:** Routed to **Nurse Home**.
 
 ### Flow 3.3 — Parent login
 
-1. Login with `+919876543212`.
+1. Login with `+918000000001`.
 
-**Expected:** Routed to **Parent Home** for Rohan Sharma.
+**Expected:** Routed to **Parent Home** for Aarav Patel.
 
 ### Flow 3.4 — Invalid role isolation
 
@@ -250,7 +237,7 @@ See `CONSENT_TEST_FLOW.md` for detailed consent steps. High-level:
 
 ### Flow 7.1 — Parent Home
 
-1. Login as parent `+919876543212`.
+1. Login as parent `+918000000001`.
 
 **Expected:**
 - Live surgery status card (if child is admitted).
@@ -325,8 +312,8 @@ See `CONSENT_TEST_FLOW.md` for detailed consent steps. High-level:
 
 ### Flow 9.2 — Parent Isolation
 
-1. Login as Parent A (`+919876543212`).
-2. Try to access Parent B's child data.
+1. Login as Parent A (`+918000000001`).
+2. Try to access Parent B's (`+918000000002`) child data.
 
 **Expected:** `403 Forbidden`.
 
@@ -358,6 +345,6 @@ Use before each Alpha release:
 - [ ] Consent can be generated by surgeon and signed by parent.
 - [ ] Nurse can log in and create OPD notes.
 - [ ] Parent can log in and view surgery status / OPD records.
-- [ ] Admin can approve pending doctors.
+- [ ] Admin can log in and approve pending doctors.
 - [ ] No cross-doctor / cross-parent data leaks.
 - [ ] All platform builds pass (Android, iOS simulator, JS, Wasm).
