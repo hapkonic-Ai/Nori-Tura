@@ -271,9 +271,9 @@ private fun SurgeonCard(
                     color = NorituraColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
-                if (!doctor?.hospital.isNullOrBlank()) {
+                if (!doctor?.hospitalName.isNullOrBlank()) {
                     Text(
-                        text = doctor?.hospital ?: "",
+                        text = doctor?.hospitalName ?: "",
                         color = NorituraColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )

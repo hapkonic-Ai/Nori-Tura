@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -42,12 +44,17 @@ fun ConsentFormScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var formType by remember { mutableStateOf("Surgical Consent") }
+    var diagnosis by remember { mutableStateOf("") }
     var procedure by remember { mutableStateOf("") }
     var anesthesia by remember { mutableStateOf("") }
     var risks by remember { mutableStateOf("") }
     var benefits by remember { mutableStateOf("") }
     var alternatives by remember { mutableStateOf("") }
     var postOpCare by remember { mutableStateOf("") }
+    var hospitalName by remember { mutableStateOf("") }
+    var consentForAnesthesia by remember { mutableStateOf(true) }
+    var consentForBloodProducts by remember { mutableStateOf(false) }
+    var consentForPhotography by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         if (uiState is ConsentFormViewModel.UiState.Success) {
@@ -88,9 +95,23 @@ fun ConsentFormScreen(
             )
 
             OutlinedTextField(
+                value = hospitalName,
+                onValueChange = { hospitalName = it },
+                label = { Text("Hospital / Facility Name") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = diagnosis,
+                onValueChange = { diagnosis = it },
+                label = { Text("Diagnosis *") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
                 value = procedure,
                 onValueChange = { procedure = it },
-                label = { Text("Procedure *") },
+                label = { Text("Proposed Procedure *") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -137,6 +158,22 @@ fun ConsentFormScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            ConsentCheckbox(
+                text = "Consent for anesthesia / sedation",
+                checked = consentForAnesthesia,
+                onCheckedChange = { consentForAnesthesia = it }
+            )
+            ConsentCheckbox(
+                text = "Consent for blood / blood product transfusion if required",
+                checked = consentForBloodProducts,
+                onCheckedChange = { consentForBloodProducts = it }
+            )
+            ConsentCheckbox(
+                text = "Consent for clinical photography / recording for treatment records",
+                checked = consentForPhotography,
+                onCheckedChange = { consentForPhotography = it }
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             if (uiState is ConsentFormViewModel.UiState.Error) {
@@ -153,17 +190,23 @@ fun ConsentFormScreen(
                         ConsentFormCreateRequest(
                             admissionId = admissionId,
                             formType = formType,
+                            diagnosis = diagnosis,
                             procedure = procedure,
                             anesthesia = anesthesia,
                             risks = risks,
                             benefits = benefits,
                             alternatives = alternatives,
-                            postOpCare = postOpCare
+                            postOpCare = postOpCare,
+                            hospitalName = hospitalName.takeIf { it.isNotBlank() },
+                            consentForAnesthesia = consentForAnesthesia,
+                            consentForBloodProducts = consentForBloodProducts,
+                            consentForPhotography = consentForPhotography
                         )
                     )
                 },
                 enabled = uiState !is ConsentFormViewModel.UiState.Loading &&
                     formType.isNotBlank() &&
+                    diagnosis.isNotBlank() &&
                     procedure.isNotBlank() &&
                     anesthesia.isNotBlank() &&
                     risks.isNotBlank() &&
@@ -179,5 +222,29 @@ fun ConsentFormScreen(
                 }
             }
         }
+    }
+}
+
+
+@Composable
+private fun ConsentCheckbox(
+    text: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+        Text(
+            text = text,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(start = 8.dp)
+        )
     }
 }

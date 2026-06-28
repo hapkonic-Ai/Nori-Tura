@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +38,7 @@ import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.KpiTile
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.presentation.components.NurseBottomNav
 import com.example.nori_tura.presentation.components.SectionTitle
 import com.example.nori_tura.ui.theme.NorituraColors
 
@@ -44,7 +47,8 @@ fun NurseHomeScreen(
     viewModel: NurseDashboardViewModel = viewModel { NurseDashboardViewModel() },
     onNavigateToPatientList: () -> Unit,
     onNavigateToAddPatient: () -> Unit,
-    onNavigateToAppointments: () -> Unit
+    onNavigateToAppointments: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -53,7 +57,24 @@ fun NurseHomeScreen(
             BrandTopBar(
                 initials = "NR",
                 title = "SurgiCare",
-                notificationCount = 0
+                notificationCount = 0,
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = NorituraColors.TextPrimary
+                        )
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            NurseBottomNav(
+                selectedRoute = "home",
+                onHome = { },
+                onPatients = onNavigateToPatientList,
+                onAppointments = onNavigateToAppointments
             )
         },
         floatingActionButton = {
@@ -163,7 +184,6 @@ fun NurseHomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }

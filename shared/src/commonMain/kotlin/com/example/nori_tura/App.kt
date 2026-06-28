@@ -18,17 +18,23 @@ import com.example.nori_tura.presentation.auth.RegisterDoctorScreen
 import com.example.nori_tura.presentation.auth.VerifyOtpScreen
 import com.example.nori_tura.presentation.home.NurseHomeScreen
 import com.example.nori_tura.presentation.home.ParentHomeScreen
+import com.example.nori_tura.presentation.parent.ParentConsultDetailScreen
+import com.example.nori_tura.presentation.parent.ParentOpdRecordsScreen
 import com.example.nori_tura.presentation.parent.ParentProfileScreen
+import com.example.nori_tura.presentation.parent.SurgeryStatusScreen
 import com.example.nori_tura.presentation.ipd.AdmissionsListScreen
 import com.example.nori_tura.presentation.ipd.AdmissionDetailScreen
 import com.example.nori_tura.presentation.ipd.ConsentFormScreen
 import com.example.nori_tura.presentation.ipd.ConsentViewScreen
 import com.example.nori_tura.presentation.opd.OpdConsultScreen
+import com.example.nori_tura.presentation.opd.OpdRecordDetailScreen
 import com.example.nori_tura.presentation.surgeon.AddPatientScreen
 import com.example.nori_tura.presentation.surgeon.PatientListScreen
 import com.example.nori_tura.presentation.surgeon.PatientProfileScreen
+import com.example.nori_tura.presentation.surgeon.ScheduleScreen
 import com.example.nori_tura.presentation.surgeon.SurgeonMainScreen
 import com.example.nori_tura.presentation.surgeon.SurgicalTemplatesScreen
+import com.example.nori_tura.presentation.surgeon.WhatsAppPreviewScreen
 import com.example.nori_tura.ui.theme.NorituraTheme
 
 @Composable
@@ -124,6 +130,15 @@ fun App(
                     onNavigateToAppointments = { navController.navigate("appointments") },
                     onNavigateToSurgicalTemplates = { navController.navigate("surgical_templates") },
                     onNavigateToAdmissions = { navController.navigate("admissions") },
+                    onNavigateToFollowUpPreview = { recordId ->
+                        navController.navigate("follow_up_preview/$recordId")
+                    },
+                    onNavigateToConsentView = { consentId ->
+                        navController.navigate("consent_view/$consentId")
+                    },
+                    onNavigateToAdmissionDetail = { admissionId ->
+                        navController.navigate("admission_detail/$admissionId")
+                    },
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate("login") {
@@ -146,8 +161,10 @@ fun App(
             composable("add_patient") {
                 AddPatientScreen(
                     onBack = { navController.popBackStack() },
-                    onPatientAdded = {
-                        navController.popBackStack()
+                    onPatientAdded = { patientId ->
+                        navController.navigate("patient_profile/$patientId") {
+                            popUpTo("add_patient") { inclusive = true }
+                        }
                     }
                 )
             }
@@ -163,7 +180,18 @@ fun App(
                     },
                     onNavigateToConsentView = { consentId ->
                         navController.navigate("consent_view/$consentId")
+                    },
+                    onNavigateToOpdRecordDetail = { recordId ->
+                        navController.navigate("opd_record_detail/$recordId")
                     }
+                )
+            }
+
+            composable("opd_record_detail/{recordId}") { backStackEntry ->
+                val recordId = backStackEntry.arguments?.getString("recordId") ?: ""
+                OpdRecordDetailScreen(
+                    recordId = recordId,
+                    onBack = { navController.popBackStack() }
                 )
             }
 
@@ -179,7 +207,9 @@ fun App(
             }
 
             composable("appointments") {
-                Text(text = "Appointments screen - coming soon")
+                ScheduleScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable("surgical_templates") {
@@ -190,7 +220,6 @@ fun App(
 
             composable("admissions") {
                 AdmissionsListScreen(
-                    patients = emptyList(),
                     onBack = { navController.popBackStack() },
                     onAdmissionClick = { admissionId ->
                         navController.navigate("admission_detail/$admissionId")
@@ -233,11 +262,25 @@ fun App(
                 )
             }
 
+            composable("follow_up_preview/{recordId}") { backStackEntry ->
+                val recordId = backStackEntry.arguments?.getString("recordId") ?: ""
+                WhatsAppPreviewScreen(
+                    recordId = recordId,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
             composable("nurse_home") {
                 NurseHomeScreen(
                     onNavigateToPatientList = { navController.navigate("patient_list") },
                     onNavigateToAddPatient = { navController.navigate("add_patient") },
-                    onNavigateToAppointments = { navController.navigate("appointments") }
+                    onNavigateToAppointments = { navController.navigate("appointments") },
+                    onLogout = {
+                        authViewModel.logout()
+                        navController.navigate("login") {
+                            popUpTo("nurse_home") { inclusive = true }
+                        }
+                    }
                 )
             }
 
@@ -267,6 +310,10 @@ fun App(
 
             composable("parent_home") {
                 ParentHomeScreen(
+                    onNavigateToRecords = { navController.navigate("parent_records") },
+                    onNavigateToSurgeryStatus = { admissionId ->
+                        navController.navigate("surgery_status/$admissionId")
+                    },
                     onNavigateToConsentView = { consentId ->
                         navController.navigate("parent_consent_view/$consentId")
                     },
@@ -294,6 +341,34 @@ fun App(
                             popUpTo("parent_profile") { inclusive = true }
                         }
                     }
+                )
+            }
+
+            composable("parent_records") {
+                ParentOpdRecordsScreen(
+                    onBack = { navController.popBackStack() },
+                    onRecordClick = { recordId ->
+                        navController.navigate("parent_consult_detail/$recordId")
+                    }
+                )
+            }
+
+            composable("surgery_status/{admissionId}") { backStackEntry ->
+                val admissionId = backStackEntry.arguments?.getString("admissionId") ?: ""
+                SurgeryStatusScreen(
+                    admissionId = admissionId,
+                    onBack = { navController.popBackStack() },
+                    onNavigateToConsentView = { consentId ->
+                        navController.navigate("parent_consent_view/$consentId")
+                    }
+                )
+            }
+
+            composable("parent_consult_detail/{recordId}") { backStackEntry ->
+                val recordId = backStackEntry.arguments?.getString("recordId") ?: ""
+                ParentConsultDetailScreen(
+                    recordId = recordId,
+                    onBack = { navController.popBackStack() }
                 )
             }
 

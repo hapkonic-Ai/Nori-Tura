@@ -15,9 +15,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -33,6 +36,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,6 +55,7 @@ import com.example.nori_tura.data.dto.DifferentialDiagnosis
 import com.example.nori_tura.data.dto.InvestigationCreateDto
 import com.example.nori_tura.data.dto.MedicationCreateDto
 import com.example.nori_tura.data.dto.OpdRecordCreateRequest
+import com.example.nori_tura.util.epochDaysToIsoDate
 
 private data class MedicationFormData(
     val name: String = "",
@@ -235,11 +240,10 @@ fun OpdConsultScreen(
                 }
 
                 item {
-                    OutlinedTextField(
+                    DatePickerField(
+                        label = "Follow-up Date",
                         value = followUpDate,
                         onValueChange = { followUpDate = it },
-                        label = { Text("Follow-up Date (ISO 8601)") },
-                        placeholder = { Text("YYYY-MM-DD") },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -602,6 +606,59 @@ private fun SuggestionCard(index: Int, diagnosis: DifferentialDiagnosis) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        placeholder = { Text("Select date") },
+        trailingIcon = {
+            IconButton(onClick = { showDialog = true }) {
+                Icon(Icons.Default.DateRange, contentDescription = "Select date")
+            }
+        },
+        modifier = modifier
+    )
+
+    if (showDialog) {
+        DatePickerDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val days = (millis / 86_400_000).toInt()
+                            onValueChange(epochDaysToIsoDate(days))
+                        }
+                        showDialog = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

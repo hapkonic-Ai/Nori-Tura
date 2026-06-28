@@ -12,7 +12,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -36,7 +41,7 @@ import com.example.nori_tura.presentation.components.NorituraScaffold
 fun AddPatientScreen(
     viewModel: AddPatientViewModel = viewModel { AddPatientViewModel() },
     onBack: () -> Unit,
-    onPatientAdded: () -> Unit
+    onPatientAdded: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -49,8 +54,8 @@ fun AddPatientScreen(
     var parentPhone by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState) {
-        if (uiState is AddPatientViewModel.UiState.Success) {
-            onPatientAdded()
+        (uiState as? AddPatientViewModel.UiState.Success)?.let { success ->
+            success.patient.id?.let { onPatientAdded(it) }
             viewModel.resetState()
         }
     }
@@ -108,12 +113,9 @@ fun AddPatientScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = gender,
-            onValueChange = { gender = it },
-            label = { Text("Gender") },
-            placeholder = { Text("male / female / other") },
-            singleLine = true,
+        GenderDropdown(
+            selected = gender,
+            onSelectedChange = { gender = it },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -202,6 +204,46 @@ fun AddPatientScreen(
                 style = MaterialTheme.typography.bodyMedium
             )
         }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GenderDropdown(
+    selected: String,
+    onSelectedChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = listOf("male", "female", "other")
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selected.replaceFirstChar { it.uppercase() },
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Gender *") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.replaceFirstChar { it.uppercase() }) },
+                    onClick = {
+                        onSelectedChange(option)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }

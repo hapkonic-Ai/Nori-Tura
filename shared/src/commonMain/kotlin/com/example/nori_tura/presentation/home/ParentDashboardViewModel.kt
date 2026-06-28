@@ -29,6 +29,16 @@ class ParentDashboardViewModel(
             }
         val activeAdmissions: Int
             get() = admissions.count { it.status == "admitted" || it.status == "pre-op" || it.status == "in-surgery" || it.status == "recovery" }
+
+        val activeAdmission: AdmissionDto?
+            get() = admissions.firstOrNull {
+                it.status == "admitted" || it.status == "pre-op" || it.status == "in-surgery" || it.status == "recovery"
+            }
+
+        val nextAppointment: AppointmentDto?
+            get() = appointments
+                .filter { (it.status == "scheduled" || it.status == "booked") && (it.slotDatetime?.compareTo(getCurrentDateString()) ?: -1) >= 0 }
+                .minByOrNull { it.slotDatetime ?: "" }
     }
 
     sealed class UiState {

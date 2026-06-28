@@ -1,7 +1,9 @@
 package com.example.nori_tura.presentation.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -16,7 +21,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocalHospital
@@ -34,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.data.dto.AdmissionDto
+import com.example.nori_tura.data.dto.AppointmentDto
 import com.example.nori_tura.data.dto.ConsentFormDto
 import com.example.nori_tura.data.dto.PatientDto
 import com.example.nori_tura.presentation.components.ActionCard
@@ -45,6 +51,7 @@ import com.example.nori_tura.presentation.components.KpiTile
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.NorituraSurfaceCard
+import com.example.nori_tura.presentation.components.ParentBottomNav
 import com.example.nori_tura.presentation.components.SectionTitle
 import com.example.nori_tura.presentation.components.StatusChip
 import com.example.nori_tura.ui.theme.NorituraColors
@@ -52,8 +59,8 @@ import com.example.nori_tura.ui.theme.NorituraColors
 @Composable
 fun ParentHomeScreen(
     viewModel: ParentDashboardViewModel = viewModel { ParentDashboardViewModel() },
-    onNavigateToAppointments: () -> Unit = {},
     onNavigateToRecords: () -> Unit = {},
+    onNavigateToSurgeryStatus: (String) -> Unit = {},
     onNavigateToConsentView: (String) -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onLogout: () -> Unit = {}
@@ -75,6 +82,14 @@ fun ParentHomeScreen(
                         )
                     }
                 }
+            )
+        },
+        bottomBar = {
+            ParentBottomNav(
+                selectedRoute = "home",
+                onHome = { },
+                onRecords = onNavigateToRecords,
+                onProfile = onNavigateToProfile
             )
         }
     ) { paddingValues ->
@@ -153,29 +168,30 @@ fun ParentHomeScreen(
                         )
                     }
 
+                    dashboard.activeAdmission?.let { admission ->
+                        SectionTitle(title = "Live Surgery Status")
+                        SurgeryStatusCard(
+                            admission = admission,
+                            onClick = { admission.id?.let(onNavigateToSurgeryStatus) }
+                        )
+                    }
+
+                    dashboard.nextAppointment?.let { appointment ->
+                        SectionTitle(title = "Next Appointment")
+                        NextAppointmentCard(appointment = appointment)
+                    }
+
                     SectionTitle(title = "Quick Actions")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         ActionCard(
-                            label = "Appointments",
-                            icon = Icons.Default.CalendarMonth,
-                            onClick = onNavigateToAppointments,
-                            modifier = Modifier.weight(1f)
-                        )
-                        ActionCard(
                             label = "Records",
                             icon = Icons.AutoMirrored.Filled.List,
                             onClick = onNavigateToRecords,
                             modifier = Modifier.weight(1f)
                         )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
                         ActionCard(
                             label = "Profile",
                             icon = Icons.Default.Person,
@@ -204,7 +220,7 @@ fun ParentHomeScreen(
                     }
 
                     val pendingConsents = dashboard.admissions
-                        .flatMap { it.consentForms }
+                        .flatMap { it.consentForms ?: emptyList() }
                         .filter { it.status != "signed" }
                         .sortedByDescending { it.generatedAt }
 
@@ -225,6 +241,133 @@ fun ParentHomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun SurgeryStatusCard(
+    admission: AdmissionDto,
+    onClick: () -> Unit
+) {
+    val status = admission.status ?: "Admitted"
+    val statusColor = when (status.lowercase()) {
+        "pre-op" -> NorituraColors.PreOp
+        "in-surgery", "in-operation" -> NorituraColors.InOt
+        "recovery", "post-op" -> NorituraColors.PostOp
+        "admitted" -> NorituraColors.Info
+        else -> NorituraColors.Stable
+    }
+
+    val procedure = admission.procedure
+        ?: admission.consentForms?.firstOrNull()?.contentJson?.get("procedure")?.toString()?.removeSurrounding("\"")
+        ?: "Procedure to be confirmed"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = admission.patient?.name ?: "Your Child",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                StatusChip(
+                    label = status.replaceFirstChar { it.uppercase() },
+                    color = statusColor,
+                    showDot = true
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = procedure,
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                )
+                Text(
+                    text = "Surgeon: ${admission.doctor?.name ?: "-"}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (!admission.ward.isNullOrBlank() || !admission.bedNo.isNullOrBlank()) {
+                    Text(
+                        text = "${admission.ward ?: "-"} • Bed ${admission.bedNo ?: "-"}",
+                        color = NorituraColors.TextTertiary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            Text(
+                text = "Tap to view full timeline →",
+                color = NorituraColors.PrimaryBlue,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
+            )
+        }
+    }
+}
+
+@Composable
+private fun NextAppointmentCard(
+    appointment: AppointmentDto
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(NorituraColors.PrimaryBlueLight)
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = appointment.slotDatetime?.take(10) ?: "-",
+                    color = NorituraColors.PrimaryBlue,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = appointment.slotDatetime?.timePart() ?: "--:--",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "${appointment.visitType?.replaceFirstChar { it.uppercase() } ?: "Visit"} with ${appointment.patient?.name ?: "-"}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+private fun String.timePart(): String? {
+    val index = indexOf('T')
+    if (index == -1) return null
+    return substring(index + 1).take(5)
 }
 
 @Composable
@@ -265,7 +408,12 @@ private fun ChildCard(child: PatientDto) {
                 )
             }
 
-            if (!child.allergies.isNullOrBlank()) {
+            val allergies = child.allergies?.trim()
+            if (!allergies.isNullOrBlank() &&
+                !allergies.equals("None", true) &&
+                !allergies.equals("No", true) &&
+                !allergies.equals("N/A", true)
+            ) {
                 Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = NorituraColors.Divider, thickness = 1.dp)
                 Spacer(modifier = Modifier.height(12.dp))
@@ -275,7 +423,7 @@ private fun ChildCard(child: PatientDto) {
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = child.allergies,
+                    text = allergies,
                     color = NorituraColors.Error,
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
                 )

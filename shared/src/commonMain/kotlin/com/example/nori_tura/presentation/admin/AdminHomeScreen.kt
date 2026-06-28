@@ -200,7 +200,7 @@ private fun DoctorApprovalCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             InfoRow(label = "Phone", value = doctor.phone)
-            InfoRow(label = "Hospital", value = doctor.hospital ?: "-")
+            InfoRow(label = "Hospital", value = doctor.hospitalName ?: "-")
 
             Spacer(modifier = Modifier.height(16.dp))
             Button(

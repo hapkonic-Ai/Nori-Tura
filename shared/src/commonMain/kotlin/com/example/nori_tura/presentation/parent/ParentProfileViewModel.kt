@@ -55,7 +55,7 @@ class ParentProfileViewModel(
             val child = patientsResult.getOrNull()?.firstOrNull()
             val admissions = admissionsResult.getOrNull() ?: emptyList()
             val consentForms = admissions
-                .flatMap { it.consentForms }
+                .flatMap { it.consentForms ?: emptyList() }
                 .sortedByDescending { it.generatedAt }
 
             val doctorResult = child?.doctorId?.let {

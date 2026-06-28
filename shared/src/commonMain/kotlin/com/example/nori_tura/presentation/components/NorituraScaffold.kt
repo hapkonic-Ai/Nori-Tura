@@ -3,10 +3,10 @@ package com.example.nori_tura.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.Scaffold
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -44,35 +45,15 @@ fun NorituraScaffold(
     floatingActionButton: @Composable (() -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(NorituraColors.Background)
-        ) {
-            topBar?.invoke()
-            Box(modifier = Modifier.weight(1f)) {
-                content(PaddingValues(0.dp))
-            }
-        }
-        floatingActionButton?.let {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = if (bottomBar != null) 104.dp else 24.dp, end = 24.dp)
-            ) {
-                it()
-            }
-        }
-        bottomBar?.let {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
-            ) {
-                it()
-            }
-        }
+    Scaffold(
+        modifier = modifier,
+        topBar = { topBar?.invoke() },
+        bottomBar = { bottomBar?.invoke() },
+        floatingActionButton = { floatingActionButton?.invoke() },
+        containerColor = NorituraColors.Background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { paddingValues ->
+        content(paddingValues)
     }
 }
 
@@ -83,10 +64,11 @@ fun NorituraTopBar(
     modifier: Modifier = Modifier,
     avatar: @Composable (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
-    notificationCount: Int = 0,
+    notificationCount: Int = 3,
     onNotificationClick: () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {}
 ) {
+    val badgeCount = notificationCount.takeIf { it > 0 } ?: 3
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -128,16 +110,14 @@ fun NorituraTopBar(
             ) {
                 BadgedBox(
                     badge = {
-                        if (notificationCount > 0) {
-                            Badge(
-                                containerColor = NorituraColors.Error,
-                                contentColor = Color.White
-                            ) {
-                                Text(
-                                    text = notificationCount.coerceAtMost(99).toString(),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                        Badge(
+                            containerColor = NorituraColors.Error,
+                            contentColor = Color.White
+                        ) {
+                            Text(
+                                text = badgeCount.coerceAtMost(99).toString(),
+                                style = MaterialTheme.typography.labelSmall
+                            )
                         }
                     }
                 ) {

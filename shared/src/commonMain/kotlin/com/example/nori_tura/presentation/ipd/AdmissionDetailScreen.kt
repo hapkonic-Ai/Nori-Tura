@@ -160,7 +160,7 @@ private fun AdmissionDetailContent(
         )
 
         SectionTitle("Pre-Op Notes")
-        admission.preOpNotes.forEach { note ->
+        for (note in admission.preOpNotes ?: emptyList()) {
             NoteCard {
                 Text("Procedure: ${note.procedure}", fontWeight = FontWeight.SemiBold)
                 note.approach?.let { Text("Approach: $it") }
@@ -176,7 +176,7 @@ private fun AdmissionDetailContent(
         }
 
         SectionTitle("Intra-Op Notes")
-        admission.intraOpNotes.forEach { note ->
+        for (note in admission.intraOpNotes ?: emptyList()) {
             NoteCard {
                 Text("Procedure: ${note.procedureDone}", fontWeight = FontWeight.SemiBold)
                 note.findings?.let { Text("Findings: $it") }
@@ -190,7 +190,7 @@ private fun AdmissionDetailContent(
         }
 
         SectionTitle("Post-Op Notes")
-        admission.postOpNotes.forEach { note ->
+        for (note in admission.postOpNotes ?: emptyList()) {
             NoteCard {
                 Text("Day ${note.dayNumber}: ${note.condition}", fontWeight = FontWeight.SemiBold)
                 Text("Vitals: ${note.vitalsJson.entries.joinToString { "${it.key}=${it.value}" }}")
@@ -204,7 +204,7 @@ private fun AdmissionDetailContent(
         }
 
         SectionTitle("Ward Round Notes")
-        admission.wardRoundNotes.forEach { note ->
+        for (note in admission.wardRoundNotes ?: emptyList()) {
             NoteCard {
                 Text("SOAP", fontWeight = FontWeight.SemiBold)
                 note.subjective?.let { Text("S: $it") }
@@ -221,7 +221,7 @@ private fun AdmissionDetailContent(
         }
 
         SectionTitle("Discharge Summary")
-        admission.dischargeSummaries.firstOrNull()?.let { summary ->
+        (admission.dischargeSummaries ?: emptyList()).firstOrNull()?.let { summary ->
             NoteCard {
                 Text("Condition: ${summary.conditionAtDischarge}", fontWeight = FontWeight.SemiBold)
                 Text("Procedure: ${summary.procedureSummary}")
@@ -229,14 +229,14 @@ private fun AdmissionDetailContent(
                 summary.redFlags?.let { Text("Red Flags: $it") }
             }
         }
-        if (admission.dischargeSummaries.isEmpty()) {
+        if (admission.dischargeSummaries.isNullOrEmpty()) {
             OutlinedButton(onClick = { showDischarge = true }, modifier = Modifier.fillMaxWidth()) {
                 Text("Discharge Patient")
             }
         }
 
         SectionTitle("Consent Forms")
-        admission.consentForms.forEach { consent ->
+        for (consent in admission.consentForms ?: emptyList()) {
             ConsentListCard(
                 consent = consent,
                 onClick = { consent.id.let(onNavigateToConsentView) }

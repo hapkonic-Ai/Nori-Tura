@@ -5,11 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.SurgeonRepository
 import com.example.nori_tura.data.dto.PatientDto
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class)
 class PatientListViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
     private val surgeonRepository: SurgeonRepository = SurgeonRepository()
@@ -27,13 +32,31 @@ class PatientListViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private var allPatients = emptyList<PatientDto>()
+    private val _diagnosisQuery = MutableStateFlow("")
+    val diagnosisQuery: StateFlow<String> = _diagnosisQuery.asStateFlow()
+
+    private val _selectedStatus = MutableStateFlow<String?>(null)
+    val selectedStatus: StateFlow<String?> = _selectedStatus.asStateFlow()
 
     init {
-        loadPatients()
+        _searchQuery
+            .debounce(300)
+            .onEach { fetchPatients() }
+            .launchIn(viewModelScope)
+
+        _diagnosisQuery
+            .debounce(300)
+            .onEach { fetchPatients() }
+            .launchIn(viewModelScope)
+
+        _selectedStatus
+            .onEach { fetchPatients() }
+            .launchIn(viewModelScope)
+
+        fetchPatients()
     }
 
-    fun loadPatients() {
+    fun fetchPatients() {
         val token = authRepository.getToken() ?: run {
             _uiState.value = UiState.Error("Not authenticated")
             return
@@ -41,10 +64,14 @@ class PatientListViewModel(
 
         _uiState.value = UiState.Loading
         viewModelScope.launch {
-            surgeonRepository.getPatients(token)
+            surgeonRepository.getPatients(
+                token = token,
+                search = _searchQuery.value.takeIf { it.isNotBlank() },
+                diagnosis = _diagnosisQuery.value.takeIf { it.isNotBlank() },
+                status = _selectedStatus.value
+            )
                 .onSuccess { patients ->
-                    allPatients = patients
-                    applyFilter()
+                    _uiState.value = UiState.Success(patients)
                 }
                 .onFailure { error ->
                     _uiState.value = UiState.Error(error.message ?: "Failed to load patients")
@@ -54,20 +81,13 @@ class PatientListViewModel(
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
-        applyFilter()
     }
 
-    private fun applyFilter() {
-        val query = _searchQuery.value.trim().lowercase()
-        val filtered = if (query.isEmpty()) {
-            allPatients
-        } else {
-            allPatients.filter { patient ->
-                val nameMatch = patient.name?.lowercase()?.contains(query) ?: false
-                val phoneMatch = patient.parentPhone?.contains(query) ?: false
-                nameMatch || phoneMatch
-            }
-        }
-        _uiState.value = UiState.Success(filtered)
+    fun onDiagnosisQueryChange(query: String) {
+        _diagnosisQuery.value = query
+    }
+
+    fun onStatusFilterSelected(status: String?) {
+        _selectedStatus.value = status
     }
 }

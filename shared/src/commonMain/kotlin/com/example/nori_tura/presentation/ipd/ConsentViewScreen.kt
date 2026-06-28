@@ -3,6 +3,7 @@ package com.example.nori_tura.presentation.ipd
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.ConsentSignRequest
+import kotlinx.serialization.json.JsonObject
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
@@ -123,24 +126,65 @@ private fun ConsentViewContent(
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = content?.get("patient_name")?.toString()?.removeSurrounding("\"") ?: "Patient",
+                    text = content.string("form_title") ?: "Informed Consent",
+                    color = NorituraColors.PrimaryBlue,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                content.string("hospital_name")?.let {
+                    Text(
+                        text = it,
+                        color = NorituraColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                HorizontalDivider(color = NorituraColors.Divider)
+                Text(
+                    text = content.string("patient_name") ?: "Patient",
                     color = NorituraColors.TextPrimary,
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
-
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    InfoRowCompact(label = "Age", value = "${content.string("age") ?: "-"} yrs")
+                    InfoRowCompact(label = "Gender", value = content.string("gender") ?: "-")
+                }
+                InfoRowCompact(label = "Parent / Guardian", value = content.string("parent_name") ?: "-")
+                InfoRowCompact(label = "Parent Phone", value = content.string("parent_phone") ?: "-")
                 StatusChip(label = if (isSigned) "Signed" else "Pending", isSigned = isSigned)
-
-                InfoRow(label = "Form Type", value = consent.formType)
-                InfoRow(label = "Procedure", value = content?.get("procedure")?.toString()?.removeSurrounding("\"") ?: "-")
-                InfoRow(label = "Anesthesia", value = content?.get("anesthesia")?.toString()?.removeSurrounding("\"") ?: "-")
-                InfoRow(
-                    label = "Generated",
-                    value = consent.generatedAt?.take(10) ?: "-"
-                )
             }
+        }
+
+        ConsentDocumentSection(title = "Diagnosis & Procedure") {
+            InfoRow(label = "Diagnosis", value = content.string("diagnosis") ?: "-")
+            InfoRow(label = "Proposed Procedure", value = content.string("procedure") ?: "-")
+            InfoRow(label = "Anesthesia Plan", value = content.string("anesthesia") ?: "-")
+            InfoRow(label = "Surgeon", value = content.string("surgeon_name") ?: "-")
+        }
+
+        ConsentDocumentSection(title = "Risks, Benefits & Alternatives") {
+            ParagraphBlock(label = "Risks", text = content.string("risks"))
+            ParagraphBlock(label = "Benefits", text = content.string("benefits"))
+            ParagraphBlock(label = "Alternatives", text = content.string("alternatives"))
+            ParagraphBlock(label = "Post-operative Care", text = content.string("post_op_care"))
+        }
+
+        ConsentDocumentSection(title = "Rights & Additional Consents") {
+            ParagraphBlock(label = "Refusal Consequences", text = content.string("refusal_consequences"))
+            ParagraphBlock(label = "Right to Withdraw", text = content.string("right_to_withdraw"))
+            ParagraphBlock(label = "Privacy", text = content.string("privacy_statement"))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                InfoRowCompact(label = "Anesthesia", value = content.string("consent_for_anesthesia") ?: "-")
+                InfoRowCompact(label = "Blood Products", value = content.string("consent_for_blood_products") ?: "-")
+                InfoRowCompact(label = "Photography", value = content.string("consent_for_photography") ?: "-")
+            }
+        }
+
+        ConsentDocumentSection(title = "Declarations") {
+            ParagraphBlock(label = "Parent / Guardian Declaration", text = content.string("parent_guardian_declaration"))
+            ParagraphBlock(label = "Doctor Declaration", text = content.string("doctor_declaration"))
+            ParagraphBlock(label = "Statutory Reference", text = content.string("statutory_reference"))
         }
 
         if (!isSigned) {
@@ -241,6 +285,69 @@ private fun ConsentViewContent(
         }
 
         Spacer(modifier = Modifier.height(80.dp))
+    }
+}
+
+private fun JsonObject?.string(key: String): String? {
+    return this?.get(key)?.toString()?.removeSurrounding("\"")
+}
+
+@Composable
+private fun ConsentDocumentSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = title,
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+            HorizontalDivider(color = NorituraColors.Divider)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun ParagraphBlock(label: String, text: String?) {
+    if (text.isNullOrBlank()) return
+    Column {
+        Text(
+            text = label,
+            color = NorituraColors.TextTertiary,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Text(
+            text = text,
+            color = NorituraColors.TextPrimary,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+@Composable
+private fun InfoRowCompact(label: String, value: String) {
+    Column {
+        Text(
+            text = label,
+            color = NorituraColors.TextTertiary,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Text(
+            text = value,
+            color = NorituraColors.TextPrimary,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+        )
     }
 }
 

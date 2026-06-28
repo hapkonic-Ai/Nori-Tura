@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.dto.AdmissionCreateRequest
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.PatientDto
@@ -55,12 +56,13 @@ import com.example.nori_tura.data.dto.PatientDto
 @Composable
 fun AdmissionsListScreen(
     viewModel: AdmissionsListViewModel = viewModel { AdmissionsListViewModel() },
-    patients: List<PatientDto> = emptyList(),
     onBack: () -> Unit,
     onAdmissionClick: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val patients by viewModel.patients.collectAsState()
     var showAdmitDialog by remember { mutableStateOf(false) }
+    val allowWardBed = remember { AuthRepository().getRole()?.lowercase() != "nurse" }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
@@ -133,6 +135,7 @@ fun AdmissionsListScreen(
         androidx.compose.ui.window.Dialog(onDismissRequest = { showAdmitDialog = false }) {
             AdmitPatientDialog(
                 patients = patients,
+                allowWardBed = allowWardBed,
                 onDismiss = { showAdmitDialog = false },
                 onAdmit = { request ->
                     viewModel.createAdmission(request)
@@ -178,12 +181,15 @@ private fun AdmissionCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AdmitPatientDialog(
+fun AdmitPatientDialog(
     patients: List<PatientDto>,
+    patient: PatientDto? = null,
+    error: String? = null,
+    allowWardBed: Boolean = true,
     onDismiss: () -> Unit,
     onAdmit: (AdmissionCreateRequest) -> Unit
 ) {
-    var selectedPatient by remember { mutableStateOf<PatientDto?>(null) }
+    var selectedPatient by remember { mutableStateOf<PatientDto?>(patient) }
     var expanded by remember { mutableStateOf(false) }
     var urgency by remember { mutableStateOf("elective") }
     var urgencyExpanded by remember { mutableStateOf(false) }
@@ -198,37 +204,47 @@ private fun AdmitPatientDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Admit Patient",
+                text = if (patient != null) "Admit ${patient.name ?: "Patient"}" else "Admit Patient",
                 style = MaterialTheme.typography.headlineSmall
             )
 
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
-                    value = selectedPatient?.name ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Patient *") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                )
-                ExposedDropdownMenu(
+            if (patient == null) {
+                ExposedDropdownMenuBox(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onExpandedChange = { expanded = it },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    patients.forEach { patient ->
-                        DropdownMenuItem(
-                            text = { Text(patient.name ?: "") },
-                            onClick = {
-                                selectedPatient = patient
-                                expanded = false
-                            }
-                        )
+                    OutlinedTextField(
+                        value = selectedPatient?.name ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Select Patient *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        patients.forEach { p ->
+                            DropdownMenuItem(
+                                text = { Text(p.name ?: "") },
+                                onClick = {
+                                    selectedPatient = p
+                                    expanded = false
+                                }
+                            )
+                        }
                     }
                 }
+            }
+
+            if (!error.isNullOrBlank()) {
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             ExposedDropdownMenuBox(
@@ -260,18 +276,20 @@ private fun AdmitPatientDialog(
                 }
             }
 
-            OutlinedTextField(
-                value = ward,
-                onValueChange = { ward = it },
-                label = { Text("Ward") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = bedNo,
-                onValueChange = { bedNo = it },
-                label = { Text("Bed No") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (allowWardBed) {
+                OutlinedTextField(
+                    value = ward,
+                    onValueChange = { ward = it },
+                    label = { Text("Ward") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = bedNo,
+                    onValueChange = { bedNo = it },
+                    label = { Text("Bed No") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -289,8 +307,8 @@ private fun AdmitPatientDialog(
                                 AdmissionCreateRequest(
                                     patientId = patientId,
                                     urgency = urgency,
-                                    bedNo = bedNo.takeIf { it.isNotBlank() },
-                                    ward = ward.takeIf { it.isNotBlank() }
+                                    bedNo = if (allowWardBed) bedNo.takeIf { it.isNotBlank() } else null,
+                                    ward = if (allowWardBed) ward.takeIf { it.isNotBlank() } else null
                                 )
                             )
                         }
