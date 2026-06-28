@@ -16,6 +16,8 @@ from app.core.auth_deps import (
 
 router = APIRouter(prefix="/ipd", tags=["IPD"])
 
+ACTIVE_STATUSES = {"admitted", "pre-op", "in-surgery", "recovery"}
+
 
 class AdmissionCreate(BaseModel):
     patient_id: str
@@ -31,6 +33,7 @@ class PreOpNoteCreate(BaseModel):
     investigations: Optional[List[str]] = None
     risk_level: Optional[str] = None
     special_instructions: Optional[str] = None
+    image_urls: Optional[List[str]] = None
 
 
 class IntraOpNoteCreate(BaseModel):
@@ -41,6 +44,8 @@ class IntraOpNoteCreate(BaseModel):
     blood_loss: Optional[str] = None
     ot_start: Optional[datetime] = None
     ot_end: Optional[datetime] = None
+    image_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 
 class PostOpNoteCreate(BaseModel):
@@ -51,6 +56,7 @@ class PostOpNoteCreate(BaseModel):
     pain_score: Optional[int] = Field(None, ge=0, le=10)
     diet: Optional[str] = None
     medications_json: Optional[Dict[str, Any]] = None
+    image_urls: Optional[List[str]] = None
 
 
 class WardRoundNoteCreate(BaseModel):
@@ -59,6 +65,7 @@ class WardRoundNoteCreate(BaseModel):
     assessment: Optional[str] = None
     plan: Optional[str] = None
     ready_for_discharge: bool = False
+    image_urls: Optional[List[str]] = None
 
 
 class DischargeSummaryCreate(BaseModel):
@@ -70,6 +77,7 @@ class DischargeSummaryCreate(BaseModel):
     diet_instructions: Optional[str] = None
     follow_up_date: Optional[datetime] = None
     red_flags: Optional[str] = None
+    image_urls: Optional[List[str]] = None
 
 
 async def _require_admission_access(user: CurrentUser, admission_id: str):
@@ -112,22 +120,54 @@ async def list_admissions(user: CurrentUser = Depends(get_current_user)):
     if user.is_parent():
         patients = await prisma.patients.find_many(
             where={"parent_phone": user.phone},
-            select={"id": True},
         )
         patient_ids = [p.id for p in patients]
         admissions = await prisma.ipd_admissions.find_many(
             where={"patient_id": {"in": patient_ids}},
             order={"admitted_at": "desc"},
-            include={"patient": True, "consent_forms": {"order_by": {"generated_at": "desc"}}},
+            include={"patient": True, "doctor": True, "hospital": True, "consent_forms": {"order_by": {"generated_at": "desc"}}},
         )
     else:
         doctor_id = await resolve_doctor_id(user)
         admissions = await prisma.ipd_admissions.find_many(
             where={"doctor_id": doctor_id},
             order={"admitted_at": "desc"},
-            include={"patient": True, "consent_forms": {"order_by": {"generated_at": "desc"}}},
+            include={"patient": True, "doctor": True, "hospital": True, "consent_forms": {"order_by": {"generated_at": "desc"}}},
         )
     return admissions
+
+
+@router.get("/admissions/current")
+async def get_current_admission(user: CurrentUser = Depends(get_current_user)):
+    if not user.is_parent():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Parent access required")
+
+    patients = await prisma.patients.find_many(
+        where={"parent_phone": user.phone},
+    )
+    patient_ids = [p.id for p in patients]
+    if not patient_ids:
+        return None
+
+    admission = await prisma.ipd_admissions.find_first(
+        where={
+            "patient_id": {"in": patient_ids},
+            "status": {"in": list(ACTIVE_STATUSES)},
+        },
+        order={"admitted_at": "desc"},
+        include={
+            "patient": True,
+            "doctor": True,
+            "hospital": True,
+            "pre_op_notes": True,
+            "intra_op_notes": {"take": 1},
+            "post_op_notes": {"take": 1},
+            "ward_round_notes": {"take": 1},
+            "discharge_summaries": True,
+            "consent_forms": {"order_by": {"generated_at": "desc"}},
+        },
+    )
+    return admission
 
 
 @router.post("/admissions", status_code=status.HTTP_201_CREATED)
@@ -137,9 +177,20 @@ async def create_admission(
 ):
     patient, doctor_id = await _require_patient_access(user, req.patient_id)
 
+    doctor = await prisma.doctors.find_unique(
+        where={"id": doctor_id},
+        include={"hospital": True},
+    )
+    hospital_id = doctor.hospital_id if doctor else None
+    hospital_name = doctor.hospital.name if doctor and doctor.hospital else None
+    hospital_logo_url = doctor.hospital.logo_url if doctor and doctor.hospital else None
+
     data = {
         "patient_id": req.patient_id,
         "doctor_id": doctor_id,
+        "hospital_id": hospital_id,
+        "hospital_name": hospital_name,
+        "hospital_logo_url": hospital_logo_url,
         "urgency": req.urgency,
     }
 
@@ -156,7 +207,7 @@ async def create_admission(
 
     admission = await prisma.ipd_admissions.create(
         data=data,
-        include={"patient": True},
+        include={"patient": True, "hospital": True, "doctor": True},
     )
     return admission
 
@@ -170,10 +221,12 @@ async def get_admission(
         where={"id": admission_id},
         include={
             "patient": True,
+            "doctor": True,
+            "hospital": True,
             "pre_op_notes": True,
-            "intra_op_notes": {"take": 1},
-            "post_op_notes": {"take": 1},
-            "ward_round_notes": {"take": 1},
+            "intra_op_notes": True,
+            "post_op_notes": True,
+            "ward_round_notes": True,
             "discharge_summaries": True,
             "consent_forms": {"order_by": {"generated_at": "desc"}},
         },
@@ -209,6 +262,7 @@ async def create_pre_op_note(
             "investigations": req.investigations or [],
             "risk_level": req.risk_level,
             "special_instructions": req.special_instructions,
+            "image_urls": req.image_urls or [],
         }
     )
     return note
@@ -231,6 +285,8 @@ async def create_intra_op_note(
             "blood_loss": req.blood_loss,
             "ot_start": req.ot_start,
             "ot_end": req.ot_end,
+            "image_urls": req.image_urls or [],
+            "video_urls": req.video_urls or [],
         }
     )
     return note
@@ -253,6 +309,7 @@ async def create_post_op_note(
             "pain_score": req.pain_score,
             "diet": req.diet,
             "medications_json": Json(req.medications_json) if req.medications_json is not None else None,
+            "image_urls": req.image_urls or [],
         }
     )
     return note
@@ -274,6 +331,7 @@ async def create_ward_round_note(
             "assessment": req.assessment,
             "plan": req.plan,
             "ready_for_discharge": req.ready_for_discharge,
+            "image_urls": req.image_urls or [],
         }
     )
     return note
@@ -298,6 +356,7 @@ async def create_discharge_summary(
             "diet_instructions": req.diet_instructions,
             "follow_up_date": req.follow_up_date,
             "red_flags": req.red_flags,
+            "image_urls": req.image_urls or [],
         }
     )
 

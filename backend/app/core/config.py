@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     META_WA_TOKEN: str = ""
     META_WA_PHONE_ID: str = ""
     
+    # SMS (2Factor.in / MSG91)
+    SMS_SENDER_ID: str = "NONITU"
+    
     # Firebase
     FIREBASE_CREDENTIALS_JSON: str = ""
     

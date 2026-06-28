@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
@@ -42,12 +43,11 @@ async def _require_patient_access(user: CurrentUser, patient_id: str) -> str:
     return patient.doctor_id
 
 
-@router.get("", response_model=List[dict])
+@router.get("")
 async def list_appointments(user: CurrentUser = Depends(get_current_user)):
     if user.is_parent():
         patients = await prisma.patients.find_many(
             where={"parent_phone": user.phone},
-            select={"id": True},
         )
         patient_ids = [p.id for p in patients]
         appointments = await prisma.appointments.find_many(
@@ -62,7 +62,7 @@ async def list_appointments(user: CurrentUser = Depends(get_current_user)):
             order={"slot_datetime": "desc"},
             include={"patient": True},
         )
-    return appointments
+    return jsonable_encoder(appointments)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -89,7 +89,7 @@ async def create_appointment(
         },
         include={"patient": True},
     )
-    return appointment
+    return jsonable_encoder(appointment)
 
 
 @router.patch("/{appointment_id}/status")
@@ -111,4 +111,4 @@ async def update_appointment_status(
         where={"id": appointment_id},
         data={"status": req.status},
     )
-    return updated
+    return jsonable_encoder(updated)

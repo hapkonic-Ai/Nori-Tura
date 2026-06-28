@@ -1,206 +1,264 @@
+"""Consent form PDF generation service.
+
+Generates unsigned and signed informed-consent PDFs from Jinja2 HTML templates
+using WeasyPrint. Computes SHA-256 document hashes for integrity verification
+and embeds QR codes for quick verification lookups.
+"""
+
+import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 from jinja2 import Template
 
+from app.utils.pdf_integrity import compute_sha256, format_truncated_hash
+from app.utils.qr_generator import generate_consent_qr_data_uri
 
-CONSENT_TEMPLATE = """<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Informed Consent Form</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; color: #333; }
-    h1 { text-align: center; font-size: 22px; margin-bottom: 6px; }
-    h2 { font-size: 16px; margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-    .header { text-align: center; margin-bottom: 24px; }
-    .section { margin-bottom: 12px; }
-    .label { font-weight: bold; }
-    .declaration { margin-top: 32px; }
-    .signature { margin-top: 48px; }
-    .footer { margin-top: 40px; font-size: 11px; color: #666; text-align: center; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>INFORMED CONSENT FORM</h1>
-    <p>Pediatric Surgical Procedure</p>
-  </div>
+logger = logging.getLogger(__name__)
 
-  <h2>Patient Details</h2>
-  <div class="section"><span class="label">Patient Name:</span> {{ patient_name }}</div>
-  <div class="section"><span class="label">Age / Gender:</span> {{ age }} / {{ gender }}</div>
-  <div class="section"><span class="label">Parent/Guardian:</span> {{ parent_name }}</div>
-  <div class="section"><span class="label">Parent Phone:</span> {{ parent_phone }}</div>
-
-  <h2>Procedure</h2>
-  <div class="section"><span class="label">Proposed Procedure:</span> {{ procedure }}</div>
-  <div class="section"><span class="label">Anesthesia:</span> {{ anesthesia }}</div>
-  <div class="section"><span class="label">Surgeon:</span> {{ surgeon_name }}</div>
-
-  <h2>Risks</h2>
-  <p>{{ risks }}</p>
-
-  <h2>Benefits</h2>
-  <p>{{ benefits }}</p>
-
-  <h2>Alternatives</h2>
-  <p>{{ alternatives }}</p>
-
-  <h2>Post-operative Care</h2>
-  <p>{{ post_op_care }}</p>
-
-  <h2>Declaration</h2>
-  <div class="declaration">
-    <p>
-      I, the undersigned parent/guardian of the above-named minor patient, have been explained the
-      nature of the proposed procedure, its risks, benefits, alternatives, and post-operative care in
-      a language I understand. I voluntarily give my consent for the procedure and anesthesia.
-    </p>
-  </div>
-
-  <div class="signature">
-    <div class="section"><span class="label">Parent/Guardian Signature:</span> ___________________________</div>
-    <div class="section"><span class="label">Date:</span> ___________________________</div>
-    <div class="section"><span class="label">Witness Name & Signature:</span> ___________________________</div>
-  </div>
-
-  <div class="footer">
-    This form complies with MCI / NABH standards for informed consent for pediatric surgical procedures.
-  </div>
-</body>
-</html>
-"""
+_TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "consents"
 
 
-CONSENT_SIGNED_TEMPLATE = """<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Signed Informed Consent Form</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; color: #333; }
-    h1 { text-align: center; font-size: 22px; margin-bottom: 6px; }
-    h2 { font-size: 16px; margin-top: 24px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-    .header { text-align: center; margin-bottom: 24px; }
-    .section { margin-bottom: 12px; }
-    .label { font-weight: bold; }
-    .declaration { margin-top: 32px; }
-    .signature-block { margin-top: 32px; }
-    .signature-img { max-width: 220px; max-height: 90px; border-bottom: 1px solid #333; margin-top: 4px; }
-    .footer { margin-top: 40px; font-size: 11px; color: #666; text-align: center; }
-    .signed-banner { background: #e6f4ea; border: 1px solid #34a853; color: #137333; padding: 10px; text-align: center; font-weight: bold; margin-bottom: 24px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>SIGNED INFORMED CONSENT FORM</h1>
-    <p>Pediatric Surgical Procedure</p>
-  </div>
-
-  <div class="signed-banner">
-    This consent form was digitally signed on {{ signed_at }}.
-  </div>
-
-  <h2>Patient Details</h2>
-  <div class="section"><span class="label">Patient Name:</span> {{ patient_name }}</div>
-  <div class="section"><span class="label">Age / Gender:</span> {{ age }} / {{ gender }}</div>
-  <div class="section"><span class="label">Parent/Guardian:</span> {{ parent_name }}</div>
-  <div class="section"><span class="label">Parent Phone:</span> {{ parent_phone }}</div>
-
-  <h2>Procedure</h2>
-  <div class="section"><span class="label">Proposed Procedure:</span> {{ procedure }}</div>
-  <div class="section"><span class="label">Anesthesia:</span> {{ anesthesia }}</div>
-  <div class="section"><span class="label">Surgeon:</span> {{ surgeon_name }}</div>
-
-  <h2>Risks</h2>
-  <p>{{ risks }}</p>
-
-  <h2>Benefits</h2>
-  <p>{{ benefits }}</p>
-
-  <h2>Alternatives</h2>
-  <p>{{ alternatives }}</p>
-
-  <h2>Post-operative Care</h2>
-  <p>{{ post_op_care }}</p>
-
-  <h2>Declaration</h2>
-  <div class="declaration">
-    <p>
-      I, the undersigned parent/guardian of the above-named minor patient, have read and understood the
-      information provided. I have had the opportunity to ask questions and all my questions have been
-      answered satisfactorily. I voluntarily consent to the proposed surgical procedure and anesthesia.
-    </p>
-  </div>
-
-  <div class="signature-block">
-    <div class="section">
-      <span class="label">Parent/Guardian Signature</span><br>
-      <img class="signature-img" src="{{ parent_signature_url }}" alt="Parent signature">
-    </div>
-    {% if witness_name %}
-    <div class="section" style="margin-top: 24px;">
-      <span class="label">Witness: {{ witness_name }}</span><br>
-      {% if witness_signature_url %}
-      <img class="signature-img" src="{{ witness_signature_url }}" alt="Witness signature">
-      {% endif %}
-    </div>
-    {% endif %}
-  </div>
-
-  <div class="footer">
-    This signed form complies with MCI / NABH standards for informed consent for pediatric surgical procedures.
-  </div>
-</body>
-</html>
-"""
+def _load_template(name: str) -> Template:
+    """Load a Jinja2 template from the templates/consents directory."""
+    template_path = _TEMPLATES_DIR / name
+    try:
+        return Template(template_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        logger.error("Consent template not found: %s", template_path)
+        raise RuntimeError(f"Consent template not found: {template_path}") from exc
 
 
-def generate_consent_pdf(form_data: Dict[str, Any]) -> bytes:
-    """Generate a consent form PDF from structured form data.
-
-    Uses WeasyPrint when system dependencies (Pango/GTK+) are available.
-    Falls back to returning HTML bytes for local development without those libs.
-    """
-    html = Template(CONSENT_TEMPLATE).render(**form_data)
-
+def _render_pdf(html: str) -> bytes:
+    """Render HTML to PDF using WeasyPrint, falling back to raw HTML bytes."""
     try:
         from weasyprint import HTML
         return HTML(string=html).write_pdf()
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning(
+        logger.warning(
             "WeasyPrint unavailable (%s); returning HTML fallback for consent PDF", exc
         )
         return html.encode("utf-8")
+
+
+def _build_common_context(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Build the base template context from form_data.
+
+    Ensures all template variables have a value so the PDF renders cleanly even
+    when optional fields are omitted by older clients.
+    """
+    now = datetime.now().isoformat()
+    context = dict(form_data)
+
+    # Core identifiers and metadata
+    context.setdefault("consent_id", "")
+    context.setdefault("consent_number", "")
+    context.setdefault("version", "v2.1")
+    context.setdefault("status", "Pending")
+    context.setdefault("generated_at", now)
+    context.setdefault("signed_at", "")
+    context.setdefault("language", "English")
+    context.setdefault("form_type", "Surgical Consent")
+
+    # Hospital
+    context.setdefault("hospital_name", "Hospital Name")
+    context.setdefault("hospital_address", "")
+    context.setdefault("hospital_contact", "")
+    context.setdefault("hospital_registration_number", "")
+
+    # Patient
+    context.setdefault("patient_name", "—")
+    context.setdefault("patient_uhid", "—")
+    context.setdefault("age", "—")
+    context.setdefault("gender", "—")
+    context.setdefault("admission_number", "—")
+    context.setdefault("department", "Pediatric Surgery")
+    context.setdefault("ward_room", "—")
+
+    # Guardian
+    context.setdefault("parent_name", "—")
+    context.setdefault("guardian_relationship", "Parent / Guardian")
+    context.setdefault("parent_phone", "—")
+
+    # Doctor
+    context.setdefault("surgeon_name", "—")
+    context.setdefault("doctor_qualification", "—")
+    context.setdefault("doctor_registration_number", "—")
+
+    # Clinical
+    context.setdefault("diagnosis", "—")
+    context.setdefault("procedure", "—")
+    context.setdefault("procedure_description", "")
+    context.setdefault("anesthesia", "—")
+    context.setdefault("benefits", "—")
+    context.setdefault("risks", "—")
+    context.setdefault("material_risks", context.get("risks", "—"))
+    context.setdefault("possible_complications", "—")
+    context.setdefault("alternatives", "—")
+    context.setdefault(
+        "refusal_consequences",
+        "The treating doctor will explain the consequences of refusal, which may include worsening of the patient's condition or other serious outcomes.",
+    )
+    context.setdefault("expected_recovery", "")
+    context.setdefault("consent_for_anesthesia", "Yes")
+    context.setdefault("consent_for_blood_products", "No")
+    context.setdefault("consent_for_photography", "No")
+
+    # Doctor declaration timestamp
+    context.setdefault("doctor_declaration_timestamp", context.get("generated_at", now))
+
+    return context
+
+
+def _build_unsigned_context(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Build context for the unsigned consent template."""
+    context = _build_common_context(form_data)
+
+    # QR code for unsigned form uses consent id + patient id (no signed timestamp)
+    qr_url = generate_consent_qr_data_uri(
+        consent_id=context.get("consent_id") or "",
+        patient_id=context.get("patient_id") or "",
+        signed_at=None,
+    )
+    context["qr_code_url"] = qr_url or ""
+
+    # Hash placeholder for unsigned form
+    context.setdefault("pdf_hash_truncated", "PENDING SIGNATURE")
+
+    return context
+
+
+def _build_signed_context(
+    form_data: Dict[str, Any],
+    parent_signature_url: str,
+    witness_name: Optional[str] = None,
+    witness_relationship: Optional[str] = None,
+    witness_mobile: Optional[str] = None,
+    witness_signature_url: Optional[str] = None,
+    signed_at: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Build context for the signed consent template."""
+    context = _build_common_context(form_data)
+    context["status"] = "Signed"
+    context["parent_signature_url"] = parent_signature_url
+    context["witness_name"] = witness_name or ""
+    context["witness_relationship"] = witness_relationship or ""
+    context["witness_mobile"] = witness_mobile or ""
+    context["witness_signature_url"] = witness_signature_url or ""
+    context["signed_at"] = signed_at or datetime.now().isoformat()
+
+    # QR code for signed form includes the signed timestamp
+    qr_url = generate_consent_qr_data_uri(
+        consent_id=context.get("consent_id") or "",
+        patient_id=context.get("patient_id") or "",
+        signed_at=context["signed_at"],
+    )
+    context["qr_code_url"] = qr_url or ""
+
+    return context
+
+
+def _compute_document_hash(html: str) -> str:
+    """Compute a SHA-256 hash of the rendered HTML document.
+
+    The hash is computed from the HTML content (before it is converted to PDF) so
+    that the same hash can be printed in the PDF footer without generating the
+    PDF twice. This provides a fast, stable document reference that can be
+    re-verified by re-rendering the consent data and comparing HTML hashes.
+    """
+    return compute_sha256(html.encode("utf-8"))
+
+
+def generate_consent_pdf(form_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate an unsigned consent form PDF.
+
+    Returns a dict with:
+        - pdf_bytes: the generated PDF bytes
+        - html: the rendered HTML string
+        - pdf_hash: SHA-256 hex digest of the rendered HTML document
+        - pdf_hash_truncated: human-readable truncated hash
+    """
+    context = _build_unsigned_context(form_data)
+    template = _load_template("consent_base.html")
+
+    # First render: compute content hash from the HTML.
+    first_html = template.render(**context)
+    content_hash = _compute_document_hash(first_html)
+
+    # Second render: embed the truncated hash into the footer and generate PDF once.
+    context["pdf_hash_truncated"] = format_truncated_hash(content_hash)
+    final_html = template.render(**context)
+    final_pdf_bytes = _render_pdf(final_html)
+
+    return {
+        "pdf_bytes": final_pdf_bytes,
+        "html": final_html,
+        "pdf_hash": content_hash,
+        "pdf_hash_truncated": context["pdf_hash_truncated"],
+    }
 
 
 def generate_signed_consent_pdf(
     form_data: Dict[str, Any],
     parent_signature_url: str,
     witness_name: Optional[str] = None,
+    witness_relationship: Optional[str] = None,
+    witness_mobile: Optional[str] = None,
     witness_signature_url: Optional[str] = None,
     signed_at: Optional[str] = None,
-) -> bytes:
-    """Generate a signed consent PDF with embedded signature images."""
-    context = dict(form_data)
-    context.update(
-        {
-            "parent_signature_url": parent_signature_url,
-            "witness_name": witness_name or "",
-            "witness_signature_url": witness_signature_url or "",
-            "signed_at": signed_at or datetime.now().isoformat(),
-        }
-    )
-    html = Template(CONSENT_SIGNED_TEMPLATE).render(**context)
+) -> Dict[str, Any]:
+    """Generate a signed consent form PDF with embedded signature images.
 
-    try:
-        from weasyprint import HTML
-        return HTML(string=html).write_pdf()
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning(
-            "WeasyPrint unavailable (%s); returning HTML fallback for signed consent PDF", exc
+    Returns a dict with:
+        - pdf_bytes: the generated PDF bytes
+        - html: the rendered HTML string
+        - pdf_hash: SHA-256 hex digest of the rendered HTML document
+        - pdf_hash_truncated: human-readable truncated hash
+    """
+    context = _build_signed_context(
+        form_data=form_data,
+        parent_signature_url=parent_signature_url,
+        witness_name=witness_name,
+        witness_relationship=witness_relationship,
+        witness_mobile=witness_mobile,
+        witness_signature_url=witness_signature_url,
+        signed_at=signed_at,
+    )
+    template = _load_template("consent_signed.html")
+
+    # First render: compute content hash from the HTML.
+    first_html = template.render(**context)
+    content_hash = _compute_document_hash(first_html)
+
+    # Second render: embed the truncated hash into the footer and generate PDF once.
+    context["pdf_hash_truncated"] = format_truncated_hash(content_hash)
+    final_html = template.render(**context)
+    final_pdf_bytes = _render_pdf(final_html)
+
+    return {
+        "pdf_bytes": final_pdf_bytes,
+        "html": final_html,
+        "pdf_hash": content_hash,
+        "pdf_hash_truncated": context["pdf_hash_truncated"],
+    }
+
+
+def render_consent_html_preview(form_data: Dict[str, Any], signed: bool = False) -> str:
+    """Render consent HTML for preview/debugging without generating a PDF."""
+    if signed:
+        context = _build_signed_context(
+            form_data=form_data,
+            parent_signature_url=form_data.get("parent_signature_url", ""),
+            witness_name=form_data.get("witness_name"),
+            witness_relationship=form_data.get("witness_relationship"),
+            witness_mobile=form_data.get("witness_mobile"),
+            witness_signature_url=form_data.get("witness_signature_url"),
+            signed_at=form_data.get("signed_at"),
         )
-        return html.encode("utf-8")
+        template = _load_template("consent_signed.html")
+    else:
+        context = _build_unsigned_context(form_data)
+        template = _load_template("consent_base.html")
+
+    return template.render(**context)

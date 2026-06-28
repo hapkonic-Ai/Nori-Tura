@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Informed Consent Form</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 28mm 16mm;
+      @top-center {
+        content: element(letterhead);
+        width: 100%;
+      }
+      @bottom-center {
+        content: element(footer);
+        width: 100%;
+      }
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 9px;
+        color: #555;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "DejaVu Sans", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.5;
+      color: #222;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Running letterhead */
+    #letterhead {
+      position: running(letterhead);
+      border-bottom: 2px solid #1a4d8f;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+
+    .hospital-name {
+      font-size: 16pt;
+      font-weight: bold;
+      color: #1a4d8f;
+      text-transform: uppercase;
+    }
+
+    .hospital-address,
+    .hospital-contact,
+    .hospital-reg {
+      font-size: 8.5pt;
+      color: #444;
+    }
+
+    /* Running footer */
+    #footer {
+      position: running(footer);
+      border-top: 1px solid #bbb;
+      padding-top: 6px;
+      font-size: 8pt;
+      color: #555;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .footer-left {
+      width: 70%;
+    }
+
+    .footer-right {
+      width: 28%;
+      text-align: right;
+    }
+
+    .footer-qr {
+      max-width: 70px;
+      max-height: 70px;
+    }
+
+    .hash-line {
+      font-family: monospace;
+      font-size: 8pt;
+      color: #333;
+      margin-top: 2px;
+    }
+
+    .compliance-note {
+      font-size: 7.5pt;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    /* Content styles */
+    .document-title {
+      text-align: center;
+      margin: 12px 0 10px 0;
+    }
+
+    .document-title h1 {
+      font-size: 15pt;
+      margin: 0;
+      color: #1a4d8f;
+      text-transform: uppercase;
+    }
+
+    .document-title .subtitle {
+      font-size: 10pt;
+      color: #555;
+    }
+
+    .metadata-bar {
+      background: #f5f7fa;
+      border: 1px solid #d0d7de;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      font-size: 9pt;
+    }
+
+    .metadata-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 24px;
+    }
+
+    .metadata-item {
+      flex: 1 1 30%;
+      min-width: 140px;
+    }
+
+    .metadata-label {
+      font-weight: bold;
+      color: #333;
+    }
+
+    h2 {
+      font-size: 11.5pt;
+      color: #1a4d8f;
+      border-bottom: 1px solid #1a4d8f;
+      padding-bottom: 3px;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    .info-grid {
+      display: table;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .info-row {
+      display: table-row;
+    }
+
+    .info-label,
+    .info-value {
+      display: table-cell;
+      padding: 4px 6px;
+      vertical-align: top;
+    }
+
+    .info-label {
+      width: 35%;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .info-value {
+      width: 65%;
+    }
+
+    .clinical-section p {
+      margin: 6px 0;
+      text-align: justify;
+    }
+
+    .numbered-clauses {
+      counter-reset: clause;
+      list-style: none;
+      padding-left: 0;
+      margin: 8px 0;
+    }
+
+    .numbered-clauses li {
+      position: relative;
+      padding-left: 28px;
+      margin-bottom: 8px;
+      text-align: justify;
+    }
+
+    .numbered-clauses li::before {
+      counter-increment: clause;
+      content: counter(clause) ".";
+      position: absolute;
+      left: 0;
+      font-weight: bold;
+      color: #1a4d8f;
+    }
+
+    .declaration-box {
+      background: #f9fafb;
+      border-left: 4px solid #1a4d8f;
+      padding: 10px 12px;
+      margin: 12px 0;
+    }
+
+    .declaration-text {
+      font-style: italic;
+      margin: 0 0 8px 0;
+    }
+
+    .declaration-meta {
+      font-size: 9.5pt;
+      color: #444;
+    }
+
+    .signature-section {
+      margin-top: 24px;
+      page-break-inside: avoid;
+    }
+
+    .signature-grid {
+      display: table;
+      width: 100%;
+      margin-top: 14px;
+    }
+
+    .signature-block {
+      display: table-cell;
+      width: 48%;
+      vertical-align: bottom;
+      padding-right: 12px;
+    }
+
+    .signature-line {
+      border-top: 1px solid #333;
+      margin-top: 40px;
+      padding-top: 4px;
+      font-size: 9.5pt;
+    }
+
+    .signature-img {
+      max-width: 220px;
+      max-height: 70px;
+      border-bottom: 1px solid #333;
+      margin-bottom: 4px;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .small {
+      font-size: 9pt;
+    }
+
+    .muted {
+      color: #555;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .avoid-break {
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Running letterhead -->
+  <div id="letterhead">
+    <div class="hospital-name">{{ hospital_name | default("Hospital Name", true) }}</div>
+    {% if hospital_address %}
+    <div class="hospital-address">{{ hospital_address }}</div>
+    {% endif %}
+    {% if hospital_contact or hospital_registration_number %}
+    <div>
+      {% if hospital_contact %}<span class="hospital-contact">Contact: {{ hospital_contact }}</span>{% endif %}
+      {% if hospital_contact and hospital_registration_number %} | {% endif %}
+      {% if hospital_registration_number %}<span class="hospital-reg">Reg. No.: {{ hospital_registration_number }}</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Running footer -->
+  <div id="footer">
+    <div class="footer-row">
+      <div class="footer-left">
+        <div><strong>Document Verification Hash:</strong> <span class="hash-line">{{ pdf_hash_truncated | default("NOT AVAILABLE", true) }}</span></div>
+        <div class="compliance-note">
+          This consent form is prepared in accordance with NMC and NABH standards for informed consent.
+          {% if consent_id %}Consent ID: {{ consent_id }}{% endif %}
+        </div>
+      </div>
+      <div class="footer-right">
+        {% if qr_code_url %}
+        <img class="footer-qr" src="{{ qr_code_url }}" alt="Verification QR">
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Document title -->
+  <div class="document-title">
+    <h1>Informed Consent for Pediatric Surgical Procedure</h1>
+    <div class="subtitle">{{ form_type | default("Surgical Consent", true) }}</div>
+  </div>
+
+  <!-- Metadata bar -->
+  <div class="metadata-bar">
+    <div class="metadata-row">
+      <div class="metadata-item"><span class="metadata-label">Consent No.:</span> {{ consent_number | default("—", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">Version:</span> {{ version | default("v2.1", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">Generated:</span> {{ generated_at | default("—", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">Language:</span> {{ language | default("English", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">Status:</span> {{ status | default("Pending", true) }}</div>
+    </div>
+  </div>
+
+  <!-- Patient Information -->
+  <h2>1. Patient Information</h2>
+  <div class="info-grid">
+    <div class="info-row">
+      <div class="info-label">Name</div>
+      <div class="info-value">{{ patient_name | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">UHID / MRN</div>
+      <div class="info-value">{{ patient_uhid | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Age / Gender</div>
+      <div class="info-value">{{ age | default("—", true) }} / {{ gender | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Admission Number</div>
+      <div class="info-value">{{ admission_number | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Department</div>
+      <div class="info-value">{{ department | default("Pediatric Surgery", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Ward / Room</div>
+      <div class="info-value">{{ ward_room | default("—", true) }}</div>
+    </div>
+  </div>
+
+  <!-- Guardian Information -->
+  <h2>2. Parent / Guardian Information</h2>
+  <div class="info-grid">
+    <div class="info-row">
+      <div class="info-label">Name</div>
+      <div class="info-value">{{ parent_name | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Relationship to Patient</div>
+      <div class="info-value">{{ guardian_relationship | default("Parent / Guardian", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Mobile Number</div>
+      <div class="info-value">{{ parent_phone | default("—", true) }}</div>
+    </div>
+  </div>
+
+  <!-- Doctor Information -->
+  <h2>3. Treating Doctor Information</h2>
+  <div class="info-grid">
+    <div class="info-row">
+      <div class="info-label">Doctor Name</div>
+      <div class="info-value">{{ surgeon_name | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Qualification</div>
+      <div class="info-value">{{ doctor_qualification | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Registration Number</div>
+      <div class="info-value">{{ doctor_registration_number | default("—", true) }}</div>
+    </div>
+    <div class="info-row">
+      <div class="info-label">Department</div>
+      <div class="info-value">{{ department | default("Pediatric Surgery", true) }}</div>
+    </div>
+  </div>
+
+  <!-- Clinical Information -->
+  <h2>4. Clinical Information</h2>
+  <div class="clinical-section">
+    <p><strong>Diagnosis:</strong> {{ diagnosis | default("—", true) }}</p>
+    <p><strong>Proposed Procedure:</strong> {{ procedure | default("—", true) }}</p>
+    <p><strong>Procedure Description:</strong> {{ procedure_description | default("A detailed explanation of the proposed surgical procedure has been provided to the parent/guardian.", true) }}</p>
+    <p><strong>Anesthesia:</strong> {{ anesthesia | default("—", true) }}</p>
+    <p><strong>Expected Benefits:</strong> {{ benefits | default("—", true) }}</p>
+    <p><strong>Material Risks:</strong> {{ material_risks | default(risks | default("—", true), true) }}</p>
+    <p><strong>Possible Complications:</strong> {{ possible_complications | default("—", true) }}</p>
+    <p><strong>Alternative Treatment Options:</strong> {{ alternatives | default("—", true) }}</p>
+    <p><strong>Consequences of Refusing Treatment:</strong> {{ refusal_consequences | default("The treating doctor will explain the consequences of refusal, which may include worsening of the patient's condition or other serious outcomes.", true) }}</p>
+    <p><strong>Expected Recovery:</strong> {{ expected_recovery | default("Expected recovery and post-operative care information has been explained to the parent/guardian.", true) }}</p>
+  </div>
+
+  <!-- Numbered consent clauses -->
+  <h2>5. Consent Clauses</h2>
+  <ol class="numbered-clauses">
+    <li>I confirm that the proposed procedure, expected benefits, material risks, possible complications, available alternatives, and consequences of refusing treatment have been explained to me in <strong>{{ language | default("English", true) }}</strong>, a language I understand.</li>
+    <li>I have had the opportunity to ask questions, and all my questions have been answered to my satisfaction.</li>
+    <li>I understand that no guarantee or assurance has been made regarding the outcome of the procedure.</li>
+    <li>I consent to the administration of anesthesia and other reasonably required measures during the course of treatment.</li>
+    {% if consent_for_blood_products == "Yes" %}
+    <li>I consent to the transfusion of blood or blood products if deemed medically necessary.</li>
+    {% endif %}
+    {% if consent_for_photography == "Yes" %}
+    <li>I consent to the capture and use of photographs / videos for medical records, education, or quality assurance as permitted by hospital policy.</li>
+    {% endif %}
+    <li>I understand that I have the right to withdraw consent at any time before or during the procedure without affecting future care.</li>
+    <li>I have been informed of the hospital's privacy and confidentiality practices regarding my child's personal and medical information.</li>
+  </ol>
+
+  <!-- Doctor Declaration -->
+  <h2>6. Doctor Declaration</h2>
+  <div class="declaration-box avoid-break">
+    <p class="declaration-text">
+      "I have personally explained the diagnosis, proposed procedure, expected benefits, risks, possible complications, available alternatives, and consequences of refusing treatment to the parent/guardian in a language they understand."
+    </p>
+    <div class="declaration-meta">
+      <div><strong>Doctor Name:</strong> {{ surgeon_name | default("—", true) }}</div>
+      <div><strong>Registration Number:</strong> {{ doctor_registration_number | default("—", true) }}</div>
+      <div><strong>Date / Time:</strong> {{ doctor_declaration_timestamp | default(generated_at | default("—", true), true) }}</div>
+    </div>
+  </div>
+
+  <!-- Guardian Declaration -->
+  <h2>7. Parent / Guardian Declaration</h2>
+  <div class="declaration-box avoid-break">
+    <p class="declaration-text">
+      "I confirm that the procedure, benefits, risks, alternatives, and consequences of refusal have been explained to me in a language that I understand. I have had the opportunity to ask questions and all my questions have been answered satisfactorily."
+    </p>
+    <div class="declaration-meta">
+      <div><strong>Parent / Guardian:</strong> {{ parent_name | default("—", true) }}</div>
+      <div><strong>Relationship:</strong> {{ guardian_relationship | default("—", true) }}</div>
+      <div><strong>Mobile:</strong> {{ parent_phone | default("—", true) }}</div>
+    </div>
+  </div>
+
+  <!-- Signature section on final page -->
+  <div class="signature-section">
+    <h2>8. Signatures</h2>
+    <div class="signature-grid">
+      <div class="signature-block">
+        <div class="signature-line">
+          <strong>Parent / Guardian Signature</strong><br>
+          <span class="small muted">{{ parent_name | default("", true) }}</span>
+        </div>
+      </div>
+      <div class="signature-block">
+        <div class="signature-line">
+          <strong>Witness Signature</strong><br>
+          {% if witness_name %}
+          <span class="small muted">{{ witness_name }}{% if witness_relationship %}, {{ witness_relationship }}{% endif %}{% if witness_mobile %}, {{ witness_mobile }}{% endif %}</span>
+          {% else %}
+          <span class="small muted">Name, Relationship, Mobile</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="signature-grid" style="margin-top: 18px;">
+      <div class="signature-block">
+        <div class="signature-line">
+          <strong>Treating Doctor Signature</strong><br>
+          <span class="small muted">{{ surgeon_name | default("", true) }}</span>
+        </div>
+      </div>
+      <div class="signature-block">
+        <div class="signature-line">
+          <strong>Date / Time</strong><br>
+          <span class="small muted">{{ generated_at | default("", true) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

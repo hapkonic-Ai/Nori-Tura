@@ -13,7 +13,9 @@ class DoctorResponse(BaseModel):
     id: str
     name: str
     phone: str
-    hospital: Optional[str] = None
+    hospital_id: Optional[str] = None
+    hospital_name: Optional[str] = None
+    hospital_logo_url: Optional[str] = None
     specialty: Optional[str] = None
     is_active: bool = True
 
@@ -24,19 +26,37 @@ class AvailableSlotsResponse(BaseModel):
     slots: List[str]
 
 
+class AvailabilitySlot(BaseModel):
+    time: str
+    is_booked: bool
+    patient_name: Optional[str] = None
+    visit_type: Optional[str] = None
+
+
+class DoctorAvailabilityResponse(BaseModel):
+    doctor_id: str
+    date: str
+    slots: List[AvailabilitySlot]
+
+
 @router.get("/{doctor_id}", response_model=DoctorResponse)
 async def get_doctor(
     doctor_id: str,
     user: CurrentUser = Depends(get_current_user),
 ):
-    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    doctor = await prisma.doctors.find_first(
+        where={"id": doctor_id},
+        include={"hospital": True},
+    )
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
     return DoctorResponse(
         id=doctor.id,
         name=doctor.name,
         phone=doctor.phone,
-        hospital=doctor.hospital,
+        hospital_id=doctor.hospital_id,
+        hospital_name=doctor.hospital.name if doctor.hospital else None,
+        hospital_logo_url=doctor.hospital.logo_url if doctor.hospital else None,
         specialty=doctor.specialty,
         is_active=doctor.is_active,
     )
@@ -52,13 +72,15 @@ async def list_doctors(
     if is_active is not None:
         where["is_active"] = is_active
 
-    doctors = await prisma.doctors.find_many(where=where)
+    doctors = await prisma.doctors.find_many(where=where, include={"hospital": True})
     return [
         DoctorResponse(
             id=d.id,
             name=d.name,
             phone=d.phone,
-            hospital=d.hospital,
+            hospital_id=d.hospital_id,
+            hospital_name=d.hospital.name if d.hospital else None,
+            hospital_logo_url=d.hospital.logo_url if d.hospital else None,
             specialty=d.specialty,
             is_active=d.is_active,
         )
@@ -137,3 +159,53 @@ async def get_available_slots(
         current += timedelta(minutes=30)
 
     return AvailableSlotsResponse(doctor_id=doctor_id, date=date, slots=slots)
+
+
+@router.get("/{doctor_id}/availability", response_model=DoctorAvailabilityResponse)
+async def get_doctor_availability(
+    doctor_id: str,
+    date: str = Query(..., description="Date in YYYY-MM-DD format"),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Return all 30-minute OPD slots for a doctor with booked/available flags (read-only visibility)."""
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD.",
+        )
+
+    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
+        )
+
+    start_dt = datetime.combine(target_date, time(8, 0))
+    end_dt = datetime.combine(target_date, time(17, 0))
+
+    existing = await prisma.appointments.find_many(
+        where={
+            "doctor_id": doctor_id,
+            "slot_datetime": {"gte": start_dt, "lt": end_dt},
+        },
+        include={"patient": True},
+    )
+    booked = {a.slot_datetime: a for a in existing}
+
+    slots: List[AvailabilitySlot] = []
+    current = start_dt
+    while current < end_dt:
+        appt = booked.get(current)
+        slots.append(
+            AvailabilitySlot(
+                time=current.isoformat(),
+                is_booked=appt is not None,
+                patient_name=appt.patient.name if appt and appt.patient else None,
+                visit_type=appt.visit_type if appt else None,
+            )
+        )
+        current += timedelta(minutes=30)
+
+    return DoctorAvailabilityResponse(doctor_id=doctor_id, date=date, slots=slots)

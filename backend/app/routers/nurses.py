@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 from app.core.database import prisma
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/nurses", tags=["Nurses"])
 class NurseCreate(BaseModel):
     name: str
     phone: str = Field(..., pattern=r"^\+91[0-9]{10}$")
-    hospital: str
+    hospital: Optional[str] = None
 
 
 @router.get("")
@@ -20,6 +21,7 @@ async def list_nurses(user: CurrentUser = Depends(get_current_surgeon)):
     nurses = await prisma.nurses.find_many(
         where={"doctor_id": doctor_id},
         order={"created_at": "desc"},
+        include={"hospital": True},
     )
     return nurses
 
@@ -35,13 +37,20 @@ async def create_nurse(
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phone number already registered")
 
+    doctor = await prisma.doctors.find_unique(
+        where={"id": doctor_id},
+        include={"hospital": True},
+    )
+    hospital_id = doctor.hospital_id if doctor else None
+
     nurse = await prisma.nurses.create(
         data={
             "doctor_id": doctor_id,
             "name": req.name,
             "phone": req.phone,
-            "hospital": req.hospital,
-        }
+            "hospital_id": hospital_id,
+        },
+        include={"hospital": True},
     )
     return nurse
 

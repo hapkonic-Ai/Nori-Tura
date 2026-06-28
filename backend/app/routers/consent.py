@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
 
 from prisma import Json
 
@@ -15,26 +14,18 @@ from app.core.auth_deps import (
 )
 from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
 from app.core.config import get_settings
+from app.schemas.consent import ConsentFormCreate, ConsentSignRequest
 
 settings = get_settings()
 router = APIRouter(prefix="/consent", tags=["Consent"])
 
 
-class ConsentFormCreate(BaseModel):
-    admission_id: str
-    form_type: str
-    procedure: str
-    anesthesia: str
-    risks: str
-    benefits: str
-    alternatives: str
-    post_op_care: str
-
-
-class ConsentSignRequest(BaseModel):
-    parent_signature_url: str
-    witness_name: Optional[str] = None
-    witness_signature_url: Optional[str] = None
+def _generate_consent_number() -> str:
+    """Generate a unique, human-readable consent reference number."""
+    now = datetime.now(timezone.utc)
+    timestamp = now.strftime("%Y%m%d%H%M%S")
+    random_suffix = now.strftime("%f")[:4]
+    return f"NT-CONSENT-{timestamp}-{random_suffix}"
 
 
 def _upload_consent_pdf(pdf_bytes: bytes, filename: str) -> Optional[str]:
@@ -73,7 +64,7 @@ async def create_consent_form(
 
     admission = await prisma.ipd_admissions.find_first(
         where={"id": req.admission_id},
-        include={"patient": True, "doctor": True},
+        include={"patient": True, "doctor": {"include": {"hospital": True}}},
     )
     if not admission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admission not found")
@@ -83,25 +74,103 @@ async def create_consent_form(
     patient = admission.patient
     doctor = admission.doctor
 
+    now = datetime.now(timezone.utc)
+    consent_number = _generate_consent_number()
+
+    # Derive defaults from related records when not provided by the client.
+    hospital = doctor.hospital
+    hospital_name = req.hospital_name or (hospital.name if hospital else None) or "Hospital Name"
+    hospital_address = req.hospital_address or (hospital.address if hospital else "") or ""
+    hospital_contact = req.hospital_contact or (hospital.contact if hospital else "") or ""
+    hospital_registration_number = req.hospital_registration_number or (hospital.registration_number if hospital else "") or ""
+    hospital_id = hospital.id if hospital else None
+    hospital_logo_url = hospital.logo_url if hospital else None
+
+    doctor_qualification = req.doctor_qualification or doctor.specialty or ""
+    doctor_registration_number = req.doctor_registration_number or ""
+
+    department = doctor.specialty or "Pediatric Surgery"
+    ward_room = " / ".join(
+        part for part in [admission.ward, admission.bed_no] if part
+    ) or "—"
+
     form_data = {
+        # Identifiers
+        "consent_id": "",  # filled after DB creation
+        "patient_id": patient.id,
+        "admission_id": req.admission_id,
+        "consent_number": consent_number,
+        "version": req.consent_version or "v2.1",
+        "status": "Pending",
+        "generated_at": now.isoformat(),
+        "language": req.language or "English",
+        "form_type": req.form_type,
+
+        # Hospital
+        "hospital_name": hospital_name,
+        "hospital_address": hospital_address,
+        "hospital_contact": hospital_contact,
+        "hospital_registration_number": hospital_registration_number,
+
+        # Patient
         "patient_name": patient.name,
+        "patient_uhid": patient.id,  # Using patient.id as UHID fallback
         "age": patient.age,
         "gender": patient.gender,
+        "admission_number": admission.id,
+        "department": department,
+        "ward_room": ward_room,
+
+        # Guardian
         "parent_name": patient.parent_name,
+        "guardian_relationship": req.guardian_relationship or "Parent / Guardian",
         "parent_phone": patient.parent_phone,
-        "procedure": req.procedure,
-        "anesthesia": req.anesthesia,
+
+        # Doctor
         "surgeon_name": doctor.name,
-        "risks": req.risks,
+        "doctor_qualification": doctor_qualification,
+        "doctor_registration_number": doctor_registration_number,
+        "doctor_declaration_timestamp": now.isoformat(),
+
+        # Clinical
+        "diagnosis": req.diagnosis,
+        "procedure": req.procedure,
+        "procedure_description": req.procedure_description or "",
+        "anesthesia": req.anesthesia,
         "benefits": req.benefits,
+        "risks": req.risks,
+        "material_risks": req.material_risks or req.risks,
+        "possible_complications": req.possible_complications or "",
         "alternatives": req.alternatives,
         "post_op_care": req.post_op_care,
+        "expected_recovery": req.expected_recovery or "",
+        "refusal_consequences": (
+            "If consent is refused, the treating doctor will explain the consequences, which may include "
+            "worsening of the patient's condition, persistent pain, disability, or other serious outcomes."
+        ),
+        "right_to_withdraw": (
+            "The parent/legal guardian has the right to withdraw consent at any time before or during the "
+            "procedure without affecting the patient's right to future care and treatment."
+        ),
+
+        # Specific consents
+        "consent_for_anesthesia": "Yes" if req.consent_for_anesthesia else "No",
+        "consent_for_blood_products": "Yes" if req.consent_for_blood_products else "No",
+        "consent_for_photography": "Yes" if req.consent_for_photography else "No",
+
+        # Privacy / statutory text
+        "privacy_statement": (
+            "Personal and medical information will be kept confidential and used only for treatment, "
+            "billing, quality assurance, and as required by law."
+        ),
+        "statutory_reference": (
+            "This consent is obtained in accordance with the principles of informed consent laid down by "
+            "the National Medical Commission (NMC) and NABH standards for patient rights."
+        ),
     }
 
-    pdf_bytes = generate_consent_pdf(form_data)
-    filename = f"consent_{admission.id}_{datetime.now(timezone.utc).isoformat()}"
-    pdf_url = _upload_consent_pdf(pdf_bytes, filename)
-
+    # Create the consent record first so the generated PDF can reference the
+    # real consent id in its footer and QR code.
     consent = await prisma.consent_forms.create(
         data={
             "admission_id": req.admission_id,
@@ -109,13 +178,51 @@ async def create_consent_form(
             "doctor_id": doctor_id,
             "form_type": req.form_type,
             "content_json": Json(form_data),
-            "pdf_url": pdf_url,
             "generated_by": user.role,
             "status": "pending",
+
+            # Enhanced metadata
+            "consent_number": consent_number,
+            "version": req.consent_version or "v2.1",
+            "language": req.language or "English",
+            "guardian_relationship": req.guardian_relationship,
+            "hospital_id": hospital_id,
+            "hospital_name": hospital_name,
+            "hospital_address": hospital_address,
+            "hospital_contact": hospital_contact,
+            "hospital_registration_number": hospital_registration_number,
+            "hospital_logo_url": hospital_logo_url,
+            "department": department,
+            "doctor_qualification": doctor_qualification,
+            "doctor_registration_number": doctor_registration_number,
+            "diagnosis": req.diagnosis,
+            "procedure_description": req.procedure_description,
+            "expected_recovery": req.expected_recovery,
+            "possible_complications": req.possible_complications,
+            "material_risks": req.material_risks or req.risks,
         }
     )
 
-    return {"consent_form": consent, "pdf_url": pdf_url}
+    # Add the generated consent id back into the stored form data so the PDF
+    # footer and QR code reference the correct record.
+    form_data["consent_id"] = consent.id
+    pdf_result = generate_consent_pdf(form_data)
+    pdf_bytes = pdf_result["pdf_bytes"]
+    pdf_hash = pdf_result["pdf_hash"]
+
+    filename = f"consent_{consent.id}_{now.isoformat()}"
+    pdf_url = _upload_consent_pdf(pdf_bytes, filename)
+
+    updated = await prisma.consent_forms.update(
+        where={"id": consent.id},
+        data={
+            "content_json": Json(form_data),
+            "pdf_url": pdf_url,
+            "pdf_hash": pdf_hash,
+        },
+    )
+
+    return {"consent_form": updated, "pdf_url": pdf_url}
 
 
 async def _require_consent_access(user: CurrentUser, consent):
@@ -161,13 +268,20 @@ async def sign_consent_form(
 
     signed_at = datetime.now(timezone.utc)
     form_data = consent.content_json if isinstance(consent.content_json, dict) else dict(consent.content_json or {})
-    signed_pdf_bytes = generate_signed_consent_pdf(
+    form_data["consent_id"] = consent.id
+    form_data["status"] = "Signed"
+
+    signed_pdf_result = generate_signed_consent_pdf(
         form_data=form_data,
         parent_signature_url=req.parent_signature_url,
         witness_name=req.witness_name,
+        witness_relationship=req.witness_relationship,
+        witness_mobile=req.witness_mobile,
         witness_signature_url=req.witness_signature_url,
         signed_at=signed_at.isoformat(),
     )
+    signed_pdf_bytes = signed_pdf_result["pdf_bytes"]
+    signed_pdf_hash = signed_pdf_result["pdf_hash"]
     signed_filename = f"signed_consent_{consent_id}_{signed_at.isoformat()}"
     signed_pdf_url = _upload_consent_pdf(signed_pdf_bytes, signed_filename)
 
@@ -176,9 +290,12 @@ async def sign_consent_form(
         data={
             "parent_signature_url": req.parent_signature_url,
             "witness_name": req.witness_name,
+            "witness_relationship": req.witness_relationship,
+            "witness_mobile": req.witness_mobile,
             "witness_signature_url": req.witness_signature_url,
             "signed_at": signed_at,
             "signed_pdf_url": signed_pdf_url,
+            "signed_pdf_hash": signed_pdf_hash,
             "status": "signed",
         },
     )

@@ -88,11 +88,18 @@ async def register_doctor(req: RegisterDoctorRequest):
     if existing_nurse:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phone already registered as nurse")
 
+    hospital_name = req.hospital.strip() if req.hospital else "Unnamed Hospital"
+    hospital = await prisma.hospitals.find_first(
+        where={"name": {"equals": hospital_name, "mode": "insensitive"}}
+    )
+    if not hospital:
+        hospital = await prisma.hospitals.create(data={"name": hospital_name})
+
     doctor = await prisma.doctors.create(
         data={
             "name": req.name,
             "phone": req.phone,
-            "hospital": req.hospital,
+            "hospital_id": hospital.id,
             "specialty": req.specialty,
             "is_active": False,
         }

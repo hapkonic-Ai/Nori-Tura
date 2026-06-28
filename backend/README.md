@@ -68,6 +68,7 @@ See `.env.example` for required variables:
 ## Notes
 
 - External integrations (WhatsApp, FCM, Cloudinary) are stubbed to log only until credentials are configured.
-- WeasyPrint requires Pango/GTK+ system libraries. On macOS without them, consent forms fall back to HTML bytes.
+- WeasyPrint requires Pango/GTK+ system libraries. On macOS install them with `brew install pango gdk-pixbuf libffi`. Without them, consent forms fall back to HTML bytes.
+- WeasyPrint 62.3 is pinned to `pydyf==0.10.0` because newer `pydyf` versions are incompatible and raise `'super' object has no attribute 'transform'`.
 - AI diagnosis returns a structured fallback response when no LLM API key is configured.
 
