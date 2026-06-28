@@ -38,6 +38,12 @@ class PatientListViewModel(
     private val _selectedStatus = MutableStateFlow<String?>(null)
     val selectedStatus: StateFlow<String?> = _selectedStatus.asStateFlow()
 
+    private val _selectedHospital = MutableStateFlow<String?>(null)
+    val selectedHospital: StateFlow<String?> = _selectedHospital.asStateFlow()
+
+    private val _availableHospitals = MutableStateFlow<List<String>>(emptyList())
+    val availableHospitals: StateFlow<List<String>> = _availableHospitals.asStateFlow()
+
     init {
         _searchQuery
             .debounce(300)
@@ -51,6 +57,10 @@ class PatientListViewModel(
 
         _selectedStatus
             .onEach { fetchPatients() }
+            .launchIn(viewModelScope)
+
+        _selectedHospital
+            .onEach { applyFilters() }
             .launchIn(viewModelScope)
 
         fetchPatients()
@@ -71,7 +81,8 @@ class PatientListViewModel(
                 status = _selectedStatus.value
             )
                 .onSuccess { patients ->
-                    _uiState.value = UiState.Success(patients)
+                    _availableHospitals.value = patients.mapNotNull { it.hospitalName }.distinct().sorted()
+                    applyFilters(patients)
                 }
                 .onFailure { error ->
                     _uiState.value = UiState.Error(error.message ?: "Failed to load patients")
@@ -89,5 +100,19 @@ class PatientListViewModel(
 
     fun onStatusFilterSelected(status: String?) {
         _selectedStatus.value = status
+    }
+
+    fun onHospitalSelected(hospital: String?) {
+        _selectedHospital.value = hospital
+    }
+
+    private fun applyFilters(patients: List<PatientDto>? = null) {
+        val source = patients ?: (uiState.value as? UiState.Success)?.patients ?: return
+        val filtered = if (_selectedHospital.value == null) {
+            source
+        } else {
+            source.filter { it.hospitalName == _selectedHospital.value }
+        }
+        _uiState.value = UiState.Success(filtered)
     }
 }

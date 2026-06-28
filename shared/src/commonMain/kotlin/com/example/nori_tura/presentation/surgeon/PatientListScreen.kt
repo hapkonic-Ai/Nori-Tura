@@ -64,6 +64,8 @@ fun PatientListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val diagnosisQuery by viewModel.diagnosisQuery.collectAsState()
     val selectedStatus by viewModel.selectedStatus.collectAsState()
+    val selectedHospital by viewModel.selectedHospital.collectAsState()
+    val availableHospitals by viewModel.availableHospitals.collectAsState()
 
     val statusFilters = listOf(
         null to "All",
@@ -140,17 +142,41 @@ fun PatientListScreen(
                     )
                 }
             }
+
+            if (availableHospitals.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedHospital == null,
+                        onClick = { viewModel.onHospitalSelected(null) },
+                        label = { Text("All hospitals", style = MaterialTheme.typography.labelSmall) }
+                    )
+                    availableHospitals.forEach { hospital ->
+                        FilterChip(
+                            selected = selectedHospital == hospital,
+                            onClick = { viewModel.onHospitalSelected(hospital) },
+                            label = { Text(hospital, style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             when (val state = uiState) {
                 is PatientListViewModel.UiState.Loading -> {
-                    LoadingState(modifier = Modifier.fillMaxSize())
+                    LoadingState(modifier = Modifier.fillMaxWidth().weight(1f))
                 }
                 is PatientListViewModel.UiState.Error -> {
                     ErrorState(
                         message = state.message,
                         onRetry = { viewModel.fetchPatients() },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxWidth().weight(1f)
                     )
                 }
                 is PatientListViewModel.UiState.Success -> {
@@ -162,11 +188,11 @@ fun PatientListScreen(
                             } else {
                                 "Try a different search term."
                             },
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxWidth().weight(1f)
                         )
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxWidth().weight(1f),
                             contentPadding = PaddingValues(bottom = fabBottomPadding + 80.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
