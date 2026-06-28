@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.SurgeonRepository
 import com.example.nori_tura.data.dto.PatientDto
@@ -117,8 +118,6 @@ fun ScheduleScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
             when (val state = uiState) {
                 is ScheduleViewModel.UiState.Loading -> {
                     LoadingState(modifier = Modifier.fillMaxSize())
@@ -149,12 +148,16 @@ fun ScheduleScreen(
                     )
 
                     if (state.showBookingDialog) {
-                        BookingDialog(
-                            state = state,
-                            onDismiss = viewModel::dismissBookingDialog,
-                            onFormChange = viewModel::updateBookingForm,
-                            onBook = { viewModel.bookSlot() }
-                        )
+                        Dialog(
+                            onDismissRequest = viewModel::dismissBookingDialog
+                        ) {
+                            BookingDialog(
+                                state = state,
+                                onDismiss = viewModel::dismissBookingDialog,
+                                onFormChange = viewModel::updateBookingForm,
+                                onBook = { viewModel.bookSlot() }
+                            )
+                        }
                     }
                 }
             }

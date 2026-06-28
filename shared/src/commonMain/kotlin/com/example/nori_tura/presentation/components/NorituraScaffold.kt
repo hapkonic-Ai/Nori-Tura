@@ -78,7 +78,7 @@ fun NorituraTopBar(
         modifier = modifier
             .fillMaxWidth()
             .safeDrawingPadding()
-            .padding(start = if (onBack != null) 4.dp else 20.dp, top = 8.dp, end = 12.dp, bottom = 12.dp),
+            .padding(start = if (onBack != null) 4.dp else 20.dp, top = 0.dp, end = 12.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
