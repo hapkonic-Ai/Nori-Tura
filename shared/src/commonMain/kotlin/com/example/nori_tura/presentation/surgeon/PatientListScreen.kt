@@ -210,7 +210,7 @@ private fun PatientListRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -224,8 +224,15 @@ private fun PatientListRow(
                     color = NorituraColors.TextPrimary,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
+                val details = buildString {
+                    patient.age?.let { append("$it yrs") }
+                    patient.gender?.takeIf { it.isNotBlank() }?.let {
+                        if (isNotEmpty()) append(" • ")
+                        append(it.replaceFirstChar { c -> c.uppercase() })
+                    }
+                }
                 Text(
-                    text = "ID: ${patient.id ?: "-"} • ${patient.age ?: "-"} yrs • ${patient.gender ?: "-"}",
+                    text = details.takeIf { it.isNotEmpty() } ?: "No details",
                     color = NorituraColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,

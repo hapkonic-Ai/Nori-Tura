@@ -2,17 +2,14 @@ package com.example.nori_tura.presentation.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.runtime.Composable
-import com.example.nori_tura.ui.theme.NorituraColors
 
 @Composable
 fun ParentBottomNav(
@@ -21,36 +18,29 @@ fun ParentBottomNav(
     onRecords: () -> Unit,
     onProfile: () -> Unit
 ) {
-    NavigationBar(containerColor = NorituraColors.Surface) {
-        val items = listOf(
-            Triple("home", "Home", Icons.Filled.Home),
-            Triple("records", "Records", Icons.AutoMirrored.Filled.List),
-            Triple("profile", "Profile", Icons.Filled.Person)
-        )
+    val items = listOf(
+        BottomNavItem("Home", Icons.Outlined.Home, Icons.Filled.Home),
+        BottomNavItem("Records", Icons.AutoMirrored.Outlined.List, Icons.AutoMirrored.Filled.List),
+        BottomNavItem("Profile", Icons.Outlined.Person, Icons.Filled.Person)
+    )
 
-        items.forEach { (route, label, icon) ->
-            val selected = selectedRoute == route
-            NavigationBarItem(
-                icon = { Icon(imageVector = icon, contentDescription = label) },
-                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                selected = selected,
-                onClick = {
-                    when (route) {
-                        "home" -> onHome()
-                        "records" -> onRecords()
-                        "profile" -> onProfile()
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = NorituraColors.PrimaryBlue,
-                    selectedTextColor = NorituraColors.PrimaryBlue,
-                    indicatorColor = NorituraColors.PrimaryBlueLight,
-                    unselectedIconColor = NorituraColors.TextSecondary,
-                    unselectedTextColor = NorituraColors.TextSecondary
-                )
-            )
-        }
+    val selectedIndex = when (selectedRoute) {
+        "records" -> 1
+        "profile" -> 2
+        else -> 0
     }
+
+    NorituraBottomNav(
+        items = items,
+        selectedIndex = selectedIndex,
+        onItemSelected = { index ->
+            when (index) {
+                0 -> onHome()
+                1 -> onRecords()
+                2 -> onProfile()
+            }
+        }
+    )
 }
 
 @Composable
@@ -60,34 +50,27 @@ fun NurseBottomNav(
     onPatients: () -> Unit,
     onAppointments: () -> Unit
 ) {
-    NavigationBar(containerColor = NorituraColors.Surface) {
-        val items = listOf(
-            Triple("home", "Home", Icons.Filled.Home),
-            Triple("patients", "Patients", Icons.AutoMirrored.Filled.List),
-            Triple("appointments", "Appointments", Icons.Filled.CalendarMonth)
-        )
+    val items = listOf(
+        BottomNavItem("Home", Icons.Outlined.Home, Icons.Filled.Home),
+        BottomNavItem("Patients", Icons.AutoMirrored.Outlined.List, Icons.AutoMirrored.Filled.List),
+        BottomNavItem("Appointments", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth)
+    )
 
-        items.forEach { (route, label, icon) ->
-            val selected = selectedRoute == route
-            NavigationBarItem(
-                icon = { Icon(imageVector = icon, contentDescription = label) },
-                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                selected = selected,
-                onClick = {
-                    when (route) {
-                        "home" -> onHome()
-                        "patients" -> onPatients()
-                        "appointments" -> onAppointments()
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = NorituraColors.PrimaryBlue,
-                    selectedTextColor = NorituraColors.PrimaryBlue,
-                    indicatorColor = NorituraColors.PrimaryBlueLight,
-                    unselectedIconColor = NorituraColors.TextSecondary,
-                    unselectedTextColor = NorituraColors.TextSecondary
-                )
-            )
-        }
+    val selectedIndex = when (selectedRoute) {
+        "patients" -> 1
+        "appointments" -> 2
+        else -> 0
     }
+
+    NorituraBottomNav(
+        items = items,
+        selectedIndex = selectedIndex,
+        onItemSelected = { index ->
+            when (index) {
+                0 -> onHome()
+                1 -> onPatients()
+                2 -> onAppointments()
+            }
+        }
+    )
 }

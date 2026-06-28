@@ -73,7 +73,7 @@ fun NorituraTopBar(
         modifier = modifier
             .fillMaxWidth()
             .safeDrawingPadding()
-            .padding(start = if (onBack != null) 4.dp else 20.dp, top = 16.dp, end = 12.dp, bottom = 16.dp),
+            .padding(start = if (onBack != null) 4.dp else 20.dp, top = 8.dp, end = 12.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -147,7 +147,7 @@ fun BrandTopBar(
             Text(
                 text = title,
                 color = NorituraColors.PrimaryBlue,
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
         },
         onBack = onBack,
@@ -156,7 +156,7 @@ fun BrandTopBar(
                 shape = CircleShape,
                 colors = CardDefaults.cardColors(containerColor = NorituraColors.PrimaryBlueLight),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
