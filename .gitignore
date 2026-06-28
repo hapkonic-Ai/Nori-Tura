@@ -48,3 +48,4 @@ backend/.mypy_cache/
 # Generated Prisma client (keep schema only)
 backend/prisma/*
 !backend/prisma/schema.prisma
+kimi-export-*.md
