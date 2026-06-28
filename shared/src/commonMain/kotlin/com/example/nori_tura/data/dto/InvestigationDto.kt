@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 data class InvestigationDto(
     val id: String? = null,
     @SerialName("opd_record_id") val opdRecordId: String? = null,
-    val name: String? = null,
-    val notes: String? = null,
+    val type: String? = null,
+    val status: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )

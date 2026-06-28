@@ -3,11 +3,16 @@ package com.example.nori_tura.data.dto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+import com.example.nori_tura.data.dto.DoctorDto
+
 @Serializable
 data class AdmissionDto(
     val id: String? = null,
     @SerialName("doctor_id") val doctorId: String? = null,
     @SerialName("patient_id") val patientId: String? = null,
+    @SerialName("hospital_id") val hospitalId: String? = null,
+    @SerialName("hospital_name") val hospitalName: String? = null,
+    @SerialName("hospital_logo_url") val hospitalLogoUrl: String? = null,
     val status: String? = null,
     val ward: String? = null,
     @SerialName("bed_no") val bedNo: String? = null,
@@ -16,12 +21,13 @@ data class AdmissionDto(
     val procedure: String? = null,
     val urgency: String? = null,
     val patient: PatientDto? = null,
-    @SerialName("pre_op_notes") val preOpNotes: List<PreOpNoteDto> = emptyList(),
-    @SerialName("intra_op_notes") val intraOpNotes: List<IntraOpNoteDto> = emptyList(),
-    @SerialName("post_op_notes") val postOpNotes: List<PostOpNoteDto> = emptyList(),
-    @SerialName("ward_round_notes") val wardRoundNotes: List<WardRoundNoteDto> = emptyList(),
-    @SerialName("discharge_summaries") val dischargeSummaries: List<DischargeSummaryDto> = emptyList(),
-    @SerialName("consent_forms") val consentForms: List<ConsentFormDto> = emptyList(),
+    val doctor: DoctorDto? = null,
+    @SerialName("pre_op_notes") val preOpNotes: List<PreOpNoteDto>? = null,
+    @SerialName("intra_op_notes") val intraOpNotes: List<IntraOpNoteDto>? = null,
+    @SerialName("post_op_notes") val postOpNotes: List<PostOpNoteDto>? = null,
+    @SerialName("ward_round_notes") val wardRoundNotes: List<WardRoundNoteDto>? = null,
+    @SerialName("discharge_summaries") val dischargeSummaries: List<DischargeSummaryDto>? = null,
+    @SerialName("consent_forms") val consentForms: List<ConsentFormDto>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -42,6 +48,7 @@ data class PreOpNoteDto(
     val investigations: List<String> = emptyList(),
     @SerialName("risk_level") val riskLevel: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null,
+    @SerialName("image_urls") val imageUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -52,7 +59,8 @@ data class PreOpNoteCreateRequest(
     val anaesthesia: String? = null,
     val investigations: List<String> = emptyList(),
     @SerialName("risk_level") val riskLevel: String? = null,
-    @SerialName("special_instructions") val specialInstructions: String? = null
+    @SerialName("special_instructions") val specialInstructions: String? = null,
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
 )
 
 @Serializable
@@ -65,6 +73,8 @@ data class IntraOpNoteDto(
     @SerialName("blood_loss") val bloodLoss: String? = null,
     @SerialName("ot_start") val otStart: String? = null,
     @SerialName("ot_end") val otEnd: String? = null,
+    @SerialName("image_urls") val imageUrls: List<String>? = null,
+    @SerialName("video_urls") val videoUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -76,7 +86,9 @@ data class IntraOpNoteCreateRequest(
     val complications: String? = null,
     @SerialName("blood_loss") val bloodLoss: String? = null,
     @SerialName("ot_start") val otStart: String? = null,
-    @SerialName("ot_end") val otEnd: String? = null
+    @SerialName("ot_end") val otEnd: String? = null,
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList(),
+    @SerialName("video_urls") val videoUrls: List<String> = emptyList()
 )
 
 @Serializable
@@ -89,6 +101,7 @@ data class PostOpNoteDto(
     @SerialName("pain_score") val painScore: Int? = null,
     val diet: String? = null,
     @SerialName("medications_json") val medicationsJson: Map<String, String?>? = null,
+    @SerialName("image_urls") val imageUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -100,7 +113,8 @@ data class PostOpNoteCreateRequest(
     @SerialName("wound_status") val woundStatus: String? = null,
     @SerialName("pain_score") val painScore: Int? = null,
     val diet: String? = null,
-    @SerialName("medications_json") val medicationsJson: Map<String, String?>? = null
+    @SerialName("medications_json") val medicationsJson: Map<String, String?>? = null,
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
 )
 
 @Serializable
@@ -111,6 +125,7 @@ data class WardRoundNoteDto(
     val assessment: String? = null,
     val plan: String? = null,
     @SerialName("ready_for_discharge") val readyForDischarge: Boolean = false,
+    @SerialName("image_urls") val imageUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -120,7 +135,8 @@ data class WardRoundNoteCreateRequest(
     val objective: String? = null,
     val assessment: String? = null,
     val plan: String? = null,
-    @SerialName("ready_for_discharge") val readyForDischarge: Boolean = false
+    @SerialName("ready_for_discharge") val readyForDischarge: Boolean = false,
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
 )
 
 @Serializable
@@ -134,6 +150,7 @@ data class DischargeSummaryDto(
     @SerialName("diet_instructions") val dietInstructions: String? = null,
     @SerialName("follow_up_date") val followUpDate: String? = null,
     @SerialName("red_flags") val redFlags: String? = null,
+    @SerialName("image_urls") val imageUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -146,5 +163,6 @@ data class DischargeSummaryCreateRequest(
     @SerialName("activity_restrictions") val activityRestrictions: String? = null,
     @SerialName("diet_instructions") val dietInstructions: String? = null,
     @SerialName("follow_up_date") val followUpDate: String? = null,
-    @SerialName("red_flags") val redFlags: String? = null
+    @SerialName("red_flags") val redFlags: String? = null,
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
 )

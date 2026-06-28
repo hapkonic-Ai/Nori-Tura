@@ -7,6 +7,9 @@ import kotlinx.serialization.Serializable
 data class PatientDto(
     val id: String? = null,
     @SerialName("doctor_id") val doctorId: String? = null,
+    @SerialName("hospital_id") val hospitalId: String? = null,
+    @SerialName("hospital_name") val hospitalName: String? = null,
+    @SerialName("hospital_logo_url") val hospitalLogoUrl: String? = null,
     val name: String? = null,
     val age: Int? = null,
     val gender: String? = null,

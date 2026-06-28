@@ -12,6 +12,7 @@ import com.example.nori_tura.data.dto.PatientDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -21,8 +22,17 @@ class SurgeonRepository(
     private val client: HttpClient = ApiClient.client
 ) {
 
-    suspend fun getPatients(token: String): Result<List<PatientDto>> = safeApiCall {
-        client.get("/patients").body()
+    suspend fun getPatients(
+        token: String,
+        search: String? = null,
+        diagnosis: String? = null,
+        status: String? = null
+    ): Result<List<PatientDto>> = safeApiCall {
+        client.get("/patients") {
+            search?.let { parameter("search", it) }
+            diagnosis?.let { parameter("diagnosis", it) }
+            status?.let { parameter("status", it) }
+        }.body()
     }
 
     suspend fun createPatient(request: PatientCreateRequest): Result<PatientDto> = safeApiCall {
@@ -40,12 +50,20 @@ class SurgeonRepository(
         client.get("/opd/patients/$patientId/records").body()
     }
 
+    suspend fun getOpdRecord(token: String, recordId: String): Result<OpdRecordDto> = safeApiCall {
+        client.get("/opd/records/$recordId").body()
+    }
+
     suspend fun getAppointments(token: String): Result<List<AppointmentDto>> = safeApiCall {
         client.get("/appointments").body()
     }
 
     suspend fun getAdmissions(token: String): Result<List<AdmissionDto>> = safeApiCall {
         client.get("/ipd/admissions").body()
+    }
+
+    suspend fun getAdmission(token: String, admissionId: String): Result<AdmissionDto> = safeApiCall {
+        client.get("/ipd/admissions/$admissionId").body()
     }
 
     suspend fun getDoctor(token: String, doctorId: String): Result<DoctorDto> = safeApiCall {
