@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.nori_tura.presentation.components.Avatar
 import com.example.nori_tura.presentation.components.BrandTopBar
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.ui.theme.NorituraColors
 
@@ -49,7 +50,7 @@ fun DoctorProfileTab(
                 notificationCount = 0
             )
         }
-    ) { _ ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -57,45 +58,55 @@ fun DoctorProfileTab(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card(
+            LongPressCardPreview(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                previewTitle = "Profile Preview"
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Avatar(name = "Doctor User", size = 80.dp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Dr. User",
-                        color = NorituraColors.TextPrimary,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = "Surgeon",
-                        color = NorituraColors.TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Avatar(name = "Doctor User", size = 80.dp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Dr. User",
+                            color = NorituraColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "Surgeon",
+                            color = NorituraColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
 
-            Card(
+            LongPressCardPreview(
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                previewTitle = "Details Preview"
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    ProfileRow(icon = Icons.Default.Person, label = "Phone", value = "+91 98765 43210")
-                    HorizontalDivider(color = NorituraColors.Divider)
-                    ProfileRow(icon = Icons.Default.Person, label = "Hospital", value = "City Hospital")
-                    HorizontalDivider(color = NorituraColors.Divider)
-                    ProfileRow(icon = Icons.Default.Person, label = "Specialty", value = "General Surgery")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        ProfileRow(icon = Icons.Default.Person, label = "Phone", value = "+91 98765 43210")
+                        HorizontalDivider(color = NorituraColors.Divider)
+                        ProfileRow(icon = Icons.Default.Person, label = "Hospital", value = "City Hospital")
+                        HorizontalDivider(color = NorituraColors.Divider)
+                        ProfileRow(icon = Icons.Default.Person, label = "Specialty", value = "General Surgery")
+                    }
                 }
             }
 

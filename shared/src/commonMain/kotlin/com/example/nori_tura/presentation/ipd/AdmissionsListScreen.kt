@@ -1,7 +1,6 @@
 package com.example.nori_tura.presentation.ipd
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +50,7 @@ import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.dto.AdmissionCreateRequest
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.PatientDto
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,30 +151,36 @@ private fun AdmissionCard(
     admission: AdmissionDto,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = "Admission Preview"
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = admission.patient?.name ?: "Unknown Patient",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Status: ${admission.status ?: "-"}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "Urgency: ${admission.urgency ?: "-"}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "Ward: ${admission.ward ?: "-"}  Bed: ${admission.bedNo ?: "-"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = admission.patient?.name ?: "Unknown Patient",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Status: ${admission.status ?: "-"}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Urgency: ${admission.urgency ?: "-"}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Ward: ${admission.ward ?: "-"}  Bed: ${admission.bedNo ?: "-"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

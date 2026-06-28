@@ -1,7 +1,6 @@
 package com.example.nori_tura.presentation.surgeon
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +31,7 @@ import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.formatDateTime
@@ -56,7 +56,7 @@ fun SurgeonAlertsTab(
                 notificationCount = 0
             )
         }
-    ) { paddingValues ->
+    ) {
         when (val state = uiState) {
             is AlertsViewModel.UiState.Loading -> {
                 LoadingState(modifier = Modifier.fillMaxSize())
@@ -75,7 +75,7 @@ fun SurgeonAlertsTab(
                     onNavigateToAppointment = onNavigateToAppointment,
                     onNavigateToReview = onNavigateToReview,
                     onNavigateToAdmission = onNavigateToAdmission,
-                    modifier = Modifier.padding(paddingValues)
+                    modifier = Modifier
                 )
             }
         }
@@ -286,18 +286,23 @@ private fun AdmissionAlertCard(
 @Composable
 private fun AlertCard(
     onClick: () -> Unit,
+    previewTitle: String = "Alert Preview",
     content: @Composable () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = previewTitle
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            content()
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                content()
+            }
         }
     }
 }

@@ -70,11 +70,11 @@ fun SurgeonDashboardTab(
                 notificationCount = 3
             )
         }
-    ) { paddingValues ->
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                
                 .background(NorituraColors.Background)
         ) {
             when (val state = uiState) {

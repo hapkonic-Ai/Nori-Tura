@@ -1,7 +1,6 @@
 package com.example.nori_tura.presentation.parent
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,6 +43,7 @@ import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.openUrl
@@ -77,7 +77,7 @@ fun ParentProfileScreen(
                 notificationCount = 0
             )
         }
-    ) { paddingValues ->
+    ) {
         when (val state = uiState) {
             is ParentProfileViewModel.UiState.Loading -> {
                 LoadingState(modifier = Modifier.fillMaxSize())
@@ -96,7 +96,7 @@ fun ParentProfileScreen(
                     profile = state.profile,
                     onNavigateToConsentView = onNavigateToConsentView,
                     onLogout = onLogout,
-                    modifier = Modifier.padding(paddingValues)
+                    modifier = Modifier
                 )
             }
         }
@@ -190,13 +190,17 @@ private fun ProfileContent(
 private fun ChildCard(child: PatientDto) {
     val hasAllergies = !child.allergies.isNullOrBlank()
 
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        previewTitle = "Child Preview"
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Avatar(name = child.name ?: "?", size = 56.dp)
                 Spacer(modifier = Modifier.height(12.dp).padding(start = 12.dp))
@@ -240,6 +244,7 @@ private fun ChildCard(child: PatientDto) {
             }
         }
     }
+    }
 }
 
 @Composable
@@ -247,19 +252,23 @@ private fun SurgeonCard(
     doctor: DoctorDto?,
     onCall: (String) -> Unit
 ) {
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        previewTitle = "Surgeon Preview"
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Treating Surgeon",
@@ -292,6 +301,7 @@ private fun SurgeonCard(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -301,15 +311,18 @@ private fun ConsentHistoryCard(
 ) {
     val isSigned = consent.status == "signed"
     val statusColor = if (isSigned) NorituraColors.PostOp else NorituraColors.Warning
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = "Consent Preview"
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -333,6 +346,7 @@ private fun ConsentHistoryCard(
                 style = MaterialTheme.typography.bodySmall
             )
         }
+    }
     }
 }
 

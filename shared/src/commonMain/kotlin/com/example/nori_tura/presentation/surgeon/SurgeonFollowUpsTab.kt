@@ -36,6 +36,7 @@ import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.StatusChip
 import com.example.nori_tura.ui.theme.NorituraColors
@@ -57,12 +58,12 @@ fun SurgeonFollowUpsTab(
                 notificationCount = 0
             )
         }
-    ) { paddingValues ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(NorituraColors.Background)
-                .padding(paddingValues)
+                
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -117,15 +118,17 @@ private fun FollowUpCard(
     val reminderSent = record.reminderSent
     val dateText = record.followUpDate?.take(10) ?: "Not set"
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        previewTitle = "Follow-up Preview"
     ) {
-        Column(
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -178,5 +181,6 @@ private fun FollowUpCard(
                 Text("Preview & Send")
             }
         }
+    }
     }
 }

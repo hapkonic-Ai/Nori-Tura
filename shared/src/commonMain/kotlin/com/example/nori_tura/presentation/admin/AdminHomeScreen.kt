@@ -38,6 +38,7 @@ import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.KpiTile
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.NorituraSurfaceCard
 import com.example.nori_tura.presentation.components.SectionTitle
@@ -69,11 +70,11 @@ fun AdminHomeScreen(
                 }
             )
         }
-    ) { paddingValues ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -168,8 +169,12 @@ private fun DoctorApprovalCard(
     doctor: DoctorDto,
     onApprove: () -> Unit
 ) {
-    NorituraSurfaceCard {
-        Column(modifier = Modifier.padding(16.dp)) {
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        previewTitle = "Doctor Preview"
+    ) {
+        NorituraSurfaceCard {
+            Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -218,6 +223,7 @@ private fun DoctorApprovalCard(
                 Text("Approve Doctor")
             }
         }
+    }
     }
 }
 

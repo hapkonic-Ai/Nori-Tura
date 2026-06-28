@@ -69,7 +69,7 @@ fun AddPatientScreen(
                 notificationCount = 0
             )
         }
-    ) { _ ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

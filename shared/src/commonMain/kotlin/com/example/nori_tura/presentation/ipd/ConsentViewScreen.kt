@@ -70,7 +70,7 @@ fun ConsentViewScreen(
                 notificationCount = 0
             )
         }
-    ) { _ ->
+    ) {
         when (val state = uiState) {
             is ConsentViewViewModel.UiState.Loading -> {
                 LoadingState(modifier = Modifier.fillMaxSize())

@@ -163,8 +163,6 @@ async def create_patient(
 
     doctor = await prisma.doctors.find_unique(where={"id": doctor_id})
     hospital_id = doctor.hospital_id if doctor else None
-    hospital_name = doctor.hospital.name if doctor and doctor.hospital else None
-    hospital_logo_url = doctor.hospital.logo_url if doctor and doctor.hospital else None
 
     patient = await prisma.patients.create(
         data={
@@ -177,8 +175,6 @@ async def create_patient(
             "allergies": req.allergies,
             "parent_name": req.parent_name,
             "parent_phone": req.parent_phone,
-            "hospital_name": hospital_name,
-            "hospital_logo_url": hospital_logo_url,
         }
     )
     return patient

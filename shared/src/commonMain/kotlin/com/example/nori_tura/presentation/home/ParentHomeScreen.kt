@@ -1,7 +1,6 @@
 package com.example.nori_tura.presentation.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +48,7 @@ import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.KpiTile
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.NorituraSurfaceCard
 import com.example.nori_tura.presentation.components.ParentBottomNav
@@ -92,11 +92,11 @@ fun ParentHomeScreen(
                 onProfile = onNavigateToProfile
             )
         }
-    ) { paddingValues ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -261,14 +261,17 @@ private fun SurgeryStatusCard(
         ?: admission.consentForms?.firstOrNull()?.contentJson?.get("procedure")?.toString()?.removeSurrounding("\"")
         ?: "Procedure to be confirmed"
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = "Surgery Status Preview"
     ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -317,19 +320,24 @@ private fun SurgeryStatusCard(
             )
         }
     }
+    }
 }
 
 @Composable
 private fun NextAppointmentCard(
     appointment: AppointmentDto
 ) {
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        previewTitle = "Appointment Preview"
     ) {
-        Row(
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
@@ -362,6 +370,7 @@ private fun NextAppointmentCard(
             }
         }
     }
+    }
 }
 
 private fun String.timePart(): String? {
@@ -382,8 +391,12 @@ private fun ChildCard(child: PatientDto) {
         else -> NorituraColors.Stable
     }
 
-    NorituraSurfaceCard {
-        Column(modifier = Modifier.padding(16.dp)) {
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        previewTitle = "Child Preview"
+    ) {
+        NorituraSurfaceCard {
+            Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -430,6 +443,7 @@ private fun ChildCard(child: PatientDto) {
             }
         }
     }
+    }
 }
 
 @Composable
@@ -439,14 +453,17 @@ private fun PendingConsentCard(
 ) {
     val patientName = consent.contentJson?.get("patient_name")?.toString()?.removeSurrounding("\"") ?: "Your Child"
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = "Consent Preview"
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -475,5 +492,6 @@ private fun PendingConsentCard(
                 style = MaterialTheme.typography.bodySmall
             )
         }
+    }
     }
 }

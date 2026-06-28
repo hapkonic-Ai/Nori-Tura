@@ -87,11 +87,11 @@ fun NurseHomeScreen(
                 Icon(Icons.Default.Add, contentDescription = "Add Patient")
             }
         }
-    ) { paddingValues ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)

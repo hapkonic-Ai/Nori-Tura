@@ -73,7 +73,7 @@ fun ConsentFormScreen(
                 notificationCount = 0
             )
         }
-    ) { _ ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

@@ -32,13 +32,17 @@ fun KpiTile(
     iconTint: Color = NorituraColors.TextTertiary,
     accentColor: Color = NorituraColors.PrimaryBlue
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(NorituraColors.Surface)
-            .padding(16.dp)
+    LongPressCardPreview(
+        modifier = modifier.fillMaxWidth(),
+        previewTitle = label
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(NorituraColors.Surface)
+                .padding(16.dp)
+        ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -63,6 +67,7 @@ fun KpiTile(
             color = accentColor,
             style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold)
         )
+    }
     }
 }
 

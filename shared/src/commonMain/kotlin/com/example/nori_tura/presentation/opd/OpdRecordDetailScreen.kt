@@ -53,12 +53,12 @@ fun OpdRecordDetailScreen(
                 notificationCount = 0
             )
         }
-    ) { paddingValues ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(NorituraColors.Background)
-                .padding(paddingValues)
+                
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState())
         ) {

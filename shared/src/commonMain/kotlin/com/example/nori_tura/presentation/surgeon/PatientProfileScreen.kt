@@ -47,6 +47,7 @@ import com.example.nori_tura.presentation.ipd.AdmitPatientDialog
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.formatDateTime
@@ -82,7 +83,7 @@ fun PatientProfileScreen(
                 notificationCount = 0
             )
         }
-    ) { _ ->
+    ) {
         when (val state = uiState) {
             is PatientProfileViewModel.UiState.Loading -> {
                 LoadingState(modifier = Modifier.fillMaxSize())
@@ -304,26 +305,31 @@ private fun ProfileContent(
 
 @Composable
 private fun PatientHeaderCard(patient: PatientDto) {
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        previewTitle = "Patient Preview"
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = patient.name ?: "Unknown",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            InfoRow(label = "Age / Gender", value = "${patient.age ?: "-"} / ${patient.gender ?: "-"}")
-            HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
-            InfoRow(label = "Blood Group", value = patient.bloodGroup ?: "-")
-            HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
-            InfoRow(label = "Allergies", value = patient.allergies ?: "None")
-            HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
-            InfoRow(label = "Parent", value = "${patient.parentName ?: "-"} (${patient.parentPhone ?: "-"})")
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = patient.name ?: "Unknown",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                InfoRow(label = "Age / Gender", value = "${patient.age ?: "-"} / ${patient.gender ?: "-"}")
+                HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
+                InfoRow(label = "Blood Group", value = patient.bloodGroup ?: "-")
+                HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
+                InfoRow(label = "Allergies", value = patient.allergies ?: "None")
+                HorizontalDivider(color = NorituraColors.Divider, modifier = Modifier.padding(vertical = 8.dp))
+                InfoRow(label = "Parent", value = "${patient.parentName ?: "-"} (${patient.parentPhone ?: "-"})")
+            }
         }
     }
 }
@@ -349,18 +355,21 @@ private fun OpdRecordCard(
     opdRecord: OpdRecordDto,
     onClick: (() -> Unit)? = null
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() }),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onClick?.invoke() },
+        previewTitle = "OPD Record Preview"
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -428,6 +437,7 @@ private fun OpdRecordCard(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -438,36 +448,41 @@ private fun AdmissionCard(admission: AdmissionDto) {
         "recovery" -> NorituraColors.PostOp
         else -> NorituraColors.TextTertiary
     }
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = statusColor.copy(alpha = 0.08f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        previewTitle = "Admission Preview"
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Status: ${admission.status ?: "-"}",
-                color = statusColor,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Ward: ${admission.ward ?: "-"}, Bed: ${admission.bedNo ?: "-"}",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "Procedure: ${admission.procedure ?: "-"}",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "Admitted: ${admission.admittedAt ?: "-"}",
-                color = NorituraColors.TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = statusColor.copy(alpha = 0.08f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Status: ${admission.status ?: "-"}",
+                    color = statusColor,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Ward: ${admission.ward ?: "-"}, Bed: ${admission.bedNo ?: "-"}",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Procedure: ${admission.procedure ?: "-"}",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Admitted: ${admission.admittedAt ?: "-"}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -495,37 +510,41 @@ private fun ConsentFormListCard(
 ) {
     val isSigned = consent.status == "signed"
     val statusColor = if (isSigned) NorituraColors.PostOp else NorituraColors.Warning
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = "Consent Preview"
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = consent.formType ?: "Consent Form",
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = consent.status?.replaceFirstChar { it.uppercase() } ?: "Pending",
+                        color = statusColor,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = consent.formType ?: "Consent Form",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = consent.status?.replaceFirstChar { it.uppercase() } ?: "Pending",
-                    color = statusColor,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    text = "Generated: ${consent.generatedAt?.take(10) ?: "-"}",
+                    color = NorituraColors.TextTertiary,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Generated: ${consent.generatedAt?.take(10) ?: "-"}",
-                color = NorituraColors.TextTertiary,
-                style = MaterialTheme.typography.bodySmall
-            )
         }
     }
 }
@@ -533,29 +552,33 @@ private fun ConsentFormListCard(
 
 @Composable
 private fun IpdHistoryCard(admission: AdmissionDto) {
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        previewTitle = "Admission History Preview"
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = admission.status?.replaceFirstChar { it.uppercase() } ?: "Admission",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = admission.admittedAt?.take(10) ?: "-",
-                    color = NorituraColors.TextTertiary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = admission.status?.replaceFirstChar { it.uppercase() } ?: "Admission",
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = admission.admittedAt?.take(10) ?: "-",
+                        color = NorituraColors.TextTertiary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Ward: ${admission.ward ?: "-"} • Bed: ${admission.bedNo ?: "-"}",
@@ -577,6 +600,7 @@ private fun IpdHistoryCard(admission: AdmissionDto) {
             }
         }
     }
+    }
 }
 
 @Composable
@@ -584,39 +608,44 @@ private fun SurgicalRecordRow(
     admission: AdmissionDto,
     note: com.example.nori_tura.data.dto.IntraOpNoteDto
 ) {
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        previewTitle = "Surgical Record Preview"
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = note.procedureDone,
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "OT Date: ${note.otStart?.take(10) ?: note.createdAt?.take(10) ?: "-"}",
-                color = NorituraColors.TextTertiary,
-                style = MaterialTheme.typography.bodySmall
-            )
-            if (!note.findings.isNullOrBlank()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = note.procedureDone,
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Findings: ${note.findings}",
-                    color = NorituraColors.TextSecondary,
+                    text = "OT Date: ${note.otStart?.take(10) ?: note.createdAt?.take(10) ?: "-"}",
+                    color = NorituraColors.TextTertiary,
                     style = MaterialTheme.typography.bodySmall
                 )
-            }
-            if (admission.dischargeAt != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Discharged: ${admission.dischargeAt.take(10)}",
-                    color = NorituraColors.AccentGreen,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                if (!note.findings.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Findings: ${note.findings}",
+                        color = NorituraColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (admission.dischargeAt != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Discharged: ${admission.dischargeAt.take(10)}",
+                        color = NorituraColors.AccentGreen,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
     }

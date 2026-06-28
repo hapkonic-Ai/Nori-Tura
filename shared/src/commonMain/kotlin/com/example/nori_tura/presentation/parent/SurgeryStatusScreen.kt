@@ -49,6 +49,7 @@ import com.example.nori_tura.presentation.components.Avatar
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.ui.theme.NorituraColors
 
@@ -78,12 +79,12 @@ fun SurgeryStatusScreen(
                 notificationCount = 0
             )
         }
-    ) { paddingValues ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(NorituraColors.Background)
-                .padding(paddingValues)
+                
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -248,13 +249,17 @@ private fun PatientHeader(admission: AdmissionDto) {
 @Composable
 private fun DoctorCard(admission: AdmissionDto) {
     val doctor = admission.doctor
-    Card(
+    LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        previewTitle = "Doctor Preview"
     ) {
-        Row(
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
@@ -292,6 +297,7 @@ private fun DoctorCard(admission: AdmissionDto) {
                 )
             }
         }
+    }
     }
 }
 

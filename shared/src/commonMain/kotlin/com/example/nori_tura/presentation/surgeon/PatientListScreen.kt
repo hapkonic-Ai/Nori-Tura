@@ -1,7 +1,6 @@
 package com.example.nori_tura.presentation.surgeon
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,9 +34,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -47,6 +44,7 @@ import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.SearchField
 import com.example.nori_tura.presentation.components.StatusChip
 import com.example.nori_tura.ui.theme.NorituraColors
@@ -224,58 +222,52 @@ private fun PatientListRow(
         else -> "Outpatient" to NorituraColors.TextTertiary
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = "Patient Preview"
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Avatar(name = patient.name ?: "?", size = 48.dp)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    text = patient.name ?: "Unknown",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
-                val details = buildString {
-                    patient.age?.let { append("$it yrs") }
-                    patient.gender?.takeIf { it.isNotBlank() }?.let {
-                        if (isNotEmpty()) append(" • ")
-                        append(it.replaceFirstChar { c -> c.uppercase() })
-                    }
+                Avatar(name = patient.name ?: "?", size = 48.dp)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = patient.name ?: "Unknown",
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = "ID: ${patient.id ?: "-"} • ${patient.age ?: "-"} yrs • ${patient.gender ?: "-"}",
+                        color = NorituraColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
-                Text(
-                    text = details.takeIf { it.isNotEmpty() } ?: "No details",
-                    color = NorituraColors.TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                StatusChip(
+                    label = status.first,
+                    color = status.second,
+                    showDot = true
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = "Open",
+                    tint = NorituraColors.TextTertiary,
+                    modifier = Modifier.size(16.dp)
                 )
             }
-            StatusChip(
-                label = status.first,
-                color = status.second,
-                showDot = true
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = "Open",
-                tint = NorituraColors.TextTertiary,
-                modifier = Modifier.size(16.dp)
-            )
         }
     }
 }
