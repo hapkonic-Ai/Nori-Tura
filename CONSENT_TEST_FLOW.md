@@ -27,9 +27,11 @@ Use these representative Indian phone numbers:
 | Role | Phone |
 |------|-------|
 | Surgeon | `+919876543210` |
-| Nurse | `+919876543211` |
+| Nurse | `+919876543215` |
 | Parent | `+919876543212` |
 | Other parent (isolation test) | `+919876543213` |
+
+> **Important:** Each phone number must belong to only one role. The auth flow checks `admin → surgeon → nurse → parent` in that order, so if the parent phone is already registered as a nurse/doctor/admin, login will treat it as staff instead of a parent.
 
 ### 2.1 Register & activate the surgeon
 
@@ -63,7 +65,7 @@ curl -X POST http://localhost:8000/auth/verify-otp \
 curl -X POST http://localhost:8000/nurses \
   -H "Authorization: Bearer <SURGEON_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Nurse Rani","phone":"+919876543211","hospital":"ABC Childrens Hospital"}'
+  -d '{"name":"Nurse Rani","phone":"+919876543215","hospital":"ABC Childrens Hospital"}'
 ```
 
 ### 2.3 Create a patient (parent phone = `+919876543212`)
@@ -198,7 +200,7 @@ Save the returned `id` as `ADMISSION_ID`.
 
 ## 6. Flow D — Nurse Can Generate but Cannot Sign
 
-1. Login as nurse `+919876543211`.
+1. Login as nurse `+919876543215`.
 2. Navigate to **Admissions** → tap Rohan Sharma's admission.
 3. Tap **Add Consent Form**, fill, and submit.
 
