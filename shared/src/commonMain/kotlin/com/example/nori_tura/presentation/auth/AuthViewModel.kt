@@ -27,8 +27,8 @@ class AuthViewModel(
         _uiState.value = AuthUiState.Loading
         viewModelScope.launch {
             repository.sendOtp(phone)
-                .onSuccess {
-                    _uiState.value = AuthUiState.OtpSent(phone)
+                .onSuccess { response ->
+                    _uiState.value = AuthUiState.OtpSent(phone, devOtp = response.devOtp)
                 }
                 .onFailure { error ->
                     _uiState.value = AuthUiState.Error(error.message ?: "Failed to send OTP")
