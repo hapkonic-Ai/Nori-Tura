@@ -15,9 +15,41 @@ from app.core.auth_deps import (
 from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
 from app.core.config import get_settings
 from app.schemas.consent import ConsentFormCreate, ConsentSignRequest
+from app.schemas.consent_acknowledgment import (
+    ConsentAcknowledgmentRequest,
+    ConsentAcknowledgmentResponse,
+    LatestConsentResponse,
+)
 
 settings = get_settings()
 router = APIRouter(prefix="/consent", tags=["Consent"])
+
+CONSENT_TEXT = """
+NONI TURA SURGICAL CARE PLATFORM
+Terms & Consent Agreement
+
+By using this platform, you acknowledge:
+
+1. MEDICAL INFORMATION STORAGE
+   Your medical information will be stored securely in compliance with Indian healthcare regulations.
+
+2. DATA SCOPE
+   Your data is accessible only to your treating surgeon and assigned nursing staff.
+
+3. ELECTRONIC RECORDS
+   You consent to electronic storage of medical records including OPD notes, surgical records,
+   and imaging studies.
+
+4. DATA DELETION
+   You can request data deletion at any time by contacting your surgeon or administrator.
+
+5. PRIVACY COMMITMENT
+   Your data will not be shared with third parties without explicit consent, except as required
+   by law.
+
+Version: v1.0
+Last Updated: 2026-07-14
+"""
 
 
 def _generate_consent_number() -> str:
@@ -53,6 +85,55 @@ def _upload_consent_pdf(pdf_bytes: bytes, filename: str) -> Optional[str]:
     except Exception as e:
         print(f"Cloudinary upload error: {e}")
         return None
+
+
+@router.get("/latest", response_model=LatestConsentResponse)
+async def get_latest_consent():
+    """Return latest consent text and version for display."""
+    return {
+        "version": "v1.0",
+        "title": "Terms & Consent",
+        "content": CONSENT_TEXT,
+        "requires_acknowledgment": True
+    }
+
+
+@router.post("/acknowledge", status_code=status.HTTP_200_OK, response_model=ConsentAcknowledgmentResponse)
+async def acknowledge_consent(req: ConsentAcknowledgmentRequest):
+    """Log consent acknowledgment."""
+    try:
+        now = datetime.now(timezone.utc)
+        result = await prisma.consent_acknowledgments.upsert(
+            where={
+                "user_phone_consent_version": {
+                    "user_phone": req.phone,
+                    "consent_version": "v1.0"
+                }
+            },
+            update={
+                "acknowledged": True,
+                "acknowledged_at": now,
+                "device_info": req.device_info,
+                "ip_address": req.client_ip,
+                "updated_at": now
+            },
+            create={
+                "user_phone": req.phone,
+                "user_role": "pending",
+                "consent_version": "v1.0",
+                "consent_text": CONSENT_TEXT,
+                "acknowledged": True,
+                "acknowledged_at": now,
+                "ip_address": req.client_ip,
+                "device_info": req.device_info,
+            }
+        )
+        return {
+            "acknowledged": True,
+            "acknowledged_at": result.acknowledged_at
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to acknowledge consent: {str(e)}")
 
 
 @router.post("/forms", status_code=status.HTTP_201_CREATED)
