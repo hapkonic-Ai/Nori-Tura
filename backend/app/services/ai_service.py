@@ -17,7 +17,7 @@ Patient age: {age} years
 Gender: {gender}
 Chief complaint: {complaint}
 Examination findings: {examination}
-
+{rag_section}
 Return ONLY a valid JSON object with these exact keys:
 - differential_diagnosis: list of objects, each with {{"name": string, "reasoning": string}}
 - recommended_investigations: list of strings
@@ -34,12 +34,20 @@ async def suggest_diagnosis(
     gender: Optional[str]
 ) -> dict:
     """Suggest a differential diagnosis for a pediatric surgical presentation."""
+    from app.services.rag_service import get_diagnosis_context
+
+    rag_context = await get_diagnosis_context(complaint, examination, age, gender)
+    rag_section = (
+        f"\nRelevant clinical reference (retrieved from guidelines):\n{rag_context}\n"
+        if rag_context else ""
+    )
 
     prompt = PEDIATRIC_SURGERY_PROMPT.format(
         age=age if age is not None else "unknown",
         gender=gender if gender is not None else "unknown",
         complaint=complaint,
         examination=examination,
+        rag_section=rag_section,
     )
 
     if settings.OPENAI_API_KEY:

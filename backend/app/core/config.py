@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # Firebase
     FIREBASE_CREDENTIALS_JSON: str = ""
 
+    # RAG endpoints (optional — features degrade gracefully if not set)
+    RAG_DIAGNOSIS_URL: str = ""   # e.g. https://your-rag.example.com/query/diagnosis
+    RAG_CONSENT_URL: str = ""     # e.g. https://your-rag.example.com/query/consent
+    RAG_API_KEY: str = ""         # shared bearer token for your RAG service
+    RAG_TIMEOUT_SECONDS: int = 10
+
     @validator("JWT_SECRET")
     def validate_jwt_secret(cls, v, values):
         env = values.get("ENVIRONMENT", os.getenv("ENVIRONMENT", "development"))

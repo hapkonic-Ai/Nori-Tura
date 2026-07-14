@@ -12,14 +12,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.nori_tura.ui.theme.NorituraColors
@@ -69,15 +65,12 @@ fun NorituraTopBar(
     modifier: Modifier = Modifier,
     avatar: @Composable (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
-    notificationCount: Int = 3,
-    onNotificationClick: () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {}
 ) {
-    val badgeCount = notificationCount.takeIf { it > 0 } ?: 3
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .safeDrawingPadding()
+            .statusBarsPadding()
             .padding(start = if (onBack != null) 4.dp else 20.dp, top = 0.dp, end = 12.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -109,31 +102,6 @@ fun NorituraTopBar(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             actions()
-            IconButton(
-                onClick = onNotificationClick,
-                modifier = Modifier.size(44.dp)
-            ) {
-                BadgedBox(
-                    badge = {
-                        Badge(
-                            containerColor = NorituraColors.Error,
-                            contentColor = Color.White
-                        ) {
-                            Text(
-                                text = badgeCount.coerceAtMost(99).toString(),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = NorituraColors.TextPrimary,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-            }
         }
     }
 }
@@ -143,7 +111,7 @@ fun BrandTopBar(
     initials: String = "DR",
     title: String = "SurgiCare",
     onBack: (() -> Unit)? = null,
-    notificationCount: Int = 3,
+    notificationCount: Int = 0,
     onNotificationClick: () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {}
 ) {
@@ -175,8 +143,6 @@ fun BrandTopBar(
                 }
             }
         },
-        notificationCount = notificationCount,
-        onNotificationClick = onNotificationClick,
         actions = actions
     )
 }

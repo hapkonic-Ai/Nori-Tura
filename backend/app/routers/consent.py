@@ -13,8 +13,9 @@ from app.core.auth_deps import (
     resolve_doctor_id,
 )
 from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
+from app.services.rag_service import get_consent_content
 from app.core.config import get_settings
-from app.schemas.consent import ConsentFormCreate, ConsentSignRequest
+from app.schemas.consent import ConsentFormCreate, ConsentSignRequest, ConsentSuggestRequest
 from app.schemas.consent_acknowledgment import (
     ConsentAcknowledgmentRequest,
     ConsentAcknowledgmentResponse,
@@ -136,6 +137,27 @@ async def acknowledge_consent(req: ConsentAcknowledgmentRequest):
         raise HTTPException(status_code=500, detail=f"Failed to acknowledge consent: {str(e)}")
 
 
+@router.post("/suggest-content")
+async def suggest_consent_content(
+    req: ConsentSuggestRequest,
+    user: CurrentUser = Depends(get_current_nurse_or_surgeon),
+):
+    """
+    Preview RAG-suggested clinical content for a consent form before creating it.
+    Frontend can call this as the surgeon types the procedure/diagnosis, then
+    pre-fill the consent form fields for review.
+
+    Returns the same shape as rag_service.get_consent_content, or {} if RAG not configured.
+    """
+    content = await get_consent_content(
+        procedure=req.procedure,
+        diagnosis=req.diagnosis,
+        patient_age=req.patient_age,
+        patient_gender=req.patient_gender,
+    )
+    return content or {}
+
+
 @router.post("/forms", status_code=status.HTTP_201_CREATED)
 async def create_consent_form(
     req: ConsentFormCreate,
@@ -157,6 +179,16 @@ async def create_consent_form(
 
     now = datetime.now(timezone.utc)
     consent_number = _generate_consent_number()
+
+    # Query consent RAG for procedure-specific clinical content (risks, complications,
+    # alternatives, recovery). RAG output acts as the default; surgeon's request fields
+    # override it when explicitly provided.
+    rag_content = await get_consent_content(
+        procedure=req.procedure,
+        diagnosis=req.diagnosis,
+        patient_age=patient.age,
+        patient_gender=patient.gender,
+    ) or {}
 
     # Derive defaults from related records when not provided by the client.
     hospital = doctor.hospital
@@ -213,18 +245,18 @@ async def create_consent_form(
         "doctor_registration_number": doctor_registration_number,
         "doctor_declaration_timestamp": now.isoformat(),
 
-        # Clinical
+        # Clinical — surgeon's explicit input takes priority; RAG content fills gaps
         "diagnosis": req.diagnosis,
         "procedure": req.procedure,
-        "procedure_description": req.procedure_description or "",
+        "procedure_description": req.procedure_description or rag_content.get("procedure_description", ""),
         "anesthesia": req.anesthesia,
         "benefits": req.benefits,
-        "risks": req.risks,
-        "material_risks": req.material_risks or req.risks,
-        "possible_complications": req.possible_complications or "",
-        "alternatives": req.alternatives,
-        "post_op_care": req.post_op_care,
-        "expected_recovery": req.expected_recovery or "",
+        "risks": req.risks or rag_content.get("risks", ""),
+        "material_risks": req.material_risks or req.risks or rag_content.get("material_risks", ""),
+        "possible_complications": req.possible_complications or rag_content.get("possible_complications", ""),
+        "alternatives": req.alternatives or rag_content.get("alternatives", ""),
+        "post_op_care": req.post_op_care or rag_content.get("post_op_care", ""),
+        "expected_recovery": req.expected_recovery or rag_content.get("expected_recovery", ""),
         "refusal_consequences": (
             "If consent is refused, the treating doctor will explain the consequences, which may include "
             "worsening of the patient's condition, persistent pain, disability, or other serious outcomes."
@@ -239,15 +271,17 @@ async def create_consent_form(
         "consent_for_blood_products": "Yes" if req.consent_for_blood_products else "No",
         "consent_for_photography": "Yes" if req.consent_for_photography else "No",
 
-        # Privacy / statutory text
+        # Privacy / statutory text — RAG can supply procedure-specific guideline references
         "privacy_statement": (
             "Personal and medical information will be kept confidential and used only for treatment, "
             "billing, quality assurance, and as required by law."
         ),
-        "statutory_reference": (
+        "statutory_reference": rag_content.get(
+            "applicable_guidelines",
             "This consent is obtained in accordance with the principles of informed consent laid down by "
             "the National Medical Commission (NMC) and NABH standards for patient rights."
         ),
+        "rag_assisted": bool(rag_content),  # audit flag so you know RAG pre-populated this form
     }
 
     # Create the consent record first so the generated PDF can reference the

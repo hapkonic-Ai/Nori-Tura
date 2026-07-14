@@ -1,53 +1,63 @@
 package com.example.nori_tura.presentation.surgeon
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.nori_tura.presentation.components.Avatar
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.presentation.components.BrandTopBar
-import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.ui.theme.NorituraColors
 
 @Composable
 fun DoctorProfileTab(
     modifier: Modifier = Modifier,
+    viewModel: DoctorProfileViewModel = viewModel { DoctorProfileViewModel() },
     onLogout: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
     NorituraScaffold(
         modifier = modifier,
         topBar = {
             BrandTopBar(
                 initials = "DR",
-                title = "Profile",
-                notificationCount = 0
+                title = "Profile"
             )
         }
     ) {
@@ -55,67 +65,124 @@ fun DoctorProfileTab(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LongPressCardPreview(
-                modifier = Modifier.fillMaxWidth(),
-                previewTitle = "Profile Preview"
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            when (val state = uiState) {
+                is DoctorProfileViewModel.UiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Avatar(name = "Doctor User", size = 80.dp)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Dr. User",
-                            color = NorituraColors.TextPrimary,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Surgeon",
-                            color = NorituraColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        CircularProgressIndicator()
+                    }
+                }
+
+                is DoctorProfileViewModel.UiState.Error -> {
+                    Text(
+                        text = "Could not load profile: ${state.message}",
+                        color = NorituraColors.Error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(vertical = 24.dp)
+                    )
+                }
+
+                is DoctorProfileViewModel.UiState.Success -> {
+                    val profile = state.me.profile ?: state.me.doctor
+                    val name = profile?.name ?: "Dr. Unknown"
+                    val phone = profile?.phone ?: state.me.phone ?: "—"
+                    val specialty = profile?.specialty ?: "Surgeon"
+                    val initials = name.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("")
+
+                    // Avatar + name card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape)
+                                    .background(NorituraColors.PrimaryBlueLight),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = initials.ifBlank { "DR" },
+                                    color = NorituraColors.PrimaryBlue,
+                                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = name,
+                                color = NorituraColors.TextPrimary,
+                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = specialty,
+                                color = NorituraColors.TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            // Freelancing badge
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(NorituraColors.AccentGreenLight)
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Freelancing Surgeon",
+                                    color = NorituraColors.AccentGreen,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                            }
+                        }
+                    }
+
+                    // Details card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            ProfileRow(
+                                icon = Icons.Default.Phone,
+                                label = "Phone",
+                                value = phone
+                            )
+                            HorizontalDivider(color = NorituraColors.Divider)
+                            ProfileRow(
+                                icon = Icons.Default.MedicalServices,
+                                label = "Specialty",
+                                value = specialty
+                            )
+                            HorizontalDivider(color = NorituraColors.Divider)
+                            ProfileRow(
+                                icon = Icons.Default.Badge,
+                                label = "Practice Type",
+                                value = "Multi-hospital · Freelancing"
+                            )
+                        }
                     }
                 }
             }
 
-            LongPressCardPreview(
-                modifier = Modifier.fillMaxWidth(),
-                previewTitle = "Details Preview"
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.extraLarge,
-                    colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        ProfileRow(icon = Icons.Default.Person, label = "Phone", value = "+91 98765 43210")
-                        HorizontalDivider(color = NorituraColors.Divider)
-                        ProfileRow(icon = Icons.Default.Person, label = "Hospital", value = "City Hospital")
-                        HorizontalDivider(color = NorituraColors.Divider)
-                        ProfileRow(icon = Icons.Default.Person, label = "Specialty", value = "General Surgery")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = onLogout,
                 colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.Error),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Default.ExitToApp,
@@ -123,16 +190,15 @@ fun DoctorProfileTab(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Logout")
+                Text("Logout", style = MaterialTheme.typography.labelLarge)
             }
-            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
 
 @Composable
 private fun ProfileRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     value: String
 ) {

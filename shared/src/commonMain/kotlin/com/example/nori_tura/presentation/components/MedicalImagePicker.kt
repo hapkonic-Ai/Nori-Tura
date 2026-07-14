@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.nori_tura.presentation.components
 
 import androidx.compose.foundation.background
@@ -166,7 +168,7 @@ fun MedicalImagePicker(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(category, modifier = Modifier.align(Alignment.Start))
+                            Text(category, modifier = Modifier.fillMaxWidth())
                         }
                     }
                 }

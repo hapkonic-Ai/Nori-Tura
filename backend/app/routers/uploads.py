@@ -22,12 +22,12 @@ class MediaUploadResponse(BaseModel):
 
 @router.post("/media", response_model=MediaUploadResponse, status_code=status.HTTP_200_OK)
 async def upload_media_files(
-    files: List[UploadFile] = File(..., description="One or more image/video files"),
-    resource_type: Literal["image", "video"] = Form("image"),
+    files: List[UploadFile] = File(..., description="One or more image/video/PDF files"),
+    resource_type: Literal["image", "video", "raw"] = Form("image"),
     folder: str = Form("nonitura"),
     user: CurrentUser = Depends(get_current_user),
 ):
-    """Upload image or video files to Cloudinary and return their URLs."""
+    """Upload image, video or raw files (e.g. PDFs) to Cloudinary and return their URLs."""
     urls: List[str] = []
 
     for upload in files:

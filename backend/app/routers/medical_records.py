@@ -72,7 +72,7 @@ async def list_medical_records(
     records = await prisma.medical_records.find_many(
         where={"patient_id": patient_id},
         include={"images": True},
-        order_by={"created_at": "desc"}
+        order={"created_at": "desc"}
     )
 
     return [

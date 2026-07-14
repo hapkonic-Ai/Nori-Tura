@@ -1,8 +1,9 @@
 package com.example.nori_tura.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.nori_tura.data.ApiClient
@@ -37,32 +40,49 @@ import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ImageAttachmentPicker(
     imageUrls: List<String>,
     onImageUrlsChange: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Attached images",
+    label: String = "Attached media",
     maxImages: Int = 5,
-    buttonLabel: String = "Add image"
+    buttonLabel: String = "Add image",
+    allowVideo: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
-    var isUploading by remember { mutableStateOf(false) }
+    var isUploadingImage by remember { mutableStateOf(false) }
+    var isUploadingVideo by remember { mutableStateOf(false) }
+    val isUploading = isUploadingImage || isUploadingVideo
 
-    val launcher = rememberFilePickerLauncher(
+    val imageLauncher = rememberFilePickerLauncher(
         type = PickerType.Image,
         mode = PickerMode.Multiple()
     ) { files ->
         files ?: return@rememberFilePickerLauncher
         scope.launch {
-            isUploading = true
+            isUploadingImage = true
             val pairs = files.map { it.name to it.readBytes() }
-            ApiClient.uploadMedia(pairs)
-                .onSuccess { urls ->
-                    onImageUrlsChange((imageUrls + urls).take(maxImages))
-                }
-                .onFailure { /* errors are best surfaced by the caller via log/analytics */ }
-            isUploading = false
+            ApiClient.uploadMedia(pairs, resourceType = "image")
+                .onSuccess { urls -> onImageUrlsChange((imageUrls + urls).take(maxImages)) }
+                .onFailure { }
+            isUploadingImage = false
+        }
+    }
+
+    val videoLauncher = rememberFilePickerLauncher(
+        type = PickerType.Video,
+        mode = PickerMode.Multiple()
+    ) { files ->
+        files ?: return@rememberFilePickerLauncher
+        scope.launch {
+            isUploadingVideo = true
+            val pairs = files.map { it.name to it.readBytes() }
+            ApiClient.uploadMedia(pairs, resourceType = "video")
+                .onSuccess { urls -> onImageUrlsChange((imageUrls + urls).take(maxImages)) }
+                .onFailure { }
+            isUploadingVideo = false
         }
     }
 
@@ -70,10 +90,11 @@ fun ImageAttachmentPicker(
         Text(
             text = label,
             color = NorituraColors.TextPrimary,
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
         )
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Upload buttons row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -81,11 +102,11 @@ fun ImageAttachmentPicker(
         ) {
             if (imageUrls.size < maxImages) {
                 OutlinedButton(
-                    onClick = { launcher.launch() },
+                    onClick = { imageLauncher.launch() },
                     enabled = !isUploading,
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    if (isUploading) {
+                    if (isUploadingImage) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(
@@ -97,17 +118,44 @@ fun ImageAttachmentPicker(
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(buttonLabel)
                 }
-            }
 
-            imageUrls.forEachIndexed { index, url ->
-                AttachmentChip(
-                    url = url,
-                    onRemove = { onImageUrlsChange(imageUrls.toMutableList().apply { removeAt(index) }) }
-                )
+                if (allowVideo && imageUrls.size < maxImages) {
+                    OutlinedButton(
+                        onClick = { videoLauncher.launch() },
+                        enabled = !isUploading,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (isUploadingVideo) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.VideoLibrary,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Add video")
+                    }
+                }
             }
         }
 
+        // Attached file chips — wrap to multiple rows if needed
         if (imageUrls.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                imageUrls.forEachIndexed { index, url ->
+                    AttachmentChip(
+                        url = url,
+                        onRemove = { onImageUrlsChange(imageUrls.toMutableList().apply { removeAt(index) }) }
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${imageUrls.size}/$maxImages attached",
@@ -119,14 +167,18 @@ fun ImageAttachmentPicker(
 }
 
 @Composable
-private fun AttachmentChip(
+internal fun AttachmentChip(
     url: String,
     onRemove: () -> Unit
 ) {
-    val display = url.takeLastWhile { it != '/' }.takeIf { it.isNotBlank() } ?: "image"
+    val raw = url.substringAfterLast('/').substringBefore('?')
+    val ext = raw.substringAfterLast('.').lowercase()
+    val isVideo = ext in listOf("mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp")
+    val display = if (raw.isNotBlank()) raw else if (isVideo) "video" else "image"
+
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = NorituraColors.PrimaryBlueLight,
+        color = if (isVideo) NorituraColors.SurfaceVariant else NorituraColors.PrimaryBlueLight,
         modifier = Modifier.height(36.dp)
     ) {
         Row(
@@ -134,9 +186,15 @@ private fun AttachmentChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            Icon(
+                imageVector = if (isVideo) Icons.Default.VideoLibrary else Icons.Default.AddPhotoAlternate,
+                contentDescription = null,
+                tint = if (isVideo) NorituraColors.TextSecondary else NorituraColors.PrimaryBlue,
+                modifier = Modifier.size(14.dp)
+            )
             Text(
                 text = display,
-                color = NorituraColors.PrimaryBlue,
+                color = if (isVideo) NorituraColors.TextSecondary else NorituraColors.PrimaryBlue,
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -146,7 +204,7 @@ private fun AttachmentChip(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Remove",
-                    tint = NorituraColors.PrimaryBlue,
+                    tint = if (isVideo) NorituraColors.TextSecondary else NorituraColors.PrimaryBlue,
                     modifier = Modifier.size(16.dp)
                 )
             }

@@ -7,16 +7,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -51,6 +56,8 @@ import com.example.nori_tura.data.dto.PostOpNoteCreateRequest
 import com.example.nori_tura.data.dto.PreOpNoteCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.data.dto.WardRoundNoteCreateRequest
+import com.example.nori_tura.presentation.components.AttachmentChip
+import com.example.nori_tura.presentation.components.ImageAttachmentPicker
 import com.example.nori_tura.presentation.components.TemplatePickerDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,7 +168,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Pre-Op Notes")
         for (note in admission.preOpNotes ?: emptyList()) {
-            NoteCard {
+            NoteCard(imageUrls = note.imageUrls) {
                 Text("Procedure: ${note.procedure}", fontWeight = FontWeight.SemiBold)
                 note.approach?.let { Text("Approach: $it") }
                 note.anaesthesia?.let { Text("Anaesthesia: $it") }
@@ -177,7 +184,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Intra-Op Notes")
         for (note in admission.intraOpNotes ?: emptyList()) {
-            NoteCard {
+            NoteCard(imageUrls = note.imageUrls) {
                 Text("Procedure: ${note.procedureDone}", fontWeight = FontWeight.SemiBold)
                 note.findings?.let { Text("Findings: $it") }
                 note.technique?.let { Text("Technique: $it") }
@@ -191,7 +198,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Post-Op Notes")
         for (note in admission.postOpNotes ?: emptyList()) {
-            NoteCard {
+            NoteCard(imageUrls = note.imageUrls) {
                 Text("Day ${note.dayNumber}: ${note.condition}", fontWeight = FontWeight.SemiBold)
                 Text("Vitals: ${note.vitalsJson.entries.joinToString { "${it.key}=${it.value}" }}")
                 note.woundStatus?.let { Text("Wound: $it") }
@@ -205,7 +212,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Ward Round Notes")
         for (note in admission.wardRoundNotes ?: emptyList()) {
-            NoteCard {
+            NoteCard(imageUrls = note.imageUrls) {
                 Text("SOAP", fontWeight = FontWeight.SemiBold)
                 note.subjective?.let { Text("S: $it") }
                 note.objective?.let { Text("O: $it") }
@@ -222,7 +229,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Discharge Summary")
         (admission.dischargeSummaries ?: emptyList()).firstOrNull()?.let { summary ->
-            NoteCard {
+            NoteCard(imageUrls = summary.imageUrls) {
                 Text("Condition: ${summary.conditionAtDischarge}", fontWeight = FontWeight.SemiBold)
                 Text("Procedure: ${summary.procedureSummary}")
                 summary.followUpDate?.let { Text("Follow-up: $it") }
@@ -247,8 +254,13 @@ private fun AdmissionDetailContent(
         }
     }
 
+    val fullScreenDialogProps = DialogProperties(usePlatformDefaultWidth = false)
+
     if (showPreOp) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showPreOp = false }) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showPreOp = false },
+            properties = fullScreenDialogProps
+        ) {
             PreOpForm(
                 templates = templates,
                 onDismiss = { showPreOp = false },
@@ -261,7 +273,10 @@ private fun AdmissionDetailContent(
     }
 
     if (showIntraOp) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showIntraOp = false }) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showIntraOp = false },
+            properties = fullScreenDialogProps
+        ) {
             IntraOpForm(
                 templates = templates,
                 onDismiss = { showIntraOp = false },
@@ -274,7 +289,10 @@ private fun AdmissionDetailContent(
     }
 
     if (showPostOp) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showPostOp = false }) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showPostOp = false },
+            properties = fullScreenDialogProps
+        ) {
             PostOpForm(
                 onDismiss = { showPostOp = false },
                 onSave = { request ->
@@ -286,7 +304,10 @@ private fun AdmissionDetailContent(
     }
 
     if (showWardRound) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showWardRound = false }) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showWardRound = false },
+            properties = fullScreenDialogProps
+        ) {
             WardRoundForm(
                 onDismiss = { showWardRound = false },
                 onSave = { request ->
@@ -298,8 +319,12 @@ private fun AdmissionDetailContent(
     }
 
     if (showDischarge) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showDischarge = false }) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showDischarge = false },
+            properties = fullScreenDialogProps
+        ) {
             DischargeForm(
+                admission = admission,
                 onDismiss = { showDischarge = false },
                 onSave = { request ->
                     viewModel.createDischargeSummary(request)
@@ -321,13 +346,30 @@ private fun SectionTitle(title: String) {
 }
 
 @Composable
-private fun NoteCard(content: @Composable ColumnScope.() -> Unit) {
+private fun NoteCard(
+    imageUrls: List<String>? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             content()
+            if (!imageUrls.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    imageUrls.forEach { url ->
+                        AttachmentChip(
+                            url = url,
+                            onRemove = {}
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -382,6 +424,7 @@ private fun PreOpForm(
     var investigations by remember { mutableStateOf("") }
     var riskLevel by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
+    var imageUrls by remember { mutableStateOf(listOf<String>()) }
     var showTemplatePicker by remember { mutableStateOf(false) }
 
     if (showTemplatePicker) {
@@ -401,35 +444,42 @@ private fun PreOpForm(
         )
     }
 
-    FormCard(title = "Pre-Op Note") {
+    FormCard(
+        title = "Pre-Op Note",
+        onDismiss = onDismiss,
+        onSave = {
+            onSave(
+                PreOpNoteCreateRequest(
+                    procedure = procedure,
+                    approach = approach.takeIf { it.isNotBlank() },
+                    anaesthesia = anaesthesia.takeIf { it.isNotBlank() },
+                    investigations = investigations.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    riskLevel = riskLevel.takeIf { it.isNotBlank() },
+                    specialInstructions = instructions.takeIf { it.isNotBlank() },
+                    imageUrls = imageUrls
+                )
+            )
+        },
+        saveEnabled = procedure.isNotBlank()
+    ) {
         OutlinedButton(
             onClick = { showTemplatePicker = true },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Apply from Template")
         }
-        Spacer(modifier = Modifier.height(8.dp))
         FormTextField(procedure, { procedure = it }, "Procedure *")
         FormTextField(approach, { approach = it }, "Approach")
         FormTextField(anaesthesia, { anaesthesia = it }, "Anaesthesia")
         FormTextField(investigations, { investigations = it }, "Investigations (comma separated)")
         FormTextField(riskLevel, { riskLevel = it }, "Risk Level")
         FormTextField(instructions, { instructions = it }, "Special Instructions")
-        FormButtons(
-            onDismiss = onDismiss,
-            onSave = {
-                onSave(
-                    PreOpNoteCreateRequest(
-                        procedure = procedure,
-                        approach = approach.takeIf { it.isNotBlank() },
-                        anaesthesia = anaesthesia.takeIf { it.isNotBlank() },
-                        investigations = investigations.split(",").map { it.trim() }.filter { it.isNotBlank() },
-                        riskLevel = riskLevel.takeIf { it.isNotBlank() },
-                        specialInstructions = instructions.takeIf { it.isNotBlank() }
-                    )
-                )
-            },
-            enabled = procedure.isNotBlank()
+        ImageAttachmentPicker(
+            imageUrls = imageUrls,
+            onImageUrlsChange = { imageUrls = it },
+            label = "Attach images / video",
+            maxImages = 5,
+            allowVideo = true
         )
     }
 }
@@ -447,6 +497,7 @@ private fun IntraOpForm(
     var bloodLoss by remember { mutableStateOf("") }
     var otStart by remember { mutableStateOf("") }
     var otEnd by remember { mutableStateOf("") }
+    var imageUrls by remember { mutableStateOf(listOf<String>()) }
     var showTemplatePicker by remember { mutableStateOf(false) }
 
     if (showTemplatePicker) {
@@ -461,14 +512,31 @@ private fun IntraOpForm(
         )
     }
 
-    FormCard(title = "Intra-Op Note") {
+    FormCard(
+        title = "Intra-Op Note",
+        onDismiss = onDismiss,
+        onSave = {
+            onSave(
+                IntraOpNoteCreateRequest(
+                    procedureDone = procedure,
+                    findings = findings.takeIf { it.isNotBlank() },
+                    technique = technique.takeIf { it.isNotBlank() },
+                    complications = complications.takeIf { it.isNotBlank() },
+                    bloodLoss = bloodLoss.takeIf { it.isNotBlank() },
+                    otStart = otStart.takeIf { it.isNotBlank() },
+                    otEnd = otEnd.takeIf { it.isNotBlank() },
+                    imageUrls = imageUrls
+                )
+            )
+        },
+        saveEnabled = procedure.isNotBlank()
+    ) {
         OutlinedButton(
             onClick = { showTemplatePicker = true },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Apply from Template")
         }
-        Spacer(modifier = Modifier.height(8.dp))
         FormTextField(procedure, { procedure = it }, "Procedure Done *")
         FormTextField(findings, { findings = it }, "Findings")
         FormTextField(technique, { technique = it }, "Technique")
@@ -476,22 +544,12 @@ private fun IntraOpForm(
         FormTextField(bloodLoss, { bloodLoss = it }, "Blood Loss")
         FormTextField(otStart, { otStart = it }, "OT Start (ISO)")
         FormTextField(otEnd, { otEnd = it }, "OT End (ISO)")
-        FormButtons(
-            onDismiss = onDismiss,
-            onSave = {
-                onSave(
-                    IntraOpNoteCreateRequest(
-                        procedureDone = procedure,
-                        findings = findings.takeIf { it.isNotBlank() },
-                        technique = technique.takeIf { it.isNotBlank() },
-                        complications = complications.takeIf { it.isNotBlank() },
-                        bloodLoss = bloodLoss.takeIf { it.isNotBlank() },
-                        otStart = otStart.takeIf { it.isNotBlank() },
-                        otEnd = otEnd.takeIf { it.isNotBlank() }
-                    )
-                )
-            },
-            enabled = procedure.isNotBlank()
+        ImageAttachmentPicker(
+            imageUrls = imageUrls,
+            onImageUrlsChange = { imageUrls = it },
+            label = "Attach images / video",
+            maxImages = 5,
+            allowVideo = true
         )
     }
 }
@@ -507,29 +565,38 @@ private fun PostOpForm(
     var wound by remember { mutableStateOf("") }
     var pain by remember { mutableStateOf("") }
     var diet by remember { mutableStateOf("") }
+    var imageUrls by remember { mutableStateOf(listOf<String>()) }
 
-    FormCard(title = "Post-Op Note") {
+    FormCard(
+        title = "Post-Op Note",
+        onDismiss = onDismiss,
+        onSave = {
+            onSave(
+                PostOpNoteCreateRequest(
+                    dayNumber = day.toIntOrNull() ?: 1,
+                    condition = condition,
+                    vitalsJson = parseKeyValue(vitals),
+                    woundStatus = wound.takeIf { it.isNotBlank() },
+                    painScore = pain.toIntOrNull(),
+                    diet = diet.takeIf { it.isNotBlank() },
+                    imageUrls = imageUrls
+                )
+            )
+        },
+        saveEnabled = condition.isNotBlank() && day.toIntOrNull() != null
+    ) {
         FormTextField(day, { day = it }, "Day Number *")
         FormTextField(condition, { condition = it }, "Condition *")
         FormTextField(vitals, { vitals = it }, "Vitals (key=value, comma)")
         FormTextField(wound, { wound = it }, "Wound Status")
         FormTextField(pain, { pain = it }, "Pain Score (0-10)")
         FormTextField(diet, { diet = it }, "Diet")
-        FormButtons(
-            onDismiss = onDismiss,
-            onSave = {
-                onSave(
-                    PostOpNoteCreateRequest(
-                        dayNumber = day.toIntOrNull() ?: 1,
-                        condition = condition,
-                        vitalsJson = parseKeyValue(vitals),
-                        woundStatus = wound.takeIf { it.isNotBlank() },
-                        painScore = pain.toIntOrNull(),
-                        diet = diet.takeIf { it.isNotBlank() }
-                    )
-                )
-            },
-            enabled = condition.isNotBlank() && day.toIntOrNull() != null
+        ImageAttachmentPicker(
+            imageUrls = imageUrls,
+            onImageUrlsChange = { imageUrls = it },
+            label = "Attach images / video",
+            maxImages = 5,
+            allowVideo = true
         )
     }
 }
@@ -545,39 +612,42 @@ private fun WardRoundForm(
     var plan by remember { mutableStateOf("") }
     var ready by remember { mutableStateOf(false) }
 
-    FormCard(title = "Ward Round Note") {
+    FormCard(
+        title = "Ward Round Note",
+        onDismiss = onDismiss,
+        onSave = {
+            onSave(
+                WardRoundNoteCreateRequest(
+                    subjective = subjective.takeIf { it.isNotBlank() },
+                    objective = objective.takeIf { it.isNotBlank() },
+                    assessment = assessment.takeIf { it.isNotBlank() },
+                    plan = plan.takeIf { it.isNotBlank() },
+                    readyForDischarge = ready
+                )
+            )
+        },
+        saveEnabled = true
+    ) {
         FormTextField(subjective, { subjective = it }, "Subjective")
         FormTextField(objective, { objective = it }, "Objective")
         FormTextField(assessment, { assessment = it }, "Assessment")
         FormTextField(plan, { plan = it }, "Plan")
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Ready for discharge")
-            Spacer(modifier = Modifier.width(8.dp))
-            // Simple toggle via button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Ready for discharge", style = MaterialTheme.typography.bodyMedium)
             Button(onClick = { ready = !ready }) {
                 Text(if (ready) "Yes" else "No")
             }
         }
-        FormButtons(
-            onDismiss = onDismiss,
-            onSave = {
-                onSave(
-                    WardRoundNoteCreateRequest(
-                        subjective = subjective.takeIf { it.isNotBlank() },
-                        objective = objective.takeIf { it.isNotBlank() },
-                        assessment = assessment.takeIf { it.isNotBlank() },
-                        plan = plan.takeIf { it.isNotBlank() },
-                        readyForDischarge = ready
-                    )
-                )
-            },
-            enabled = true
-        )
     }
 }
 
 @Composable
 private fun DischargeForm(
+    admission: AdmissionDto,
     onDismiss: () -> Unit,
     onSave: (DischargeSummaryCreateRequest) -> Unit
 ) {
@@ -589,8 +659,65 @@ private fun DischargeForm(
     var diet by remember { mutableStateOf("") }
     var followUp by remember { mutableStateOf("") }
     var redFlags by remember { mutableStateOf("") }
+    var generated by remember { mutableStateOf(false) }
 
-    FormCard(title = "Discharge Summary") {
+    fun applyAutoGenerate() {
+        val gen = autoGenerateDischargeSummary(admission)
+        condition = gen.condition
+        procedureSummary = gen.procedureSummary
+        woundCare = gen.woundCare
+        diet = gen.diet
+        medications = gen.medications
+        activity = gen.activity
+        redFlags = gen.redFlags
+        generated = true
+    }
+
+    FormCard(
+        title = "Discharge Summary",
+        onDismiss = onDismiss,
+        onSave = {
+            onSave(
+                DischargeSummaryCreateRequest(
+                    conditionAtDischarge = condition,
+                    procedureSummary = procedureSummary,
+                    dischargeMedicationsJson = parseKeyValue(medications),
+                    woundCare = woundCare.takeIf { it.isNotBlank() },
+                    activityRestrictions = activity.takeIf { it.isNotBlank() },
+                    dietInstructions = diet.takeIf { it.isNotBlank() },
+                    followUpDate = followUp.takeIf { it.isNotBlank() },
+                    redFlags = redFlags.takeIf { it.isNotBlank() }
+                )
+            )
+        },
+        saveEnabled = condition.isNotBlank() && procedureSummary.isNotBlank()
+    ) {
+        // Auto-generate banner
+        Button(
+            onClick = { applyAutoGenerate() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(if (generated) "Re-generate from notes" else "Generate from notes")
+        }
+
+        if (generated) {
+            Text(
+                text = "Fields pre-filled from admission notes — review and edit before saving.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         FormTextField(condition, { condition = it }, "Condition at Discharge *")
         FormTextField(procedureSummary, { procedureSummary = it }, "Procedure Summary *")
         FormTextField(medications, { medications = it }, "Medications (key=value, comma)")
@@ -599,39 +726,51 @@ private fun DischargeForm(
         FormTextField(diet, { diet = it }, "Diet Instructions")
         FormTextField(followUp, { followUp = it }, "Follow-up Date (ISO)")
         FormTextField(redFlags, { redFlags = it }, "Red Flags")
-        FormButtons(
-            onDismiss = onDismiss,
-            onSave = {
-                onSave(
-                    DischargeSummaryCreateRequest(
-                        conditionAtDischarge = condition,
-                        procedureSummary = procedureSummary,
-                        dischargeMedicationsJson = parseKeyValue(medications),
-                        woundCare = woundCare.takeIf { it.isNotBlank() },
-                        activityRestrictions = activity.takeIf { it.isNotBlank() },
-                        dietInstructions = diet.takeIf { it.isNotBlank() },
-                        followUpDate = followUp.takeIf { it.isNotBlank() },
-                        redFlags = redFlags.takeIf { it.isNotBlank() }
-                    )
-                )
-            },
-            enabled = condition.isNotBlank() && procedureSummary.isNotBlank()
-        )
     }
 }
 
 @Composable
 private fun FormCard(
     title: String,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+    saveEnabled: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(text = title, style = MaterialTheme.typography.headlineSmall)
-            content()
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.92f)
+            .padding(horizontal = 12.dp, vertical = 24.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Scrollable fields
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 20.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                content()
+            }
+
+            // Pinned action buttons at the bottom
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+            ) {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Button(onClick = onSave, enabled = saveEnabled) { Text("Save") }
+            }
         }
     }
 }
@@ -650,25 +789,6 @@ private fun FormTextField(
     )
 }
 
-@Composable
-private fun FormButtons(
-    onDismiss: () -> Unit,
-    onSave: () -> Unit,
-    enabled: Boolean
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End
-    ) {
-        TextButton(onClick = onDismiss) {
-            Text("Cancel")
-        }
-        Button(onClick = onSave, enabled = enabled) {
-            Text("Save")
-        }
-    }
-}
-
 private fun parseKeyValue(input: String): Map<String, String?> {
     if (input.isBlank()) return emptyMap()
     return input.split(",")
@@ -678,4 +798,85 @@ private fun parseKeyValue(input: String): Map<String, String?> {
             val (key, value) = it.split("=", limit = 2)
             key.trim() to value.trim().takeIf { v -> v.isNotBlank() }
         }
+}
+
+private data class DischargeSummaryAutoFill(
+    val condition: String,
+    val procedureSummary: String,
+    val woundCare: String,
+    val diet: String,
+    val medications: String,
+    val activity: String,
+    val redFlags: String
+)
+
+private fun autoGenerateDischargeSummary(admission: AdmissionDto): DischargeSummaryAutoFill {
+    val latestIntraOp = admission.intraOpNotes?.lastOrNull()
+    val latestPreOp   = admission.preOpNotes?.lastOrNull()
+    val postOpNotes   = admission.postOpNotes ?: emptyList()
+    val latestPostOp  = postOpNotes.maxByOrNull { it.dayNumber }
+    val latestWard    = admission.wardRoundNotes?.lastOrNull()
+
+    // Procedure summary — built from intra-op, falling back to pre-op
+    val procedureSummary = buildString {
+        val proc = latestIntraOp?.procedureDone ?: latestPreOp?.procedure
+        proc?.let { append(it) }
+        latestPreOp?.approach?.let { append(". Approach: $it") }
+        latestIntraOp?.technique?.let { append(". Technique: $it") }
+        latestIntraOp?.findings?.let { append(". Findings: $it") }
+        latestIntraOp?.bloodLoss?.let { append(". EBL: $it") }
+        val comp = latestIntraOp?.complications
+        if (comp.isNullOrBlank()) append(". No intra-op complications.")
+        else append(". Complications: $comp.")
+    }.trim()
+
+    // Condition at discharge — latest post-op condition + pain, supplemented by ward assessment
+    val condition = buildString {
+        latestPostOp?.condition?.let { append(it) }
+        latestPostOp?.painScore?.let { score -> append(". Pain score $score/10.") }
+        val assessment = latestWard?.assessment
+        if (!assessment.isNullOrBlank() && isNotBlank()) append(" $assessment.")
+        else if (!assessment.isNullOrBlank()) append(assessment)
+    }.trim()
+
+    // Wound care — latest non-null wound status across all post-op notes
+    val woundCare = postOpNotes.mapNotNull { it.woundStatus }.lastOrNull() ?: ""
+
+    // Diet — latest post-op diet instruction
+    val diet = latestPostOp?.diet ?: ""
+
+    // Medications — from latest post-op medications map
+    val medications = (latestPostOp?.medicationsJson ?: emptyMap())
+        .entries
+        .filter { it.key.isNotBlank() }
+        .joinToString(", ") { "${it.key}=${it.value ?: ""}" }
+
+    // Activity — from pre-op special instructions or anaesthesia-based default
+    val activity = latestPreOp?.specialInstructions
+        ?: latestPreOp?.riskLevel?.let { "Restrict activity per risk level: $it" }
+        ?: ""
+
+    // Red flags — suggest based on procedure type and any complications noted
+    val redFlags = buildString {
+        val proc = (latestIntraOp?.procedureDone ?: latestPreOp?.procedure ?: "").lowercase()
+        if ("appendic" in proc || "hernia" in proc || "laparoscop" in proc) {
+            append("Fever >38°C, increasing abdominal pain, vomiting, wound discharge — return to A&E immediately.")
+        } else if ("cardiac" in proc || "thorac" in proc) {
+            append("Chest pain, breathlessness, palpitations — seek emergency care immediately.")
+        } else if (latestIntraOp?.complications?.isNotBlank() == true) {
+            append("Monitor for recurrence of intra-operative complications. Return if condition worsens.")
+        } else {
+            append("Fever, increasing pain, wound redness or discharge — return immediately.")
+        }
+    }
+
+    return DischargeSummaryAutoFill(
+        condition = condition,
+        procedureSummary = procedureSummary,
+        woundCare = woundCare,
+        diet = diet,
+        medications = medications,
+        activity = activity,
+        redFlags = redFlags
+    )
 }

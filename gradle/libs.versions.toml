@@ -36,6 +36,9 @@ multiplatform-settings = "1.1.1"
 # File picker
 filekit = "0.8.8"
 
+# DateTime
+kotlinx-datetime = "0.6.1"
+
 # Firebase
 firebase-messaging-ktx = "24.0.0"
 kotlinx-coroutines-play-services = "1.8.1"
@@ -84,6 +87,9 @@ kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-cor
 
 # Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+
+# DateTime
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 
 # Navigation
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation-compose" }

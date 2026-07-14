@@ -52,6 +52,15 @@ class ConsentFormCreate(BaseModel):
     consent_for_photography: bool = False
 
 
+class ConsentSuggestRequest(BaseModel):
+    """Request body for the /consent/suggest-content endpoint."""
+
+    procedure: str
+    diagnosis: str
+    patient_age: Optional[int] = None
+    patient_gender: Optional[str] = None
+
+
 class ConsentSignRequest(BaseModel):
     """Request body for signing a consent form."""
 

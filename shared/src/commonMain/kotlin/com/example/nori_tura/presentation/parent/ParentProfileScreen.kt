@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -27,6 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -36,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.ConsentFormDto
+import com.example.nori_tura.data.dto.DocumentCreateRequest
+import com.example.nori_tura.data.dto.DocumentDto
 import com.example.nori_tura.data.dto.DoctorDto
 import com.example.nori_tura.data.dto.PatientDto
 import com.example.nori_tura.presentation.components.Avatar
@@ -45,6 +51,7 @@ import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.LongPressCardPreview
 import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.presentation.components.PdfAttachmentPicker
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.openUrl
 
@@ -96,6 +103,7 @@ fun ParentProfileScreen(
                     profile = state.profile,
                     onNavigateToConsentView = onNavigateToConsentView,
                     onLogout = onLogout,
+                    onCreateDocument = { request -> viewModel.createDocument(request) },
                     modifier = Modifier
                 )
             }
@@ -108,6 +116,7 @@ private fun ProfileContent(
     profile: ParentProfileViewModel.Profile,
     onNavigateToConsentView: (String) -> Unit,
     onLogout: () -> Unit,
+    onCreateDocument: (DocumentCreateRequest) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val child = profile.child
@@ -167,6 +176,65 @@ private fun ProfileContent(
                                 }
                             }
                         )
+                    }
+                }
+            }
+        }
+
+        item {
+            var uploadedPdfs by remember { mutableStateOf(listOf<String>()) }
+
+            Text(
+                text = "Previous Health Records",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            PdfAttachmentPicker(
+                pdfUrls = uploadedPdfs,
+                onPdfUrlsChange = { uploadedPdfs = it },
+                label = "Upload previous health record (PDF)",
+                maxPdfs = 3,
+                buttonLabel = "Add PDF"
+            )
+
+            if (uploadedPdfs.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val childId = profile.child?.id ?: return@Button
+                        uploadedPdfs.forEach { url ->
+                            val name = url.takeLastWhile { it != '/' }
+                                .takeIf { it.isNotBlank() } ?: "Health Record"
+                            onCreateDocument(
+                                DocumentCreateRequest(
+                                    patientId = childId,
+                                    name = name,
+                                    url = url,
+                                    type = "pdf",
+                                    category = "previous_health_record",
+                                    uploadedByRole = "parent"
+                                )
+                            )
+                        }
+                        uploadedPdfs = emptyList()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Save Records")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (profile.documents.isEmpty()) {
+                InlineProfileMessage("No health records uploaded yet.")
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    profile.documents.forEach { document ->
+                        HealthRecordCard(document = document)
                     }
                 }
             }
@@ -347,6 +415,53 @@ private fun ConsentHistoryCard(
             )
         }
     }
+    }
+}
+
+@Composable
+private fun HealthRecordCard(document: DocumentDto) {
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { openUrl(document.url) },
+        previewTitle = "Health Record Preview"
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Description,
+                    contentDescription = "PDF document",
+                    tint = NorituraColors.PrimaryBlue,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = document.name,
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = "${document.type.uppercase()}${document.category?.let { " • ${it.replace("_", " ").replaceFirstChar { c -> c.uppercase() }}" } ?: ""}",
+                        color = NorituraColors.TextTertiary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "Uploaded: ${document.uploadedAt?.take(10) ?: document.recordedAt?.take(10) ?: "-"}",
+                        color = NorituraColors.TextTertiary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
     }
 }
 

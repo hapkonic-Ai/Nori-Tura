@@ -66,8 +66,7 @@ fun SurgeonDashboardTab(
         topBar = {
             BrandTopBar(
                 initials = "DR",
-                title = "SurgiCare",
-                notificationCount = 3
+                title = "SurgiCare"
             )
         }
     ) {
@@ -131,7 +130,7 @@ private fun DashboardContent(
             .fillMaxSize()
             .background(NorituraColors.Background)
             .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 8.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -256,9 +255,6 @@ private fun DashboardContent(
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(100.dp))
-        }
     }
 }
 

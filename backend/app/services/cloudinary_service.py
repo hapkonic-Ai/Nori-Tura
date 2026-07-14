@@ -41,8 +41,9 @@ async def upload_media(
 ) -> Optional[str]:
     """Upload a single file to Cloudinary and return its secure URL."""
     if not _is_configured():
-        print(f"[Cloudinary stub] Would upload {filename} ({len(file_bytes)} bytes) as {resource_type}")
-        return None
+        stub_url = f"https://nonitura-stub.example.dev/{folder}/{resource_type}/{uuid4().hex}/{filename}"
+        print(f"[Cloudinary stub] Would upload {filename} ({len(file_bytes)} bytes) as {resource_type} -> {stub_url}")
+        return stub_url
 
     _configure_cloudinary()
     import cloudinary.uploader

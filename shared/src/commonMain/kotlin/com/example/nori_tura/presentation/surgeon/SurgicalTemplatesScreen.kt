@@ -3,14 +3,19 @@ package com.example.nori_tura.presentation.surgeon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -34,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.SurgicalTemplateCreateRequest
@@ -128,7 +135,10 @@ fun SurgicalTemplatesScreen(
     }
 
     if (showCreateDialog) {
-        Dialog(onDismissRequest = { showCreateDialog = false }) {
+        Dialog(
+            onDismissRequest = { showCreateDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             TemplateFormDialog(
                 title = "New Surgical Template",
                 initial = null,
@@ -142,7 +152,10 @@ fun SurgicalTemplatesScreen(
     }
 
     editingTemplate?.let { template ->
-        Dialog(onDismissRequest = { editingTemplate = null }) {
+        Dialog(
+            onDismissRequest = { editingTemplate = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
             TemplateFormDialog(
                 title = "Edit Surgical Template",
                 initial = template,
@@ -244,6 +257,49 @@ private fun SurgicalTemplateCreateRequest.toUpdateRequest(): SurgicalTemplateUpd
     )
 
 @Composable
+private fun TemplateFormCard(
+    title: String,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+    saveEnabled: Boolean,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.92f)
+            .padding(horizontal = 12.dp, vertical = 24.dp),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                )
+                content()
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+            ) {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Button(onClick = onSave, enabled = saveEnabled) { Text("Save") }
+            }
+        }
+    }
+}
+
+@Composable
 private fun TemplateFormDialog(
     title: String,
     initial: SurgicalTemplateDto?,
@@ -259,99 +315,87 @@ private fun TemplateFormDialog(
     var technique by remember { mutableStateOf(initial?.technique ?: "") }
     var instructions by remember { mutableStateOf(initial?.specialInstructions ?: "") }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
+    TemplateFormCard(
+        title = title,
+        onDismiss = onDismiss,
+        onSave = {
+            onSave(
+                SurgicalTemplateCreateRequest(
+                    name = name,
+                    procedure = procedure,
+                    approach = approach.takeIf { it.isNotBlank() },
+                    anaesthesia = anaesthesia.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    investigations = investigations.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    riskLevel = riskLevel.takeIf { it.isNotBlank() },
+                    technique = technique.takeIf { it.isNotBlank() },
+                    specialInstructions = instructions.takeIf { it.isNotBlank() }
+                )
+            )
+        },
+        saveEnabled = name.isNotBlank() && procedure.isNotBlank()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall
-            )
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Name *") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = procedure,
-                onValueChange = { procedure = it },
-                label = { Text("Procedure *") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = approach,
-                onValueChange = { approach = it },
-                label = { Text("Approach") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = anaesthesia,
-                onValueChange = { anaesthesia = it },
-                label = { Text("Anaesthesia (comma separated)") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = investigations,
-                onValueChange = { investigations = it },
-                label = { Text("Investigations (comma separated)") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = riskLevel,
-                onValueChange = { riskLevel = it },
-                label = { Text("Risk Level") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = technique,
-                onValueChange = { technique = it },
-                label = { Text("Technique") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = instructions,
-                onValueChange = { instructions = it },
-                label = { Text("Special Instructions") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = {
-                        onSave(
-                            SurgicalTemplateCreateRequest(
-                                name = name,
-                                procedure = procedure,
-                                approach = approach.takeIf { it.isNotBlank() },
-                                anaesthesia = anaesthesia.split(",").map { it.trim() }.filter { it.isNotBlank() },
-                                investigations = investigations.split(",").map { it.trim() }.filter { it.isNotBlank() },
-                                riskLevel = riskLevel.takeIf { it.isNotBlank() },
-                                technique = technique.takeIf { it.isNotBlank() },
-                                specialInstructions = instructions.takeIf { it.isNotBlank() }
-                            )
-                        )
-                    },
-                    enabled = name.isNotBlank() && procedure.isNotBlank()
-                ) {
-                    Text(if (initial == null) "Create" else "Save")
-                }
-            }
-        }
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Template Name *") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = procedure,
+            onValueChange = { procedure = it },
+            label = { Text("Procedure *") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 4
+        )
+        OutlinedTextField(
+            value = approach,
+            onValueChange = { approach = it },
+            label = { Text("Approach (e.g. Laparoscopic, Open)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = technique,
+            onValueChange = { technique = it },
+            label = { Text("Technique") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 4
+        )
+        OutlinedTextField(
+            value = anaesthesia,
+            onValueChange = { anaesthesia = it },
+            label = { Text("Anaesthesia (comma-separated)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. GA, Spinal, Local") },
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = investigations,
+            onValueChange = { investigations = it },
+            label = { Text("Pre-op Investigations (comma-separated)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. CBC, LFT, ECG, CXR") },
+            minLines = 2,
+            maxLines = 3
+        )
+        OutlinedTextField(
+            value = riskLevel,
+            onValueChange = { riskLevel = it },
+            label = { Text("Risk Level") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Low / Moderate / High") },
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = instructions,
+            onValueChange = { instructions = it },
+            label = { Text("Special Instructions / Notes") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+            maxLines = 6
+        )
     }
 }

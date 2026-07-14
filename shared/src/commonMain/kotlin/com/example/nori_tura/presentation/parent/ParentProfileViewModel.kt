@@ -3,8 +3,11 @@ package com.example.nori_tura.presentation.parent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nori_tura.data.AuthRepository
+import com.example.nori_tura.data.DocumentsRepository
 import com.example.nori_tura.data.SurgeonRepository
 import com.example.nori_tura.data.dto.ConsentFormDto
+import com.example.nori_tura.data.dto.DocumentCreateRequest
+import com.example.nori_tura.data.dto.DocumentDto
 import com.example.nori_tura.data.dto.DoctorDto
 import com.example.nori_tura.data.dto.PatientDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,13 +17,15 @@ import kotlinx.coroutines.launch
 
 class ParentProfileViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
-    private val surgeonRepository: SurgeonRepository = SurgeonRepository()
+    private val surgeonRepository: SurgeonRepository = SurgeonRepository(),
+    private val documentsRepository: DocumentsRepository = DocumentsRepository()
 ) : ViewModel() {
 
     data class Profile(
         val child: PatientDto? = null,
         val doctor: DoctorDto? = null,
-        val consentForms: List<ConsentFormDto> = emptyList()
+        val consentForms: List<ConsentFormDto> = emptyList(),
+        val documents: List<DocumentDto> = emptyList()
     )
 
     sealed class UiState {
@@ -62,13 +67,26 @@ class ParentProfileViewModel(
                 surgeonRepository.getDoctor(token, it)
             }
 
+            val documentsResult = child?.id?.let {
+                documentsRepository.getPatientDocuments(it)
+            }
+
             _uiState.value = UiState.Success(
                 Profile(
                     child = child,
                     doctor = doctorResult?.getOrNull(),
-                    consentForms = consentForms
+                    consentForms = consentForms,
+                    documents = documentsResult?.getOrNull() ?: emptyList()
                 )
             )
+        }
+    }
+
+    fun createDocument(request: DocumentCreateRequest) {
+        viewModelScope.launch {
+            documentsRepository.createDocument(request).onSuccess {
+                loadProfile()
+            }
         }
     }
 }

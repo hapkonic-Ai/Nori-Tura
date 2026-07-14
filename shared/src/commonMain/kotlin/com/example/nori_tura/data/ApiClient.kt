@@ -9,15 +9,15 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.forms.FormDataContent
+import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
-import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -42,9 +42,9 @@ object ApiClient {
         }
 
         install(HttpTimeout) {
-            requestTimeoutMillis = 30_000
+            requestTimeoutMillis = 60_000  // longer for video uploads
             connectTimeoutMillis = 30_000
-            socketTimeoutMillis = 30_000
+            socketTimeoutMillis = 60_000
         }
 
         defaultRequest {
@@ -60,37 +60,58 @@ object ApiClient {
     }
 
     /**
-     * Upload image/video files to the backend Cloudinary proxy.
-     * Returns the list of secure URLs returned by the server.
+     * Upload image/video/PDF files to the backend Cloudinary proxy.
+     *
+     * Uses client.post + MultiPartFormDataContent so the defaultRequest
+     * Authorization header is always applied (submitFormWithBinaryData
+     * bypasses the defaultRequest plugin in some Ktor versions).
+     *
+     * resource_type is auto-detected per file from its extension when
+     * the caller passes resourceType = "auto" (default).
      */
     suspend fun uploadMedia(
         files: List<Pair<String, ByteArray>>,
-        resourceType: String = "image",
+        resourceType: String = "auto",
         folder: String = "nonitura"
     ): Result<List<String>> = safeApiCall {
-        val response = client.submitFormWithBinaryData(
-            url = "/uploads/media",
-            formData = formData {
-                append("resource_type", resourceType)
-                append("folder", folder)
-                files.forEach { (filename, bytes) ->
-                    append(
-                        key = "files",
-                        value = bytes,
-                        headers = Headers.build {
-                            append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
-                        }
-                    )
-                }
-            }
-        ) {
-            contentType(ContentType.MultiPart.FormData)
-            val token: String? = settings["auth_token"]
-            if (!token.isNullOrBlank()) {
-                header(HttpHeaders.Authorization, "Bearer $token")
-            }
+        val urls = mutableListOf<String>()
+
+        // Upload files grouped by resource_type so Cloudinary handles each correctly
+        val byType = files.groupBy { (name, _) ->
+            if (resourceType == "auto") resourceTypeForFilename(name) else resourceType
         }
-        response.body<MediaUploadResponse>().urls
+
+        byType.forEach { (type, group) ->
+            val data = MultiPartFormDataContent(
+                formData {
+                    append("resource_type", type)
+                    append("folder", folder)
+                    group.forEach { (filename, bytes) ->
+                        append(
+                            key = "files",
+                            value = bytes,
+                            headers = Headers.build {
+                                append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
+                            }
+                        )
+                    }
+                }
+            )
+            val response = client.post("/uploads/media") {
+                setBody(data)
+            }
+            urls += response.body<MediaUploadResponse>().urls
+        }
+
+        urls
+    }
+
+    private fun resourceTypeForFilename(filename: String): String {
+        return when (filename.substringAfterLast('.').lowercase()) {
+            "mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp" -> "video"
+            "pdf", "doc", "docx", "xls", "xlsx", "txt"        -> "raw"
+            else                                                -> "image"
+        }
     }
 }
 

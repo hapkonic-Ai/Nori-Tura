@@ -45,10 +45,12 @@ fun AppointmentSlotsScreen(
     val selectedSlot by viewModel.selectedSlot.collectAsState()
 
     // Group slots by date (first 10 chars of slot_datetime: "YYYY-MM-DD")
-    val slotsByDate = slots
+    // toSortedMap() is JVM-only; convert to List<Pair> to avoid Map.Entry component1() ambiguity in KMP
+    val slotsByDate: List<Pair<String, List<AvailableSlotDto>>> = slots
         .filter { it.is_available }
         .groupBy { it.slot_datetime.take(10) }
-        .toSortedMap()
+        .entries.sortedBy { it.key }
+        .map { it.key to it.value }
 
     NorituraScaffold(
         topBar = {

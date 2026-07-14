@@ -45,8 +45,6 @@ async def create_document(
     role = req.uploaded_by_role or ("parent" if user.is_parent() else "surgeon")
 
     hospital_id = patient.hospital_id
-    hospital_name = patient.hospital_name
-    hospital_logo_url = patient.hospital_logo_url
 
     document = await prisma.documents.create(
         data={
@@ -59,8 +57,6 @@ async def create_document(
             "category": req.category,
             "uploaded_by_role": role,
             "recorded_at": req.recorded_at,
-            "hospital_name": hospital_name,
-            "hospital_logo_url": hospital_logo_url,
         }
     )
     return document

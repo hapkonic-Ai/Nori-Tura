@@ -217,7 +217,7 @@ private fun PatientListRow(
 ) {
     val status = when (patient.ipdAdmissions?.firstOrNull()?.status?.lowercase()) {
         "pre-op" -> "Pre-op" to NorituraColors.PreOp
-        "in-surgery" -> "In OT" to NorituraColors.InOt
+        "in-surgery", "admitted" -> "In OT" to NorituraColors.InOt
         "recovery" -> "Recovery" to NorituraColors.PostOp
         else -> "Outpatient" to NorituraColors.TextTertiary
     }

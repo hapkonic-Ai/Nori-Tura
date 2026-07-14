@@ -111,6 +111,13 @@ async def list_patients(
                     "none": {"status": {"not": "discharged"}}
                 }
             })
+        elif status_val == "in-surgery":
+            # Newly admitted patients are also shown under In OT until explicitly moved
+            conditions.append({
+                "ipd_admissions": {
+                    "some": {"status": {"in": ["in-surgery", "admitted"], "mode": "insensitive"}}
+                }
+            })
         else:
             conditions.append({
                 "ipd_admissions": {

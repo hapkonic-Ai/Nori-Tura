@@ -89,11 +89,27 @@ python scripts/seed_test_data.py
 
 ---
 
-## 3. Authentication & Role Routing
+## 3. Authentication, Consent & Role Routing
+
+### Flow 3.0 — Consent Acknowledgment Gate (NEW)
+
+On **every cold launch** the consent dialog is displayed before the OTP form.
+
+1. Open the app fresh (or clear app storage).
+2. Verify a **full-screen dialog** appears with the heading *"Terms & Consent"* and scrollable text.
+3. Try tapping **Continue** without checking the checkbox.
+   **Expected:** Button remains disabled.
+4. Scroll to the bottom, check **"I have read and understand the terms & consent"**.
+5. Tap **Continue**.
+   **Expected:** Dialog dismisses and the phone number + OTP form is now visible.
+6. Tap **Exit** on the dialog.
+   **Expected:** App exits / navigates back (dialog is non-dismissible on back press).
+
+> The dialog uses `rememberSaveable` so it resets on cold start. This is intentional for the current MVP — users see it every session until persistent storage is added.
 
 ### Flow 3.1 — Surgeon login
 
-1. Open app → enter `+919876543210` → tap **Send OTP**.
+1. Open app → pass consent gate → enter `+919876543210` → tap **Send OTP**.
 2. Enter the dev OTP.
 
 **Expected:** Routed to **Surgeon Home** with Dashboard tab.
@@ -196,7 +212,84 @@ python scripts/seed_test_data.py
 
 ---
 
-## 5. Consent Form Flow
+## 5. Medical Records (NEW)
+
+### Flow 5.0 — Upload Medical Images (Surgeon / Nurse)
+
+1. Login as surgeon.
+2. Navigate to any patient profile.
+3. Tap **Medical Records** (or the upload button — UI integration pending; use backend directly if UI not wired yet).
+4. **Create a record container** via backend:
+   ```bash
+   curl -X POST http://localhost:8000/medical-records \
+     -H "Authorization: Bearer <SURGEON_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{"patient_id":"<PATIENT_ID>","title":"Pre-op Imaging","description":"X-ray and MRI before surgery"}'
+   ```
+   Save returned `id` as `RECORD_ID`.
+
+5. **Add an image** (upload to Cloudinary first to get a URL, or use any HTTPS image URL for testing):
+   ```bash
+   curl -X POST http://localhost:8000/medical-records/<RECORD_ID>/images \
+     -H "Authorization: Bearer <SURGEON_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{"image_url":"https://example.com/test.jpg","category":"X-ray","label":"AP chest view","description":"Pre-op chest X-ray","uploaded_by_role":"surgeon"}'
+   ```
+   **Expected:** `201` with image metadata.
+
+6. Test an **invalid category**:
+   ```bash
+   -d '{"image_url":"https://example.com/test.jpg","category":"Selfie",...}'
+   ```
+   **Expected:** `400 Bad Request` — "Category must be one of: X-ray, MRI, CT Scan, ...".
+
+Valid categories: `X-ray`, `MRI`, `CT Scan`, `Ultrasound`, `Prescription`, `Lab Report`, `ECG`, `Photo`, `Other`.
+
+### Flow 5.1 — List & View Records (all roles)
+
+**Surgeon / Nurse:**
+```bash
+curl http://localhost:8000/medical-records/<PATIENT_ID> \
+  -H "Authorization: Bearer <SURGEON_TOKEN>"
+```
+**Expected:** Array of records with `image_count`.
+
+**Parent (own child only):**
+```bash
+curl http://localhost:8000/medical-records/<PATIENT_ID> \
+  -H "Authorization: Bearer <PARENT_TOKEN>"
+```
+**Expected:** `200` with records list. Parent can read but not create/upload.
+
+**Parent accessing another parent's child:**
+```bash
+curl http://localhost:8000/medical-records/<OTHER_PATIENT_ID> \
+  -H "Authorization: Bearer <PARENT_TOKEN>"
+```
+**Expected:** `404 Not Found`.
+
+### Flow 5.2 — Record Detail and Images
+
+```bash
+curl http://localhost:8000/medical-records/<RECORD_ID>/detail \
+  -H "Authorization: Bearer <SURGEON_TOKEN>"
+
+curl http://localhost:8000/medical-records/<RECORD_ID>/images \
+  -H "Authorization: Bearer <PARENT_TOKEN>"
+```
+**Expected:** Full record with `images` array including `category`, `label`, `description`, `uploaded_at`.
+
+### Flow 5.3 — OPD-linked Records
+
+When creating a record linked to an OPD record, pass `opd_record_id`:
+```bash
+-d '{"patient_id":"<ID>","title":"OPD Visit Images","opd_record_id":"<OPD_ID>"}'
+```
+After uploading the first image, verify `opd_records.has_medical_records = true` in the database.
+
+---
+
+## 5b. Consent Form Flow
 
 See `CONSENT_TEST_FLOW.md` for detailed consent steps. High-level:
 
@@ -258,13 +351,60 @@ See `CONSENT_TEST_FLOW.md` for detailed consent steps. High-level:
 
 **Expected:** Read-only consult detail with diagnosis, medications, advice, follow-up.
 
-### Flow 7.4 — Booking Flow
+### Flow 7.4 — Appointment Request Flow (Backend complete; UI screens pending)
 
-1. Tap **Appointments** or **Book Appointment**.
-2. Select surgeon, date, available slot.
-3. Confirm.
+Test via backend `curl` until the 3 appointment screens are built in the app.
 
-**Expected:** Appointment appears in parent home and surgeon schedule.
+**Step 1 — Parent requests an appointment:**
+```bash
+# Login as parent first to get token
+curl -X POST http://localhost:8000/appointments/request \
+  -H "Authorization: Bearer <PARENT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "doctor_id":"<DOCTOR_ID>",
+    "reason":"Post-op follow-up needed",
+    "urgency":"routine"
+  }'
+```
+**Expected:** `201` with appointment `id` and `available_slots` array (30 slots, 5 per day for next 6 days). Save `id` as `APPT_ID`.
+
+> Surgeons and nurses calling this endpoint → `403 Forbidden`.
+
+**Step 2 — Get available slots:**
+```bash
+curl "http://localhost:8000/appointments/available-slots?doctor_id=<DOCTOR_ID>&days=14" \
+  -H "Authorization: Bearer <PARENT_TOKEN>"
+```
+**Expected:** `{"slots": [...]}` with `slot_datetime`, `slot_id`, `surgeon_name`, `is_available`.
+
+**Step 3 — Confirm appointment + auto-create patient:**
+```bash
+curl -X POST http://localhost:8000/appointments/<APPT_ID>/confirm \
+  -H "Authorization: Bearer <PARENT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "slot_datetime":"2026-07-20T09:00:00Z",
+    "auto_create_patient":true,
+    "patient_data":{"name":"New Baby","age":2,"gender":"Female","parent_name":"Test Parent"}
+  }'
+```
+**Expected:**
+- `200` with `is_confirmed: true`, `patient_id` now set (newly created patient).
+- Verify in DB: `appointments.patient_id` updated, `appointments.requesting_parent_phone` = parent's phone.
+
+**Step 4 — Confirm without auto-creating (existing patient):**
+```bash
+-d '{"slot_datetime":"2026-07-21T11:00:00Z","auto_create_patient":false}'
+```
+**Expected:** Appointment confirmed, `patient_id` remains null until a patient is explicitly linked.
+
+**Step 5 — Surgeon cannot confirm:**
+```bash
+curl -X POST http://localhost:8000/appointments/<APPT_ID>/confirm \
+  -H "Authorization: Bearer <SURGEON_TOKEN>" ...
+```
+**Expected:** `403 Forbidden`.
 
 ### Flow 7.5 — Parent Profile
 
@@ -338,13 +478,50 @@ See `CONSENT_TEST_FLOW.md` for detailed consent steps. High-level:
 
 Use before each Alpha release:
 
+**Auth & Consent**
+- [ ] Consent dialog appears on cold launch before OTP form.
+- [ ] Continue button disabled until checkbox ticked.
+- [ ] After consent, OTP login works for all 3 roles (surgeon, nurse, parent).
+
+**Surgeon Core**
 - [ ] Surgeon can log in and view dashboard.
 - [ ] Surgeon can add a patient and create an OPD record.
 - [ ] Follow-up appears in Follow-ups tab and can be previewed/sent.
 - [ ] Schedule screen shows OT/OPD bookings and allows creation.
 - [ ] Consent can be generated by surgeon and signed by parent.
+
+**Medical Records**
+- [ ] Surgeon can create a medical record container.
+- [ ] Surgeon can upload an image with valid category, label, description.
+- [ ] Invalid category returns `400`.
+- [ ] Parent can read their child's medical records (`200`).
+- [ ] Parent cannot read another child's records (`404`).
+- [ ] OPD-linked record upload sets `opd_records.has_medical_records = true`.
+
+**Appointment Request**
+- [ ] Parent can `POST /appointments/request` → gets back `available_slots`.
+- [ ] `GET /appointments/available-slots` returns slots for any authenticated user.
+- [ ] Parent can `POST /appointments/{id}/confirm` with `auto_create_patient=true` → new patient created.
+- [ ] Surgeon calling `/request` or `/confirm` returns `403`.
+- [ ] Random doctor_id on request returns `404`.
+
+**Nurse & Parent**
 - [ ] Nurse can log in and create OPD notes.
 - [ ] Parent can log in and view surgery status / OPD records.
 - [ ] Admin can log in and approve pending doctors.
-- [ ] No cross-doctor / cross-parent data leaks.
+
+**Security**
+- [ ] No cross-doctor / cross-parent data leaks (Flows 9.1–9.3).
 - [ ] All platform builds pass (Android, iOS simulator, JS, Wasm).
+
+---
+
+## 12. Known Alpha Limitations (Updated)
+
+- **Appointment UI screens** (AppointmentRequestScreen, AppointmentSlotsScreen, AppointmentConfirmScreen) are not built yet — test the booking flow via `curl` only.
+- **Medical Records view screen** is not built yet — test via `curl`; the upload picker component (`MedicalImagePicker`) is available but not wired into any screen.
+- **Appointment slots** are mock-generated (5 per day, fixed hours 9/11/14/15/16 IST) — no conflict detection or real surgeon calendar.
+- **iOS APNs push** is stubbed; real delivery needs Apple Developer account + APNs cert.
+- **WhatsApp template approval** is external; fallback SMS uses 2Factor.in (logs stub if not configured).
+- **Cloudinary** is optional; PDFs/images may fall back to stub URLs in dev.
+- **Real OTP/SMS** not sent in dev; OTP is returned in API response.

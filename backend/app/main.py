@@ -29,6 +29,9 @@ ALLOWED_ORIGINS = [
     "https://app.noritura.in",
     "https://surgeons.noritura.in",
 ]
+render_url = os.getenv("RENDER_EXTERNAL_URL")
+if render_url:
+    ALLOWED_ORIGINS.append(render_url)
 if os.getenv("ENVIRONMENT", "development") == "development":
     ALLOWED_ORIGINS += [
         "http://localhost:3000",
