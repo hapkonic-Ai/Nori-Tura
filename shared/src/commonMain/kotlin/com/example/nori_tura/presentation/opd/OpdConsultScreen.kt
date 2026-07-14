@@ -56,6 +56,9 @@ import com.example.nori_tura.data.dto.InvestigationCreateDto
 import com.example.nori_tura.data.dto.MedicationCreateDto
 import com.example.nori_tura.data.dto.OpdRecordCreateRequest
 import com.example.nori_tura.presentation.components.ImageAttachmentPicker
+import com.example.nori_tura.presentation.components.MedicalImageData
+import com.example.nori_tura.presentation.components.MedicalImagePicker
+import com.example.nori_tura.presentation.components.SectionTitle
 import com.example.nori_tura.util.epochDaysToIsoDate
 
 private data class MedicationFormData(
@@ -92,6 +95,7 @@ fun OpdConsultScreen(
     var medications by remember { mutableStateOf(listOf<MedicationFormData>()) }
     var investigations by remember { mutableStateOf(listOf<InvestigationFormData>()) }
     var imageUrls by remember { mutableStateOf(listOf<String>()) }
+    var medicalImages by remember { mutableStateOf(emptyList<MedicalImageData>()) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -269,6 +273,14 @@ fun OpdConsultScreen(
                         imageUrls = imageUrls,
                         onImageUrlsChange = { imageUrls = it },
                         label = "Prescription images"
+                    )
+                }
+
+                item {
+                    SectionTitle("Medical Images (optional)")
+                    MedicalImagePicker(
+                        images = medicalImages,
+                        onImagesChange = { medicalImages = it }
                     )
                 }
 

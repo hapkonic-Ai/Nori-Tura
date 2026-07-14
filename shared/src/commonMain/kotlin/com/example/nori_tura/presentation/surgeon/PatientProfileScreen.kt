@@ -60,7 +60,8 @@ fun PatientProfileScreen(
     onAddOpdRecord: () -> Unit,
     onNavigateToConsentForm: (admissionId: String) -> Unit = {},
     onNavigateToConsentView: (consentId: String) -> Unit = {},
-    onNavigateToOpdRecordDetail: (recordId: String) -> Unit = {}
+    onNavigateToOpdRecordDetail: (recordId: String) -> Unit = {},
+    onNavigateToMedicalRecords: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val admitState by viewModel.admitUiState.collectAsState()
@@ -103,7 +104,8 @@ fun PatientProfileScreen(
                     onAdmitClick = { showAdmitDialog = true },
                     onNavigateToConsentForm = onNavigateToConsentForm,
                     onNavigateToConsentView = onNavigateToConsentView,
-                    onNavigateToOpdRecordDetail = onNavigateToOpdRecordDetail
+                    onNavigateToOpdRecordDetail = onNavigateToOpdRecordDetail,
+                    onNavigateToMedicalRecords = onNavigateToMedicalRecords
                 )
 
                 if (showAdmitDialog) {
@@ -139,7 +141,8 @@ private fun ProfileContent(
     onAdmitClick: () -> Unit,
     onNavigateToConsentForm: (admissionId: String) -> Unit,
     onNavigateToConsentView: (consentId: String) -> Unit,
-    onNavigateToOpdRecordDetail: (recordId: String) -> Unit
+    onNavigateToOpdRecordDetail: (recordId: String) -> Unit,
+    onNavigateToMedicalRecords: () -> Unit = {}
 ) {
     val activeStatuses = setOf("admitted", "pre-op", "in-surgery", "recovery")
     val activeAdmission = patient.ipdAdmissions?.firstOrNull {
@@ -290,6 +293,13 @@ private fun ProfileContent(
         }
 
         item {
+            OutlinedButton(
+                onClick = onNavigateToMedicalRecords,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("View Medical Records")
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = onAddOpdRecord,
                 colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.PrimaryBlue),

@@ -1,5 +1,12 @@
 package com.example.nori_tura.data
 
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -52,15 +59,16 @@ data class AddMedicalImageRequest(
     val uploaded_by_role: String = "surgeon"
 )
 
-class MedicalRecordsRepository(private val apiClient: ApiClient) {
+class MedicalRecordsRepository(
+    private val client: HttpClient = ApiClient.client
+) {
+    suspend fun listMedicalRecords(patientId: String): Result<List<MedicalRecordDto>> = safeApiCall {
+        client.get("/medical-records/$patientId").body()
+    }
 
-    suspend fun listMedicalRecords(patientId: String): Result<List<MedicalRecordDto>> = apiClient.get(
-        "/medical-records/$patientId"
-    )
-
-    suspend fun getMedicalRecordDetail(recordId: String): Result<MedicalRecordDetailDto> = apiClient.get(
-        "/medical-records/$recordId/detail"
-    )
+    suspend fun getMedicalRecordDetail(recordId: String): Result<MedicalRecordDetailDto> = safeApiCall {
+        client.get("/medical-records/$recordId/detail").body()
+    }
 
     suspend fun createMedicalRecord(
         patientId: String,
@@ -68,16 +76,18 @@ class MedicalRecordsRepository(private val apiClient: ApiClient) {
         description: String? = null,
         opdRecordId: String? = null,
         admissionId: String? = null
-    ): Result<MedicalRecordDto> = apiClient.post(
-        "/medical-records",
-        CreateMedicalRecordRequest(
-            patient_id = patientId,
-            title = title,
-            description = description,
-            opd_record_id = opdRecordId,
-            admission_id = admissionId
-        )
-    )
+    ): Result<MedicalRecordDto> = safeApiCall {
+        client.post("/medical-records") {
+            contentType(ContentType.Application.Json)
+            setBody(CreateMedicalRecordRequest(
+                patient_id = patientId,
+                title = title,
+                description = description,
+                opd_record_id = opdRecordId,
+                admission_id = admissionId
+            ))
+        }.body()
+    }
 
     suspend fun addImageToRecord(
         recordId: String,
@@ -86,18 +96,20 @@ class MedicalRecordsRepository(private val apiClient: ApiClient) {
         label: String? = null,
         description: String? = null,
         uploadedByRole: String = "surgeon"
-    ): Result<MedicalRecordImageDto> = apiClient.post(
-        "/medical-records/$recordId/images",
-        AddMedicalImageRequest(
-            image_url = imageUrl,
-            category = category,
-            label = label,
-            description = description,
-            uploaded_by_role = uploadedByRole
-        )
-    )
+    ): Result<MedicalRecordImageDto> = safeApiCall {
+        client.post("/medical-records/$recordId/images") {
+            contentType(ContentType.Application.Json)
+            setBody(AddMedicalImageRequest(
+                image_url = imageUrl,
+                category = category,
+                label = label,
+                description = description,
+                uploaded_by_role = uploadedByRole
+            ))
+        }.body()
+    }
 
-    suspend fun getRecordImages(recordId: String): Result<List<MedicalRecordImageDto>> = apiClient.get(
-        "/medical-records/$recordId/images"
-    )
+    suspend fun getRecordImages(recordId: String): Result<List<MedicalRecordImageDto>> = safeApiCall {
+        client.get("/medical-records/$recordId/images").body()
+    }
 }

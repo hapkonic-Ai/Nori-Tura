@@ -8,13 +8,23 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
+ROLE_EXPIRATION_HOURS = {
+    "surgeon": 4,
+    "nurse": 4,
+    "patient_parent": 2,
+    "admin": 2,
+    "superadmin": 1,
+}
+
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
+        role = data.get("role", "patient_parent")
+        hours = ROLE_EXPIRATION_HOURS.get(role, settings.JWT_EXPIRATION_HOURS)
+        expire = datetime.now(timezone.utc) + timedelta(hours=hours)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt

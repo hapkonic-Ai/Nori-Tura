@@ -5,7 +5,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.presentation.appointments.AppointmentConfirmScreen
+import com.example.nori_tura.presentation.appointments.AppointmentRequestScreen
+import com.example.nori_tura.presentation.appointments.AppointmentSlotsScreen
+import com.example.nori_tura.presentation.appointments.AppointmentViewModel
+import com.example.nori_tura.presentation.medicalrecords.MedicalRecordsViewScreen
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -44,6 +52,9 @@ fun App(
 ) {
     NorituraTheme {
         val uiState by authViewModel.uiState.collectAsState()
+        val appointmentViewModel: AppointmentViewModel = viewModel { AppointmentViewModel() }
+        var pendingDoctorId by remember { mutableStateOf("") }
+        var pendingDoctorName by remember { mutableStateOf("") }
 
         LaunchedEffect(Unit) {
             authViewModel.checkAuthStatus()
@@ -183,6 +194,9 @@ fun App(
                     },
                     onNavigateToOpdRecordDetail = { recordId ->
                         navController.navigate("opd_record_detail/$recordId")
+                    },
+                    onNavigateToMedicalRecords = {
+                        navController.navigate("medical_records/$patientId")
                     }
                 )
             }
@@ -320,6 +334,11 @@ fun App(
                     onNavigateToProfile = {
                         navController.navigate("parent_profile")
                     },
+                    onNavigateToBookAppointment = { doctorId, doctorName ->
+                        pendingDoctorId = doctorId
+                        pendingDoctorName = doctorName
+                        navController.navigate("appointment_request")
+                    },
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate("login") {
@@ -379,6 +398,60 @@ fun App(
                     onBack = { navController.popBackStack() },
                     topBarInitials = "PT",
                     topBarTitle = "Review & Sign Consent"
+                )
+            }
+
+            composable("appointment_request") {
+                AppointmentRequestScreen(
+                    doctorId = pendingDoctorId,
+                    doctorName = pendingDoctorName,
+                    viewModel = appointmentViewModel,
+                    onBack = {
+                        appointmentViewModel.reset()
+                        navController.popBackStack()
+                    },
+                    onSlotsReady = { appointmentId, _ ->
+                        navController.navigate("appointment_slots/$appointmentId")
+                    }
+                )
+            }
+
+            composable("appointment_slots/{appointmentId}") { backStackEntry ->
+                val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
+                val reqState by appointmentViewModel.requestState.collectAsState()
+                val slots = (reqState as? AppointmentViewModel.RequestState.Success)
+                    ?.response?.available_slots ?: emptyList()
+                AppointmentSlotsScreen(
+                    appointmentId = appointmentId,
+                    slots = slots,
+                    viewModel = appointmentViewModel,
+                    onBack = { navController.popBackStack() },
+                    onSlotSelected = { apptId ->
+                        navController.navigate("appointment_confirm/$apptId")
+                    }
+                )
+            }
+
+            composable("appointment_confirm/{appointmentId}") { backStackEntry ->
+                val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
+                AppointmentConfirmScreen(
+                    appointmentId = appointmentId,
+                    viewModel = appointmentViewModel,
+                    onBack = { navController.popBackStack() },
+                    onConfirmed = {
+                        appointmentViewModel.reset()
+                        navController.navigate("parent_home") {
+                            popUpTo("parent_home") { inclusive = false }
+                        }
+                    }
+                )
+            }
+
+            composable("medical_records/{patientId}") { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
+                MedicalRecordsViewScreen(
+                    patientId = patientId,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

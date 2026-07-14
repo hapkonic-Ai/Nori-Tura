@@ -20,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocalHospital
@@ -63,6 +64,7 @@ fun ParentHomeScreen(
     onNavigateToSurgeryStatus: (String) -> Unit = {},
     onNavigateToConsentView: (String) -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToBookAppointment: (doctorId: String, doctorName: String) -> Unit = { _, _ -> },
     onLogout: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -190,6 +192,18 @@ fun ParentHomeScreen(
                             label = "Records",
                             icon = Icons.AutoMirrored.Filled.List,
                             onClick = onNavigateToRecords,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ActionCard(
+                            label = "Book Appt",
+                            icon = Icons.Default.CalendarMonth,
+                            onClick = {
+                                val doctor = dashboard.admissions.firstOrNull()?.doctor
+                                onNavigateToBookAppointment(
+                                    doctor?.id ?: "",
+                                    doctor?.name ?: "Your Surgeon"
+                                )
+                            },
                             modifier = Modifier.weight(1f)
                         )
                         ActionCard(

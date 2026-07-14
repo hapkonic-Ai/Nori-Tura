@@ -80,6 +80,26 @@ class DischargeSummaryCreate(BaseModel):
     image_urls: Optional[List[str]] = None
 
 
+class IntraOpMediaAdd(BaseModel):
+    url: str
+    media_type: str  # "video" or "image"
+    label: Optional[str] = None
+    description: Optional[str] = None
+
+
+class AdmissionVideoAdd(BaseModel):
+    url: str
+    label: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DischargeMajorEventAdd(BaseModel):
+    title: str
+    description: Optional[str] = None
+    event_date: str  # ISO date string
+    severity: str  # "minor" | "moderate" | "major"
+
+
 async def _require_admission_access(user: CurrentUser, admission_id: str):
     admission = await prisma.ipd_admissions.find_first(
         where={"id": admission_id},
@@ -369,3 +389,102 @@ async def create_discharge_summary(
     )
 
     return summary
+
+
+@router.post("/admissions/{admission_id}/intra-op-media", status_code=status.HTTP_201_CREATED)
+async def add_intra_op_media(
+    admission_id: str,
+    req: IntraOpMediaAdd,
+    user: CurrentUser = Depends(get_current_nurse_or_surgeon),
+):
+    await _require_admission_access(user, admission_id)
+
+    note = await prisma.intra_op_notes.find_first(
+        where={"admission_id": admission_id},
+        order={"created_at": "desc"},
+    )
+    if not note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No intra-op note found — create one first",
+        )
+
+    existing = note.media_items if note.media_items is not None else []
+    updated = list(existing) + [
+        {
+            "url": req.url,
+            "media_type": req.media_type,
+            "label": req.label,
+            "description": req.description,
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        }
+    ]
+
+    await prisma.intra_op_notes.update(
+        where={"id": note.id},
+        data={"media_items": Json(updated)},
+    )
+
+    return {"id": note.id, "media_items": updated}
+
+
+@router.post("/admissions/{admission_id}/videos", status_code=status.HTTP_201_CREATED)
+async def add_admission_video(
+    admission_id: str,
+    req: AdmissionVideoAdd,
+    user: CurrentUser = Depends(get_current_nurse_or_surgeon),
+):
+    admission = await _require_admission_access(user, admission_id)
+
+    existing = admission.admission_videos if admission.admission_videos is not None else []
+    updated = list(existing) + [
+        {
+            "url": req.url,
+            "label": req.label,
+            "description": req.description,
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        }
+    ]
+
+    await prisma.ipd_admissions.update(
+        where={"id": admission_id},
+        data={"admission_videos": Json(updated)},
+    )
+
+    return {"id": admission_id, "admission_videos": updated}
+
+
+@router.post("/admissions/{admission_id}/discharge-major-events", status_code=status.HTTP_201_CREATED)
+async def add_discharge_major_event(
+    admission_id: str,
+    req: DischargeMajorEventAdd,
+    user: CurrentUser = Depends(get_current_surgeon),
+):
+    await _require_admission_access(user, admission_id)
+
+    summary = await prisma.discharge_summaries.find_first(
+        where={"admission_id": admission_id},
+    )
+    if not summary:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No discharge summary found — create one first",
+        )
+
+    existing = summary.major_events if summary.major_events is not None else []
+    updated = list(existing) + [
+        {
+            "title": req.title,
+            "description": req.description,
+            "event_date": req.event_date,
+            "severity": req.severity,
+            "added_at": datetime.now(timezone.utc).isoformat(),
+        }
+    ]
+
+    await prisma.discharge_summaries.update(
+        where={"id": summary.id},
+        data={"major_events": Json(updated)},
+    )
+
+    return {"id": summary.id, "major_events": updated}

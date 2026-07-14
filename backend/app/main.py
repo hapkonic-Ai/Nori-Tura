@@ -1,10 +1,12 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.database import connect_db, disconnect_db
 from app.jobs import start_reminder_scheduler, shutdown_reminder_scheduler
-from app.routers import auth, patients, opd, appointments, ipd, ai, consent, nurses, documents, surgical_templates, admin, doctors, schedule, alerts, uploads, medical_records
+from app.routers import auth, patients, opd, appointments, ipd, ai, consent, nurses, documents, surgical_templates, admin, doctors, schedule, alerts, uploads, medical_records, reports
 
 
 @asynccontextmanager
@@ -23,13 +25,39 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+ALLOWED_ORIGINS = [
+    "https://app.noritura.in",
+    "https://surgeons.noritura.in",
+]
+if os.getenv("ENVIRONMENT", "development") == "development":
+    ALLOWED_ORIGINS += [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://10.0.2.2:8000",  # Android emulator
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
+    max_age=600,
 )
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if os.getenv("ENVIRONMENT") == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(auth.router)
 app.include_router(patients.router)
@@ -47,6 +75,7 @@ app.include_router(schedule.router)
 app.include_router(alerts.router)
 app.include_router(uploads.router)
 app.include_router(medical_records.router)
+app.include_router(reports.router)
 
 
 @app.get("/health")
