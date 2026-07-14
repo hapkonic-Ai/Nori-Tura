@@ -86,16 +86,16 @@ async def request_appointment(
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
 
-    # Create appointment request (without patient_id yet)
+    # Create appointment request — no patient_id yet (assigned on confirm)
     appointment = await prisma.appointments.create(
         data={
-            "patient_id": str(uuid.uuid4()),  # Placeholder, will be updated on confirm
             "doctor_id": req.doctor_id,
-            "slot_datetime": datetime.now(timezone.utc),  # Placeholder
+            "slot_datetime": datetime.now(timezone.utc),  # Placeholder until slot selected
             "visit_type": "consultation",
             "appointment_type": "requested",
             "requested_at": datetime.now(timezone.utc),
             "requested_by_role": "patient_parent",
+            "requesting_parent_phone": user.phone,
             "urgency": req.urgency,
             "notes": req.reason,
             "status": "requested"

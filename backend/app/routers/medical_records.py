@@ -57,12 +57,15 @@ async def list_medical_records(
     user: CurrentUser = Depends(get_current_user)
 ):
     """List all medical records for a patient."""
-    doctor_id = await resolve_doctor_id(user)
-
-    # Validate patient access
-    patient = await prisma.patients.find_first(
-        where={"id": patient_id, "doctor_id": doctor_id}
-    )
+    if user.is_parent():
+        patient = await prisma.patients.find_first(
+            where={"id": patient_id, "parent_phone": user.phone}
+        )
+    else:
+        doctor_id = await resolve_doctor_id(user)
+        patient = await prisma.patients.find_first(
+            where={"id": patient_id, "doctor_id": doctor_id}
+        )
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
 
@@ -99,9 +102,16 @@ async def get_medical_record_detail(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medical record not found")
 
-    doctor_id = await resolve_doctor_id(user)
-    if record.doctor_id != doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if user.is_parent():
+        patient = await prisma.patients.find_first(
+            where={"id": record.patient_id, "parent_phone": user.phone}
+        )
+        if not patient:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    else:
+        doctor_id = await resolve_doctor_id(user)
+        if record.doctor_id != doctor_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     return {
         "id": record.id,
@@ -162,11 +172,12 @@ async def add_image_to_record(
         }
     )
 
-    # Update medical record flag
-    await prisma.medical_records.update(
-        where={"id": record_id},
-        data={"has_medical_records": True}
-    )
+    # Flag the linked OPD record if applicable
+    if record.opd_record_id:
+        await prisma.opd_records.update(
+            where={"id": record.opd_record_id},
+            data={"has_medical_records": True}
+        )
 
     return {
         "id": image.id,
@@ -192,9 +203,16 @@ async def get_record_images(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medical record not found")
 
-    doctor_id = await resolve_doctor_id(user)
-    if record.doctor_id != doctor_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    if user.is_parent():
+        patient = await prisma.patients.find_first(
+            where={"id": record.patient_id, "parent_phone": user.phone}
+        )
+        if not patient:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    else:
+        doctor_id = await resolve_doctor_id(user)
+        if record.doctor_id != doctor_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     return [
         {

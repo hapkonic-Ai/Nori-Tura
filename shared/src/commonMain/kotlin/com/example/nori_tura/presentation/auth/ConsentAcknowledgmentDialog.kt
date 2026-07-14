@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.nori_tura.ui.theme.NorituraColors
+import kotlinx.coroutines.launch
 
 private val CONSENT_TEXT = """
 NONI TURA SURGICAL CARE PLATFORM
@@ -42,6 +43,7 @@ fun ConsentAcknowledgmentDialog(
     onAcknowledged: suspend () -> Unit,
     onDismiss: () -> Unit = {}
 ) {
+    val scope = rememberCoroutineScope()
     var acknowledged by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -59,9 +61,6 @@ fun ConsentAcknowledgmentDialog(
 
     Dialog(
         onDismissRequest = {},
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = false)
     ) {
         Surface(
@@ -155,13 +154,13 @@ fun ConsentAcknowledgmentDialog(
                         onClick = {
                             if (acknowledged) {
                                 isLoading = true
-                                // Note: In a real app, you would call the API here
-                                // For now, just proceed
-                                try {
-                                    onAcknowledged()
-                                } catch (e: Exception) {
-                                    error = e.message ?: "Failed to acknowledge consent"
-                                    isLoading = false
+                                scope.launch {
+                                    try {
+                                        onAcknowledged()
+                                    } catch (e: Exception) {
+                                        error = e.message ?: "Failed to acknowledge consent"
+                                        isLoading = false
+                                    }
                                 }
                             }
                         },

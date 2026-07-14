@@ -1,7 +1,6 @@
 package com.example.nori_tura.data
 
 import kotlinx.serialization.Serializable
-import java.time.LocalDateTime
 
 @Serializable
 data class MedicalRecordImageDto(

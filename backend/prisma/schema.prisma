@@ -300,7 +300,7 @@ model discharge_summaries {
 
 model appointments {
   id                      String   @id @default(uuid())
-  patient_id              String
+  patient_id              String?
   doctor_id               String
   slot_datetime           DateTime
   visit_type              String
@@ -311,13 +311,14 @@ model appointments {
   appointment_type        String   @default("direct")
   requested_at            DateTime?
   requested_by_role       String?
+  requesting_parent_phone String?
   notes                   String?
   is_confirmed            Boolean  @default(false)
   confirmed_at            DateTime?
   auto_created_patient    Boolean  @default(false)
   created_at              DateTime @default(now())
 
-  patient patients @relation(fields: [patient_id], references: [id])
+  patient patients? @relation(fields: [patient_id], references: [id])
   doctor  doctors  @relation(fields: [doctor_id], references: [id])
 
   @@index([doctor_id])
