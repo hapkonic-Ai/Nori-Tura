@@ -23,10 +23,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Dialog
+import androidx.compose.material3.DialogProperties
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,6 +54,15 @@ fun LoginScreen(
 ) {
     var phone by rememberSaveable { mutableStateOf("") }
     var termsAccepted by rememberSaveable { mutableStateOf(false) }
+    var consentAcknowledged by rememberSaveable { mutableStateOf(false) }
+
+    if (!consentAcknowledged) {
+        ConsentAcknowledgmentDialog(
+            onAcknowledged = { consentAcknowledged = true },
+            onDismiss = { /* Prevent dismissal by not implementing */ }
+        )
+        return
+    }
 
     Column(
         modifier = Modifier
