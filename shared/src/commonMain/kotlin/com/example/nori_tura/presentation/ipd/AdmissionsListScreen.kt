@@ -3,6 +3,7 @@ package com.example.nori_tura.presentation.ipd
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,29 +12,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,7 +50,12 @@ import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.dto.AdmissionCreateRequest
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.PatientDto
+import com.example.nori_tura.presentation.components.BrandTopBar
+import com.example.nori_tura.presentation.components.EmptyState
+import com.example.nori_tura.presentation.components.ErrorState
+import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.LongPressCardPreview
+import com.example.nori_tura.ui.theme.NorituraColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,23 +78,24 @@ fun AdmissionsListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("IPD Admissions") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
+            BrandTopBar(
+                initials = "DR",
+                title = "IPD Admissions",
+                onBack = onBack,
+                notificationCount = 0
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAdmitDialog = true }) {
+            FloatingActionButton(
+                onClick = { showAdmitDialog = true },
+                containerColor = NorituraColors.PrimaryBlue,
+                contentColor = NorituraColors.Surface,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Admit patient")
             }
         },
+        containerColor = NorituraColors.Background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Box(
@@ -99,31 +105,36 @@ fun AdmissionsListScreen(
         ) {
             when (val state = uiState) {
                 is AdmissionsListViewModel.UiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    LoadingState(modifier = Modifier.fillMaxSize())
                 }
 
                 is AdmissionsListViewModel.UiState.Error -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Failed to load admissions")
-                        Button(onClick = { viewModel.loadAdmissions() }) {
-                            Text("Retry")
-                        }
-                    }
+                    ErrorState(
+                        message = state.message,
+                        onRetry = { viewModel.loadAdmissions() },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
                 is AdmissionsListViewModel.UiState.Success -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(state.admissions) { admission ->
-                            AdmissionCard(
-                                admission = admission,
-                                onClick = { admission.id?.let(onAdmissionClick) }
-                            )
+                    if (state.admissions.isEmpty()) {
+                        EmptyState(
+                            title = "No admissions yet",
+                            subtitle = "Tap + to admit a patient",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(state.admissions) { admission ->
+                                AdmissionCard(
+                                    admission = admission,
+                                    onClick = { admission.id?.let(onAdmissionClick) }
+                                )
+                            }
                         }
                     }
                 }
@@ -151,6 +162,19 @@ private fun AdmissionCard(
     admission: AdmissionDto,
     onClick: () -> Unit
 ) {
+    val statusColor = when (admission.status?.lowercase()) {
+        "pre-op" -> NorituraColors.PreOp
+        "in-surgery" -> NorituraColors.InOt
+        "recovery" -> NorituraColors.PostOp
+        "discharged" -> NorituraColors.TextTertiary
+        else -> NorituraColors.PrimaryBlue
+    }
+    val urgencyColor = when (admission.urgency?.lowercase()) {
+        "emergency" -> MaterialTheme.colorScheme.error
+        "urgent" -> NorituraColors.Warning
+        else -> NorituraColors.TextTertiary
+    }
+
     LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
@@ -158,28 +182,55 @@ private fun AdmissionCard(
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = admission.patient?.name ?: "Unknown Patient",
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = statusColor.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = (admission.status ?: "—").uppercase(),
+                            color = statusColor,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
                 Text(
-                    text = admission.patient?.name ?: "Unknown Patient",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    text = "Ward ${admission.ward ?: "—"} · Bed ${admission.bedNo ?: "—"}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Status: ${admission.status ?: "-"}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = "Urgency: ${admission.urgency ?: "-"}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = "Ward: ${admission.ward ?: "-"}  Bed: ${admission.bedNo ?: "-"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = admission.urgency?.replaceFirstChar { it.uppercase() } ?: "-",
+                        color = urgencyColor,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = admission.admittedAt?.take(10) ?: "-",
+                        color = NorituraColors.TextTertiary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
     }

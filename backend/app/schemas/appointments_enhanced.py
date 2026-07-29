@@ -33,6 +33,7 @@ class AppointmentRequestResponse(BaseModel):
     urgency: str
     status: str
     notes: Optional[str] = None
+    hospital_contact: Optional[str] = None
     available_slots: Optional[List[AvailableSlot]] = None
 
     class Config:
@@ -41,7 +42,7 @@ class AppointmentRequestResponse(BaseModel):
 
 class AppointmentConfirmResponse(BaseModel):
     id: str
-    patient_id: str
+    patient_id: Optional[str] = None
     doctor_id: str
     slot_datetime: datetime
     is_confirmed: bool

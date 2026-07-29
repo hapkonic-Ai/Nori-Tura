@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.nori_tura.data.dto.AvailableSlotDto
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.SectionTitle
@@ -48,7 +47,7 @@ fun AppointmentRequestScreen(
     doctorName: String,
     viewModel: AppointmentViewModel,
     onBack: () -> Unit,
-    onSlotsReady: (appointmentId: String, slots: List<AvailableSlotDto>) -> Unit
+    onRequested: (hospitalContact: String?) -> Unit
 ) {
     val requestState by viewModel.requestState.collectAsState()
 
@@ -60,7 +59,7 @@ fun AppointmentRequestScreen(
     LaunchedEffect(requestState) {
         if (requestState is AppointmentViewModel.RequestState.Success) {
             val success = requestState as AppointmentViewModel.RequestState.Success
-            onSlotsReady(success.response.id, success.response.available_slots)
+            onRequested(success.response.hospital_contact)
         }
     }
 
@@ -159,7 +158,7 @@ fun AppointmentRequestScreen(
                 )
             ) {
                 Text(
-                    text = "Find Available Slots",
+                    text = "Submit Request",
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
             }

@@ -25,6 +25,7 @@ data class AppointmentRequestResponse(
     val urgency: String? = null,
     val status: String,
     val notes: String? = null,
+    val hospital_contact: String? = null,
     val available_slots: List<AvailableSlotDto> = emptyList()
 )
 

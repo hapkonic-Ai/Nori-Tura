@@ -56,9 +56,19 @@ import com.example.nori_tura.data.dto.PostOpNoteCreateRequest
 import com.example.nori_tura.data.dto.PreOpNoteCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.data.dto.WardRoundNoteCreateRequest
-import com.example.nori_tura.presentation.components.AttachmentChip
+import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ImageAttachmentPicker
 import com.example.nori_tura.presentation.components.TemplatePickerDialog
+import com.example.nori_tura.ui.theme.NorituraColors
+import com.example.nori_tura.util.openUrl
+import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,18 +91,14 @@ fun AdmissionDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Admission Details") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
+            BrandTopBar(
+                initials = "DR",
+                title = "Admission Details",
+                onBack = onBack,
+                notificationCount = 0
             )
         },
+        containerColor = NorituraColors.Background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Box(
@@ -145,26 +151,61 @@ private fun AdmissionDetailContent(
     var showWardRound by remember { mutableStateOf(false) }
     var showDischarge by remember { mutableStateOf(false) }
 
+    val statusColor = when (admission.status?.lowercase()) {
+        "pre-op" -> NorituraColors.PreOp
+        "in-surgery" -> NorituraColors.InOt
+        "recovery" -> NorituraColors.PostOp
+        "discharged" -> NorituraColors.TextTertiary
+        else -> NorituraColors.PrimaryBlue
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = admission.patient?.name ?: "Patient",
-            style = MaterialTheme.typography.headlineSmall
-        )
-        Text(
-            text = "Status: ${admission.status ?: "-"} | Urgency: ${admission.urgency ?: "-"}",
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Text(
-            text = "Ward: ${admission.ward ?: "-"} | Bed: ${admission.bedNo ?: "-"}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // Patient info header card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = statusColor.copy(alpha = 0.08f)
+            ),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = admission.patient?.name ?: "Patient",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = NorituraColors.TextPrimary
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = statusColor.copy(alpha = 0.18f)
+                    ) {
+                        Text(
+                            text = (admission.status ?: "—").uppercase(),
+                            color = statusColor,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                    Text(
+                        text = admission.urgency?.replaceFirstChar { it.uppercase() } ?: "-",
+                        color = NorituraColors.TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Text(
+                    text = "Ward: ${admission.ward ?: "-"} · Bed: ${admission.bedNo ?: "-"}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
 
         SectionTitle("Pre-Op Notes")
         for (note in admission.preOpNotes ?: emptyList()) {
@@ -337,12 +378,25 @@ private fun AdmissionDetailContent(
 
 @Composable
 private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(20.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(2.dp)
+                )
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
 }
 
 @Composable
@@ -352,21 +406,54 @@ private fun NoteCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             content()
             if (!imageUrls.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = NorituraColors.Divider)
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    imageUrls.forEach { url ->
-                        AttachmentChip(
-                            url = url,
-                            onRemove = {}
-                        )
+                Text(
+                    text = "Attached Images (${imageUrls.size})",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    itemsIndexed(imageUrls) { index, url ->
+                        Surface(
+                            modifier = Modifier.height(36.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = NorituraColors.PrimaryBlueLight,
+                            onClick = { openUrl(url) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = null,
+                                    tint = NorituraColors.PrimaryBlue,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "Photo ${index + 1}",
+                                    color = NorituraColors.PrimaryBlue,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.OpenInNew,
+                                    contentDescription = "Open",
+                                    tint = NorituraColors.PrimaryBlue,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

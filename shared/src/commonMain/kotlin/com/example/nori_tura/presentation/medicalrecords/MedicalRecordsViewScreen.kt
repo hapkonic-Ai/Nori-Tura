@@ -1,6 +1,7 @@
 package com.example.nori_tura.presentation.medicalrecords
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,13 +11,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,7 +49,8 @@ private val CATEGORY_FILTERS = listOf(
 fun MedicalRecordsViewScreen(
     patientId: String,
     viewModel: MedicalRecordsViewModel = viewModel(key = patientId) { MedicalRecordsViewModel(patientId) },
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRecordClick: (recordId: String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
@@ -117,7 +123,8 @@ fun MedicalRecordsViewScreen(
                         items(records, key = { it.id }) { record ->
                             RecordCard(
                                 record = record,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                onClick = { onRecordClick(record.id) }
                             )
                         }
                     }
@@ -130,10 +137,13 @@ fun MedicalRecordsViewScreen(
 @Composable
 private fun RecordCard(
     record: MedicalRecordDto,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -150,11 +160,22 @@ private fun RecordCard(
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = "${record.image_count} image${if (record.image_count != 1) "s" else ""}",
-                    color = NorituraColors.PrimaryBlue,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${record.image_count} image${if (record.image_count != 1) "s" else ""}",
+                        color = NorituraColors.PrimaryBlue,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = null,
+                        tint = NorituraColors.TextTertiary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(

@@ -8,6 +8,7 @@ local.properties
 
 # IDE
 .idea/
+.claude/
 *.iml
 
 # macOS

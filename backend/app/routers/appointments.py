@@ -86,11 +86,20 @@ async def request_appointment(
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
 
-    # Create appointment request — no patient_id yet (assigned on confirm)
+    # Get hospital contact from parent's patient record (doctor is freelancing, not hospital-bound)
+    hospital_contact = None
+    parent_patient = await prisma.patients.find_first(
+        where={"parent_phone": user.phone, "doctor_id": req.doctor_id},
+        include={"hospital": True}
+    )
+    if parent_patient and parent_patient.hospital:
+        hospital_contact = parent_patient.hospital.contact
+
+    # Create appointment request — no patient_id yet
     appointment = await prisma.appointments.create(
         data={
             "doctor_id": req.doctor_id,
-            "slot_datetime": datetime.now(timezone.utc),  # Placeholder until slot selected
+            "slot_datetime": datetime.now(timezone.utc),  # Placeholder, executive will confirm
             "visit_type": "consultation",
             "appointment_type": "requested",
             "requested_at": datetime.now(timezone.utc),
@@ -102,9 +111,6 @@ async def request_appointment(
         }
     )
 
-    # Generate available slots
-    available_slots = _generate_available_slots(req.doctor_id)
-
     return {
         "id": appointment.id,
         "doctor_id": appointment.doctor_id,
@@ -114,7 +120,8 @@ async def request_appointment(
         "urgency": req.urgency,
         "status": "requested",
         "notes": req.reason,
-        "available_slots": available_slots
+        "hospital_contact": hospital_contact,
+        "available_slots": []
     }
 
 
@@ -154,8 +161,15 @@ async def confirm_appointment(
     if appointment.appointment_type != "requested":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Appointment already confirmed")
 
-    # Auto-create patient if needed
+    # Resolve patient_id: use appointment's existing one, or find parent's existing patient, or auto-create
     patient_id = appointment.patient_id
+    if patient_id is None:
+        existing = await prisma.patients.find_first(
+            where={"parent_phone": user.phone, "doctor_id": appointment.doctor_id}
+        )
+        if existing:
+            patient_id = existing.id
+
     if req.auto_create_patient and req.patient_data:
         patient_data = req.patient_data
         patient = await prisma.patients.create(

@@ -666,6 +666,109 @@ async def main() -> None:
         })
         print(f"Created appointment: {patient.name} at {created.slot_datetime.isoformat()}")
 
+    # 8. Seed sample medical records with images
+    SAMPLE_RECORDS = [
+        {
+            "patient_idx": 0,  # Aarav Patel
+            "title": "Pre-op Investigations",
+            "description": "Chest X-ray and ECG before herniotomy procedure",
+            "images": [
+                {
+                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Chest_Xray_PA_3-8-2010.png/300px-Chest_Xray_PA_3-8-2010.png",
+                    "category": "X-ray",
+                    "label": "Chest PA View",
+                    "description": "PA chest X-ray pre-operative. Clear lung fields, no consolidation."
+                },
+                {
+                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/12leadECG.jpg/400px-12leadECG.jpg",
+                    "category": "ECG",
+                    "label": "12-Lead ECG",
+                    "description": "Resting ECG. Normal sinus rhythm, no ST changes."
+                },
+            ]
+        },
+        {
+            "patient_idx": 1,  # Diya Singh
+            "title": "Abdominal Ultrasound",
+            "description": "USG abdomen for recurrent abdominal pain workup",
+            "images": [
+                {
+                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Ultrasound_image_of_human_liver.jpg/320px-Ultrasound_image_of_human_liver.jpg",
+                    "category": "Ultrasound",
+                    "label": "Liver USG",
+                    "description": "Liver appears normal in size and echogenicity. No focal lesion."
+                },
+            ]
+        },
+        {
+            "patient_idx": 3,  # Isha Reddy
+            "title": "Post-op Follow-up Images",
+            "description": "Wound photos and ultrasound at 2-week follow-up",
+            "images": [
+                {
+                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Ultrasound_image_of_human_liver.jpg/320px-Ultrasound_image_of_human_liver.jpg",
+                    "category": "Ultrasound",
+                    "label": "Post-op USG Abdomen",
+                    "description": "No free fluid. Surgical site appears well-healed on ultrasound."
+                },
+                {
+                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Chest_Xray_PA_3-8-2010.png/300px-Chest_Xray_PA_3-8-2010.png",
+                    "category": "X-ray",
+                    "label": "Chest X-ray Follow-up",
+                    "description": "Clear lung fields. No post-op complications visible."
+                },
+            ]
+        },
+        {
+            "patient_idx": 4,  # Kabir Khan
+            "title": "Lab Reports",
+            "description": "Blood work before orchidopexy",
+            "images": [
+                {
+                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/12leadECG.jpg/400px-12leadECG.jpg",
+                    "category": "ECG",
+                    "label": "Pre-op ECG",
+                    "description": "Normal sinus rhythm. Cleared for general anaesthesia."
+                },
+            ]
+        },
+    ]
+
+    for rec_data in SAMPLE_RECORDS:
+        if rec_data["patient_idx"] >= len(patient_ids):
+            continue
+        pid = patient_ids[rec_data["patient_idx"]]
+        patient = await db.patients.find_first(where={"id": pid})
+        if not patient:
+            continue
+        doctor_id = patient.doctor_id
+
+        existing_rec = await db.medical_records.find_first(
+            where={"patient_id": pid, "title": rec_data["title"]}
+        )
+        if existing_rec:
+            print(f"Medical record exists: {rec_data['title']} for patient {pid[:8]}")
+            continue
+
+        record = await db.medical_records.create(data={
+            "patient_id": pid,
+            "doctor_id": doctor_id,
+            "title": rec_data["title"],
+            "description": rec_data["description"],
+        })
+        print(f"Created medical record: {record.title}")
+
+        for img in rec_data["images"]:
+            await db.medical_record_images.create(data={
+                "medical_record_id": record.id,
+                "image_url": img["url"],
+                "category": img["category"],
+                "label": img["label"],
+                "description": img["description"],
+                "uploaded_by_role": "surgeon",
+            })
+            print(f"  + Image [{img['category']}]: {img['label']}")
+
     await db.disconnect()
     print("\n✓ Test data seeding complete.")
     print("\nTest accounts:")
