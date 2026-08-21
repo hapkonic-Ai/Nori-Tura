@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 2  # Reduced from 30 days; role-based expiry in security.py
     ENVIRONMENT: str = "development"
+    EXTRA_CORS_ORIGINS: str = ""  # comma-separated list of additional CORS origins
 
     # OTP
     TWO_FACTOR_API_KEY: str = ""
