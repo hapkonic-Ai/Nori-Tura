@@ -33,15 +33,17 @@ import kotlinx.coroutines.delay
 private const val DEBOUNCE_MS = 300L
 private const val MIN_QUERY_LENGTH = 2
 private const val SUGGESTION_LIMIT = 5
+private const val TOKEN_DELIMITERS = " \t\n,;:.!?()[]{}\"'`"
 
 /**
  * A medical-domain autocomplete text field.
  *
  * - Debounces input by 300 ms.
  * - Queries the MedService `/autocomplete` endpoint with `semantic_expansion=false`.
- * - Shows the top suggestion as inline grey ghost text.
+ * - Shows the top suggestion as inline grey ghost text for the current word/token.
  * - Displays up to 5 suggestions in a dropdown anchored to the field.
- * - Replaces the full field value when a suggestion is selected.
+ * - Replaces only the current word/token when a suggestion is selected and moves
+ *   the cursor to the end of the field so the user can keep typing the sentence.
  * - Fails silently on network/rate-limit errors.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,11 +67,18 @@ fun MedicalAutoCompleteTextField(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val expanded = isFocused && suggestions.isNotEmpty() && !ignoreNextQuery
 
+    val (tokenStart, tokenEnd, token) = remember(value) {
+        val (start, end) = lastTokenBounds(value)
+        Triple(start, end, value.substring(start, end).trim())
+    }
+
     val topSuggestion = suggestions.firstOrNull()
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-    val visualTransformation = remember(value, topSuggestion, ghostColor) {
-        MedicalAutoCompleteVisualTransformation(
-            query = value,
+    val visualTransformation = remember(tokenStart, tokenEnd, token, topSuggestion, ghostColor) {
+        TokenGhostVisualTransformation(
+            tokenStart = tokenStart,
+            tokenEnd = tokenEnd,
+            token = token,
             suggestion = topSuggestion,
             ghostColor = ghostColor
         )
@@ -81,15 +90,14 @@ fun MedicalAutoCompleteTextField(
             return@LaunchedEffect
         }
 
-        val trimmed = value.trim()
-        if (trimmed.length < MIN_QUERY_LENGTH) {
+        if (token.length < MIN_QUERY_LENGTH) {
             suggestions = emptyList()
             return@LaunchedEffect
         }
 
         delay(DEBOUNCE_MS)
 
-        repository.search(query = trimmed, limit = SUGGESTION_LIMIT)
+        repository.search(query = token, limit = SUGGESTION_LIMIT)
             .onSuccess { terms ->
                 suggestions = terms
             }
@@ -137,13 +145,14 @@ fun MedicalAutoCompleteTextField(
                         Text(
                             text = highlightedSuggestion(
                                 suggestion = suggestion,
-                                query = value
+                                query = token
                             )
                         )
                     },
                     onClick = {
                         ignoreNextQuery = true
-                        onValueChange(suggestion)
+                        val newText = value.replaceRange(tokenStart, tokenEnd, suggestion)
+                        onValueChange(newText)
                         suggestions = emptyList()
                     }
                 )
@@ -153,7 +162,21 @@ fun MedicalAutoCompleteTextField(
 }
 
 /**
- * Highlights the part of [suggestion] that matches the typed [query].
+ * Returns the start and end indices of the last word/token in [text].
+ */
+private fun lastTokenBounds(text: String): Pair<Int, Int> {
+    if (text.isEmpty()) return 0 to 0
+
+    var start = text.lastIndex
+    while (start >= 0 && text[start] !in TOKEN_DELIMITERS) {
+        start--
+    }
+
+    return (start + 1) to text.length
+}
+
+/**
+ * Highlights the part of [suggestion] that matches the typed [query] token.
  */
 @Composable
 private fun highlightedSuggestion(suggestion: String, query: String): AnnotatedString {
@@ -176,42 +199,45 @@ private fun highlightedSuggestion(suggestion: String, query: String): AnnotatedS
 
 /**
  * Visual transformation that renders the untyped portion of the top suggestion
- * as grey ghost text after the user's input.
+ * as grey ghost text after the current token.
  */
-private class MedicalAutoCompleteVisualTransformation(
-    private val query: String,
+private class TokenGhostVisualTransformation(
+    private val tokenStart: Int,
+    private val tokenEnd: Int,
+    private val token: String,
     private val suggestion: String?,
     private val ghostColor: Color
 ) : VisualTransformation {
 
     override fun filter(text: AnnotatedString): TransformedText {
-        val ghost = if (suggestion.isNullOrBlank()) {
+        val ghost = if (token.isEmpty() || suggestion.isNullOrBlank()) {
             ""
         } else {
-            val commonPrefix = suggestion.commonPrefixWith(query, ignoreCase = true)
-            if (commonPrefix.length == query.length && suggestion.length > query.length) {
-                suggestion.substring(query.length)
+            val commonPrefix = suggestion.commonPrefixWith(token, ignoreCase = true)
+            if (commonPrefix.length == token.length && suggestion.length > token.length) {
+                suggestion.substring(token.length)
             } else {
                 ""
             }
         }
 
+        val safeTokenEnd = tokenEnd.coerceIn(0, text.length)
         val annotated = buildAnnotatedString {
-            append(text)
+            append(text.subSequence(0, safeTokenEnd))
             if (ghost.isNotEmpty()) {
                 withStyle(style = SpanStyle(color = ghostColor)) {
                     append(ghost)
                 }
             }
+            append(text.subSequence(safeTokenEnd, text.length))
         }
 
-        val typedLength = text.length
         val mapping = object : OffsetMapping {
             override fun originalToTransformed(offset: Int): Int =
-                offset.coerceIn(0, typedLength)
+                if (offset <= safeTokenEnd) offset else offset + ghost.length
 
             override fun transformedToOriginal(offset: Int): Int =
-                offset.coerceIn(0, typedLength)
+                if (offset <= safeTokenEnd) offset else (offset - ghost.length).coerceAtLeast(safeTokenEnd)
         }
 
         return TransformedText(annotated, mapping)
