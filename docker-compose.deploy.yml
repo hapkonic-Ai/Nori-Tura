@@ -1,0 +1,62 @@
+name: nori-tura
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nonitura-postgres
+    environment:
+      POSTGRES_USER: nonitura
+      POSTGRES_PASSWORD: nonitura123
+      POSTGRES_DB: nonitura
+    volumes:
+      - nonitura_postgres_data:/var/lib/postgresql/data
+    networks:
+      - nonitura-network
+      - prime-world-crm_prime-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nonitura -d nonitura"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # No host port mapping; keeps 5432 free for Prime World Ledger.
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nonitura-api
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - nonitura-network
+      - prime-world-crm_prime-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=prime-world-crm_prime-network"
+      - "traefik.http.routers.noritura.rule=Host(`nori-tura.primeworld.tech`)"
+      - "traefik.http.routers.noritura.entrypoints=websecure"
+      - "traefik.http.routers.noritura.tls.certresolver=myresolver"
+      - "traefik.http.services.noritura.loadbalancer.server.port=8000"
+      # Optional middleware: strip any unexpected prefixes (none expected here)
+      - "traefik.http.routers.noritura.middlewares=noni-tura-security-headers"
+      - "traefik.http.middlewares.noni-tura-security-headers.headers.customFrameOptionsValue=DENY"
+      - "traefik.http.middlewares.noni-tura-security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.noni-tura-security-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.noni-tura-security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+volumes:
+  nonitura_postgres_data:
+
+networks:
+  nonitura-network:
+    driver: bridge
+  prime-world-crm_prime-network:
+    external: true
