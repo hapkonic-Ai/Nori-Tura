@@ -3,13 +3,14 @@ package com.example.nori_tura.presentation.components
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,9 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
@@ -60,6 +63,17 @@ fun MedicalAutoCompleteTextField(
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     repository: MedicalTermRepository = remember { MedicalTermRepository() }
 ) {
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
+    }
+
+    // Keep internal state in sync when the parent resets/clears the field.
+    LaunchedEffect(value) {
+        if (textFieldValue.text != value) {
+            textFieldValue = TextFieldValue(text = value, selection = TextRange(value.length))
+        }
+    }
+
     var suggestions by remember { mutableStateOf(emptyList<String>()) }
     var ignoreNextQuery by remember { mutableStateOf(false) }
 
@@ -67,9 +81,10 @@ fun MedicalAutoCompleteTextField(
     val isFocused by interactionSource.collectIsFocusedAsState()
     val expanded = isFocused && suggestions.isNotEmpty() && !ignoreNextQuery
 
-    val (tokenStart, tokenEnd, token) = remember(value) {
-        val (start, end) = lastTokenBounds(value)
-        Triple(start, end, value.substring(start, end).trim())
+    val cursor = textFieldValue.selection.end.coerceIn(0, textFieldValue.text.length)
+    val (tokenStart, tokenEnd, token) = remember(textFieldValue.text, cursor) {
+        val (start, end) = tokenBounds(textFieldValue.text, cursor)
+        Triple(start, end, textFieldValue.text.substring(start, end).trim())
     }
 
     val topSuggestion = suggestions.firstOrNull()
@@ -84,7 +99,7 @@ fun MedicalAutoCompleteTextField(
         )
     }
 
-    LaunchedEffect(value) {
+    LaunchedEffect(textFieldValue.text, cursor) {
         if (ignoreNextQuery) {
             ignoreNextQuery = false
             return@LaunchedEffect
@@ -111,16 +126,16 @@ fun MedicalAutoCompleteTextField(
         onExpandedChange = { /* controlled by focus + suggestions */ },
         modifier = modifier
     ) {
-        OutlinedTextField(
-            value = value,
+        BasicTextField(
+            value = textFieldValue,
             onValueChange = {
-                onValueChange(it)
+                textFieldValue = it
+                onValueChange(it.text)
                 suggestions = emptyList()
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(type = MenuAnchorType.PrimaryEditable),
-            label = label,
             enabled = enabled,
             readOnly = readOnly,
             singleLine = singleLine,
@@ -128,10 +143,30 @@ fun MedicalAutoCompleteTextField(
             maxLines = maxLines,
             visualTransformation = visualTransformation,
             interactionSource = interactionSource,
-            trailingIcon = {
-                if (suggestions.isNotEmpty()) {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                }
+            decorationBox = { innerTextField ->
+                OutlinedTextFieldDefaults.DecorationBox(
+                    value = textFieldValue.text,
+                    innerTextField = innerTextField,
+                    enabled = enabled,
+                    singleLine = singleLine,
+                    visualTransformation = visualTransformation,
+                    interactionSource = interactionSource,
+                    label = label,
+                    trailingIcon = {
+                        if (suggestions.isNotEmpty()) {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        }
+                    },
+                    container = {
+                        OutlinedTextFieldDefaults.Container(
+                            enabled = enabled,
+                            isError = false,
+                            interactionSource = interactionSource,
+                            colors = OutlinedTextFieldDefaults.colors(),
+                            shape = OutlinedTextFieldDefaults.shape
+                        )
+                    }
+                )
             }
         )
 
@@ -151,7 +186,12 @@ fun MedicalAutoCompleteTextField(
                     },
                     onClick = {
                         ignoreNextQuery = true
-                        val newText = value.replaceRange(tokenStart, tokenEnd, suggestion)
+                        val currentText = textFieldValue.text
+                        val newText = currentText.replaceRange(tokenStart, tokenEnd, suggestion)
+                        textFieldValue = TextFieldValue(
+                            text = newText,
+                            selection = TextRange(newText.length)
+                        )
                         onValueChange(newText)
                         suggestions = emptyList()
                     }
@@ -162,17 +202,17 @@ fun MedicalAutoCompleteTextField(
 }
 
 /**
- * Returns the start and end indices of the last word/token in [text].
+ * Returns the start and end indices of the word/token around the cursor.
  */
-private fun lastTokenBounds(text: String): Pair<Int, Int> {
-    if (text.isEmpty()) return 0 to 0
+private fun tokenBounds(text: String, cursor: Int): Pair<Int, Int> {
+    if (cursor <= 0 || text.isEmpty()) return 0 to 0
 
-    var start = text.lastIndex
+    var start = (cursor - 1).coerceAtMost(text.lastIndex)
     while (start >= 0 && text[start] !in TOKEN_DELIMITERS) {
         start--
     }
 
-    return (start + 1) to text.length
+    return (start + 1) to cursor.coerceAtMost(text.length)
 }
 
 /**
