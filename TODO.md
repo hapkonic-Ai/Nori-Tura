@@ -70,10 +70,20 @@ Status: Defaults confirmed. Ready to implement.
 
 ## Implementation Tasks (after confirmation)
 
-- [ ] Add `MedServiceBaseUrlProvider` with `expect/actual` implementations.
-- [ ] Create `MedicalTermRepository` with Ktor POST to `/autocomplete`.
-- [ ] Create `MedicalAutoCompleteTextField` component with debounce and dropdown.
-- [ ] Add client-side LRU cache for autocomplete responses.
-- [ ] Swap component into first pilot fields.
-- [ ] Handle 429/network errors gracefully.
-- [ ] Add tests or manual sanity checklist.
+- [x] Add `MedServiceBaseUrlProvider` with `expect/actual` implementations.
+- [x] Create `MedicalTermRepository` with Ktor POST to `/autocomplete`.
+- [x] Create `MedicalAutoCompleteTextField` component with debounce and dropdown.
+- [x] Add client-side LRU cache for autocomplete responses.
+- [x] Swap component into first pilot fields.
+- [x] Handle 429/network errors gracefully.
+- [x] Add manual sanity checklist.
+
+## Manual Sanity Checklist
+
+- [ ] Android: `./gradlew :androidApp:assembleDebug` builds.
+- [ ] iOS: Xcode build for iPhone 17 Pro simulator succeeds.
+- [ ] Type `vesico` in Chief Complaint → see grey ghost text and ≤5 suggestions.
+- [ ] Type `paracet` in Medication Name → see drug-name suggestions.
+- [ ] Tap a suggestion → full text replaced, dropdown closes.
+- [ ] Disconnect network → type in field → no crash, no error dialog.
+- [ ] Repeat same query quickly → served from cache, no extra network call.
