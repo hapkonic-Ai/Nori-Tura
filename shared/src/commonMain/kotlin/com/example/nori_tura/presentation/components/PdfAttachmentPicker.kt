@@ -2,6 +2,8 @@ package com.example.nori_tura.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,7 +25,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.nori_tura.data.ApiClient
 import com.example.nori_tura.ui.theme.NorituraColors
@@ -32,6 +33,7 @@ import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PdfAttachmentPicker(
     pdfUrls: List<String>,
@@ -94,15 +96,22 @@ fun PdfAttachmentPicker(
                 }
             }
 
-            pdfUrls.forEachIndexed { index, url ->
-                AttachmentChip(
-                    url = url,
-                    onRemove = { onPdfUrlsChange(pdfUrls.toMutableList().apply { removeAt(index) }) }
-                )
-            }
         }
 
         if (pdfUrls.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                pdfUrls.forEachIndexed { index, url ->
+                    MediaUrlChip(
+                        url = url,
+                        onRemove = { onPdfUrlsChange(pdfUrls.toMutableList().apply { removeAt(index) }) }
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${pdfUrls.size}/$maxPdfs attached",

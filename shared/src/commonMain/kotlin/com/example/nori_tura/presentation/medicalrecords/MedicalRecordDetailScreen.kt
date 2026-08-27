@@ -1,8 +1,6 @@
 package com.example.nori_tura.presentation.medicalrecords
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -41,8 +37,8 @@ import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.presentation.components.UrlImage
 import com.example.nori_tura.ui.theme.NorituraColors
-import com.example.nori_tura.util.openUrl
 
 @Composable
 fun MedicalRecordDetailScreen(
@@ -148,9 +144,7 @@ fun MedicalRecordDetailScreen(
 @Composable
 private fun MedicalImageCard(image: MedicalRecordImageDto) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { openUrl(image.image_url) },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -160,42 +154,18 @@ private fun MedicalImageCard(image: MedicalRecordImageDto) {
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Image icon placeholder
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(NorituraColors.SurfaceVariant)
-                    .border(1.dp, NorituraColors.Outline, RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = NorituraColors.TextTertiary,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+            UrlImage(
+                url = image.image_url,
+                contentDescription = image.label ?: "Medical image",
+                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))
+            )
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (!image.label.isNullOrBlank()) {
-                        Text(
-                            text = image.label,
-                            color = NorituraColors.TextPrimary,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.OpenInNew,
-                        contentDescription = "Open",
-                        tint = NorituraColors.PrimaryBlue,
-                        modifier = Modifier.size(16.dp)
+                if (!image.label.isNullOrBlank()) {
+                    Text(
+                        text = image.label,
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                 }
 

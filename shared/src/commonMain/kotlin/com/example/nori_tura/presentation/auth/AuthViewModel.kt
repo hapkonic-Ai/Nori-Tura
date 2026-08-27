@@ -19,16 +19,17 @@ class AuthViewModel(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     fun sendOtp(phone: String) {
-        if (!isValidPhone(phone)) {
+        val normalized = normalizePhone(phone)
+        if (normalized == null) {
             _uiState.value = AuthUiState.Error("Please enter a valid Indian phone number (+91 followed by 10 digits).")
             return
         }
 
         _uiState.value = AuthUiState.Loading
         viewModelScope.launch {
-            repository.sendOtp(phone)
+            repository.sendOtp(normalized)
                 .onSuccess { response ->
-                    _uiState.value = AuthUiState.OtpSent(phone, devOtp = response.devOtp)
+                    _uiState.value = AuthUiState.OtpSent(normalized, devOtp = response.devOtp)
                 }
                 .onFailure { error ->
                     _uiState.value = AuthUiState.Error(error.message ?: "Failed to send OTP")
@@ -58,7 +59,8 @@ class AuthViewModel(
     }
 
     fun registerDoctor(name: String, phone: String, hospital: String, specialty: String) {
-        if (!isValidPhone(phone)) {
+        val normalized = normalizePhone(phone)
+        if (normalized == null) {
             _uiState.value = AuthUiState.Error("Please enter a valid Indian phone number (+91 followed by 10 digits).")
             return
         }
@@ -72,7 +74,7 @@ class AuthViewModel(
             repository.registerDoctor(
                 RegisterDoctorRequest(
                     name = name,
-                    phone = phone,
+                    phone = normalized,
                     hospital = hospital,
                     specialty = specialty
                 )
@@ -121,10 +123,13 @@ class AuthViewModel(
         _uiState.value = AuthUiState.Idle
     }
 
-    private fun isValidPhone(phone: String): Boolean {
-        return phone.startsWith("+91") &&
-                phone.length == 13 &&
-                phone.drop(3).all { it.isDigit() }
+    private fun normalizePhone(phone: String): String? {
+        val digits = phone.filter { it.isDigit() }
+        return when {
+            digits.startsWith("91") && digits.length == 12 -> "+$digits"
+            digits.length == 10 -> "+91$digits"
+            else -> null
+        }
     }
 
     private fun registerFcmToken() {

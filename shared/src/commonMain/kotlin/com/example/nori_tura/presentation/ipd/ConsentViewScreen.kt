@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +48,7 @@ import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.SignaturePad
+import com.example.nori_tura.presentation.components.UrlImage
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.encodeSignatureToPngBase64
 import com.example.nori_tura.util.openUrl
@@ -393,6 +395,29 @@ private fun SignedSuccessCard(
                     text = "Witness: $it",
                     color = NorituraColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            if (consent.parentSignatureUrl != null || consent.witnessSignatureUrl != null) {
+                Text(
+                    text = "Signatures",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+
+            consent.parentSignatureUrl?.let { url ->
+                UrlImage(
+                    url = url,
+                    contentDescription = "Parent signature",
+                    modifier = Modifier.fillMaxWidth().aspectRatio(2.5f)
+                )
+            }
+            consent.witnessSignatureUrl?.let { url ->
+                UrlImage(
+                    url = url,
+                    contentDescription = "Witness signature",
+                    modifier = Modifier.fillMaxWidth().aspectRatio(2.5f)
                 )
             }
 

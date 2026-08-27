@@ -1,6 +1,7 @@
 package com.example.nori_tura.presentation.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -141,22 +142,61 @@ fun ImageAttachmentPicker(
             }
         }
 
-        // Attached file chips — wrap to multiple rows if needed
+        // Attached media — inline image thumbnails + video/PDF chips
         if (imageUrls.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                imageUrls.forEachIndexed { index, url ->
-                    AttachmentChip(
-                        url = url,
-                        onRemove = { onImageUrlsChange(imageUrls.toMutableList().apply { removeAt(index) }) }
-                    )
+
+            val imageOnlyUrls = imageUrls.filter { isImageUrl(it) }
+            val otherUrls = imageUrls.filter { !isImageUrl(it) }
+
+            if (imageOnlyUrls.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    imageOnlyUrls.forEach { url ->
+                        val index = imageUrls.indexOf(url)
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            UrlImage(
+                                url = url,
+                                contentDescription = "Attachment",
+                                modifier = Modifier.size(120.dp)
+                            )
+                            IconButton(
+                                onClick = { onImageUrlsChange(imageUrls.toMutableList().apply { removeAt(index) }) },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove",
+                                    tint = NorituraColors.Surface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            Spacer(modifier = Modifier.height(4.dp))
+
+            if (otherUrls.isNotEmpty()) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    otherUrls.forEach { url ->
+                        val index = imageUrls.indexOf(url)
+                        MediaUrlChip(
+                            url = url,
+                            onRemove = { onImageUrlsChange(imageUrls.toMutableList().apply { removeAt(index) }) }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
             Text(
                 text = "${imageUrls.size}/$maxImages attached",
                 color = NorituraColors.TextTertiary,
@@ -166,48 +206,4 @@ fun ImageAttachmentPicker(
     }
 }
 
-@Composable
-internal fun AttachmentChip(
-    url: String,
-    onRemove: () -> Unit
-) {
-    val raw = url.substringAfterLast('/').substringBefore('?')
-    val ext = raw.substringAfterLast('.').lowercase()
-    val isVideo = ext in listOf("mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp")
-    val display = if (raw.isNotBlank()) raw else if (isVideo) "video" else "image"
 
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (isVideo) NorituraColors.SurfaceVariant else NorituraColors.PrimaryBlueLight,
-        modifier = Modifier.height(36.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 12.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = if (isVideo) Icons.Default.VideoLibrary else Icons.Default.AddPhotoAlternate,
-                contentDescription = null,
-                tint = if (isVideo) NorituraColors.TextSecondary else NorituraColors.PrimaryBlue,
-                modifier = Modifier.size(14.dp)
-            )
-            Text(
-                text = display,
-                color = if (isVideo) NorituraColors.TextSecondary else NorituraColors.PrimaryBlue,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
-            )
-            IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Remove",
-                    tint = if (isVideo) NorituraColors.TextSecondary else NorituraColors.PrimaryBlue,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-    }
-}

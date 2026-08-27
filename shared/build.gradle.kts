@@ -60,6 +60,8 @@ kotlin {
             api(libs.navigation.compose)
             implementation(libs.multiplatform.settings)
             implementation(libs.filekit.compose)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -80,8 +82,22 @@ android {
     namespace = "com.example.nori_tura.shared"
     compileSdk = 34
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         minSdk = 24
+        buildConfigField("String", "BASE_URL", "\"https://nori-tura.onrender.com\"")
+    }
+
+    buildTypes {
+        getByName("debug") {
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000\"")
+        }
+        getByName("release") {
+            buildConfigField("String", "BASE_URL", "\"https://nori-tura.onrender.com\"")
+        }
     }
 
     compileOptions {

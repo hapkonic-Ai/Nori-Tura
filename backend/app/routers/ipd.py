@@ -365,19 +365,33 @@ async def create_discharge_summary(
 ):
     await _require_admission_access(user, admission_id)
 
-    summary = await prisma.discharge_summaries.create(
+    summary = await prisma.discharge_summaries.upsert(
+        where={"admission_id": admission_id},
         data={
-            "admission_id": admission_id,
-            "condition_at_discharge": req.condition_at_discharge,
-            "procedure_summary": req.procedure_summary,
-            "discharge_medications_json": Json(req.discharge_medications_json),
-            "wound_care": req.wound_care,
-            "activity_restrictions": req.activity_restrictions,
-            "diet_instructions": req.diet_instructions,
-            "follow_up_date": req.follow_up_date,
-            "red_flags": req.red_flags,
-            "image_urls": req.image_urls or [],
-        }
+            "update": {
+                "condition_at_discharge": req.condition_at_discharge,
+                "procedure_summary": req.procedure_summary,
+                "discharge_medications_json": Json(req.discharge_medications_json),
+                "wound_care": req.wound_care,
+                "activity_restrictions": req.activity_restrictions,
+                "diet_instructions": req.diet_instructions,
+                "follow_up_date": req.follow_up_date,
+                "red_flags": req.red_flags,
+                "image_urls": req.image_urls or [],
+            },
+            "create": {
+                "admission_id": admission_id,
+                "condition_at_discharge": req.condition_at_discharge,
+                "procedure_summary": req.procedure_summary,
+                "discharge_medications_json": Json(req.discharge_medications_json),
+                "wound_care": req.wound_care,
+                "activity_restrictions": req.activity_restrictions,
+                "diet_instructions": req.diet_instructions,
+                "follow_up_date": req.follow_up_date,
+                "red_flags": req.red_flags,
+                "image_urls": req.image_urls or [],
+            },
+        },
     )
 
     await prisma.ipd_admissions.update(

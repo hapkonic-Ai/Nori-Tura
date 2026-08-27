@@ -19,5 +19,7 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>BASE_URL</key>
+	<string>https://nori-tura.onrender.com</string>
 </dict>
 </plist>

@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.ConsentFormDto
@@ -82,6 +84,12 @@ fun PatientProfileScreen(
         if (admitState is PatientProfileViewModel.AdmitUiState.Success) {
             showAdmitDialog = false
             viewModel.resetAdmitState()
+        }
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (uiState !is PatientProfileViewModel.UiState.Loading) {
+            viewModel.loadProfile()
         }
     }
 

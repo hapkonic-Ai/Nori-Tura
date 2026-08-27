@@ -33,6 +33,7 @@ import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.presentation.components.UrlImageRow
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.formatDateTime
 
@@ -157,6 +158,11 @@ private fun OpdRecordDetailContent(record: OpdRecordDto) {
                     InvestigationRow(investigation = investigation)
                 }
             }
+        }
+    }
+    if (!record.prescriptionImageUrls.isNullOrEmpty()) {
+        DetailSection(title = "Prescription Images") {
+            UrlImageRow(urls = record.prescriptionImageUrls)
         }
     }
 }

@@ -40,6 +40,7 @@ import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.presentation.components.UrlImageRow
 import com.example.nori_tura.ui.theme.NorituraColors
 
 @Composable
@@ -143,6 +144,11 @@ private fun ConsultDetailContent(record: OpdRecordDto) {
                     MedicationRow(med = med)
                 }
             }
+        }
+    }
+    if (!record.prescriptionImageUrls.isNullOrEmpty()) {
+        DetailSection(title = "Prescription Images") {
+            UrlImageRow(urls = record.prescriptionImageUrls)
         }
     }
 

@@ -228,6 +228,14 @@ private fun MedicalImageCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            UrlImage(
+                url = image.url,
+                contentDescription = image.label,
+                modifier = Modifier.fillMaxWidth().aspectRatio(1.5f)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Label field
             OutlinedTextField(
                 value = image.label,

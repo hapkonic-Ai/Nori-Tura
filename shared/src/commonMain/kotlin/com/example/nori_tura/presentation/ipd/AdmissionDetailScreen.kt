@@ -58,12 +58,12 @@ import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.data.dto.WardRoundNoteCreateRequest
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ImageAttachmentPicker
+import com.example.nori_tura.presentation.components.MediaUrlChipGrid
 import com.example.nori_tura.presentation.components.TemplatePickerDialog
+import com.example.nori_tura.presentation.components.UrlImageRow
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.openUrl
 import androidx.compose.foundation.background
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.OpenInNew
@@ -225,7 +225,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Intra-Op Notes")
         for (note in admission.intraOpNotes ?: emptyList()) {
-            NoteCard(imageUrls = note.imageUrls) {
+            NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
                 Text("Procedure: ${note.procedureDone}", fontWeight = FontWeight.SemiBold)
                 note.findings?.let { Text("Findings: $it") }
                 note.technique?.let { Text("Technique: $it") }
@@ -402,6 +402,7 @@ private fun SectionTitle(title: String) {
 @Composable
 private fun NoteCard(
     imageUrls: List<String>? = null,
+    videoUrls: List<String>? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -422,40 +423,19 @@ private fun NoteCard(
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    itemsIndexed(imageUrls) { index, url ->
-                        Surface(
-                            modifier = Modifier.height(36.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            color = NorituraColors.PrimaryBlueLight,
-                            onClick = { openUrl(url) }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription = null,
-                                    tint = NorituraColors.PrimaryBlue,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "Photo ${index + 1}",
-                                    color = NorituraColors.PrimaryBlue,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                                Icon(
-                                    imageVector = Icons.Default.OpenInNew,
-                                    contentDescription = "Open",
-                                    tint = NorituraColors.PrimaryBlue,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
-                        }
-                    }
-                }
+                UrlImageRow(urls = imageUrls)
+            }
+            if (!videoUrls.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = NorituraColors.Divider)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Attached Videos (${videoUrls.size})",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                MediaUrlChipGrid(urls = videoUrls)
             }
         }
     }

@@ -80,7 +80,7 @@ fun PhoneInputField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     label: String = "Phone Number",
-    placeholder: String = "+91 98765 43210"
+    placeholder: String = "+919876543210"
 ) {
     OutlinedTextField(
         value = value,
