@@ -20,6 +20,6 @@
 		</dict>
 	</dict>
 	<key>BASE_URL</key>
-	<string>https://nori-tura.onrender.com</string>
+	<string>http://localhost:8001</string>
 </dict>
 </plist>
