@@ -56,6 +56,7 @@ import com.example.nori_tura.data.dto.InvestigationCreateDto
 import com.example.nori_tura.data.dto.MedicationCreateDto
 import com.example.nori_tura.data.dto.OpdRecordCreateRequest
 import com.example.nori_tura.presentation.components.ImageAttachmentPicker
+import com.example.nori_tura.presentation.components.MedicalAutoCompleteTextField
 import com.example.nori_tura.presentation.components.MedicalImageData
 import com.example.nori_tura.presentation.components.MedicalImagePicker
 import com.example.nori_tura.presentation.components.SectionTitle
@@ -168,7 +169,7 @@ fun OpdConsultScreen(
                 }
 
                 item {
-                    OutlinedTextField(
+                    MedicalAutoCompleteTextField(
                         value = complaint,
                         onValueChange = { complaint = it },
                         label = { Text("Chief Complaint") },
@@ -190,7 +191,7 @@ fun OpdConsultScreen(
                 }
 
                 item {
-                    OutlinedTextField(
+                    MedicalAutoCompleteTextField(
                         value = diagnosis,
                         onValueChange = { diagnosis = it },
                         label = { Text(if (isNurse) "Provisional Findings" else "Diagnosis") },
@@ -201,11 +202,12 @@ fun OpdConsultScreen(
                 }
 
                 item {
-                    OutlinedTextField(
+                    MedicalAutoCompleteTextField(
                         value = plannedProcedure,
                         onValueChange = { plannedProcedure = it },
                         label = { Text("Planned Procedure") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
                 }
 
@@ -431,11 +433,12 @@ private fun MedicationRow(
     onRemove: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = medication.name,
             onValueChange = { onChange(medication.copy(name = it)) },
             label = { Text("Name") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
         Spacer(modifier = Modifier.height(4.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -491,7 +494,7 @@ private fun InvestigationsSection(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    MedicalAutoCompleteTextField(
                         value = investigation.type,
                         onValueChange = { updated ->
                             onInvestigationsChange(
@@ -499,7 +502,8 @@ private fun InvestigationsSection(
                             )
                         },
                         label = { Text("Investigation Type") },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = {

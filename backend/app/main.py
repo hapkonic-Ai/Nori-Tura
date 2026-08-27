@@ -39,6 +39,11 @@ if os.getenv("ENVIRONMENT", "development") == "development":
         "http://10.0.2.2:8000",  # Android emulator
     ]
 
+# Allow additional origins from environment (e.g. for custom deployments)
+_extra_origins = os.getenv("EXTRA_CORS_ORIGINS", "")
+if _extra_origins:
+    ALLOWED_ORIGINS.extend([origin.strip() for origin in _extra_origins.split(",") if origin.strip()])
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
