@@ -93,7 +93,7 @@ android {
 
     buildTypes {
         getByName("debug") {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8001\"")
         }
         getByName("release") {
             buildConfigField("String", "BASE_URL", "\"https://nori-tura.onrender.com\"")
