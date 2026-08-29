@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     RAG_API_KEY: str = ""         # shared bearer token for your RAG service
     RAG_TIMEOUT_SECONDS: int = 10
 
+    # MinIO / S3-compatible object storage
+    MINIO_ENDPOINT: str = "localhost:9100"
+    MINIO_PUBLIC_ENDPOINT: str = ""  # Optional public host for presigned URLs (e.g. 10.0.2.2:9100 for Android emulator)
+    MINIO_ACCESS_KEY: str = "nonitura"
+    MINIO_SECRET_KEY: str = "nonitura123"
+    MINIO_BUCKET: str = "nonitura-media"
+    MINIO_SECURE: bool = False
+
     @validator("JWT_SECRET")
     def validate_jwt_secret(cls, v, values):
         env = values.get("ENVIRONMENT", os.getenv("ENVIRONMENT", "development"))

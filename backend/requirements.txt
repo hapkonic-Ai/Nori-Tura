@@ -16,6 +16,7 @@ pydyf==0.10.0
 Jinja2==3.1.4
 python-multipart==0.0.9
 cloudinary==1.40.0
+minio==7.2.7
 qrcode[pil]==7.4.2
 firebase-admin==6.5.0
 apscheduler==3.10.4

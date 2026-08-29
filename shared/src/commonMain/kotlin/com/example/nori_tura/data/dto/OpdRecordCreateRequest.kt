@@ -15,5 +15,6 @@ data class OpdRecordCreateRequest(
     @SerialName("follow_up_date") val followUpDate: String? = null,
     val medications: List<MedicationCreateDto> = emptyList(),
     val investigations: List<InvestigationCreateDto> = emptyList(),
-    @SerialName("prescription_image_urls") val prescriptionImageUrls: List<String> = emptyList()
+    @SerialName("prescription_image_urls") val prescriptionImageUrls: List<String> = emptyList(),
+    @SerialName("medical_images") val medicalImages: List<MedicalImageCreateDto> = emptyList()
 )

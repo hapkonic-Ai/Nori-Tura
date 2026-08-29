@@ -158,7 +158,7 @@ fun ImageAttachmentPicker(
                     imageOnlyUrls.forEach { url ->
                         val index = imageUrls.indexOf(url)
                         Box(contentAlignment = Alignment.TopEnd) {
-                            UrlImage(
+                            AuthenticatedUrlImage(
                                 url = url,
                                 contentDescription = "Attachment",
                                 modifier = Modifier.size(120.dp)

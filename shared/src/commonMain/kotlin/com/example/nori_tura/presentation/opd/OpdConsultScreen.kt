@@ -53,6 +53,7 @@ import com.example.nori_tura.data.dto.AiDiagnosisResponse
 import com.example.nori_tura.data.dto.AiSuggestions
 import com.example.nori_tura.data.dto.DifferentialDiagnosis
 import com.example.nori_tura.data.dto.InvestigationCreateDto
+import com.example.nori_tura.data.dto.MedicalImageCreateDto
 import com.example.nori_tura.data.dto.MedicationCreateDto
 import com.example.nori_tura.data.dto.OpdRecordCreateRequest
 import com.example.nori_tura.presentation.components.ImageAttachmentPicker
@@ -328,7 +329,16 @@ fun OpdConsultScreen(
                                 investigations = investigations.map {
                                     InvestigationCreateDto(type = it.type)
                                 },
-                                prescriptionImageUrls = imageUrls
+                                prescriptionImageUrls = imageUrls,
+                                medicalImages = medicalImages.map {
+                                    MedicalImageCreateDto(
+                                        imageUrl = it.url,
+                                        category = it.category,
+                                        label = it.label.takeIf { label -> label.isNotBlank() },
+                                        description = it.description.takeIf { desc -> desc.isNotBlank() },
+                                        uploadedByRole = if (isNurse) "nurse" else "surgeon"
+                                    )
+                                }
                             )
                             viewModel.saveOpdRecord(request)
                         },

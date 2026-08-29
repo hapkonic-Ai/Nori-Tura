@@ -36,8 +36,8 @@ import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
+import com.example.nori_tura.presentation.components.AuthenticatedUrlImage
 import com.example.nori_tura.presentation.components.NorituraScaffold
-import com.example.nori_tura.presentation.components.UrlImage
 import com.example.nori_tura.ui.theme.NorituraColors
 
 @Composable
@@ -154,7 +154,7 @@ private fun MedicalImageCard(image: MedicalRecordImageDto) {
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.Top
         ) {
-            UrlImage(
+            AuthenticatedUrlImage(
                 url = image.image_url,
                 contentDescription = image.label ?: "Medical image",
                 modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))

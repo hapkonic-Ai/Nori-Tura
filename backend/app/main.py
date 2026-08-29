@@ -36,7 +36,9 @@ if os.getenv("ENVIRONMENT", "development") == "development":
     ALLOWED_ORIGINS += [
         "http://localhost:3000",
         "http://localhost:8080",
+        "http://localhost:8001",
         "http://10.0.2.2:8000",  # Android emulator
+        "http://10.0.2.2:8001",  # Android emulator (local backend)
     ]
 
 # Allow additional origins from environment (e.g. for custom deployments)

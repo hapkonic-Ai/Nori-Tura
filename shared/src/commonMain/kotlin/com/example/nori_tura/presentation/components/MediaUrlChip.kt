@@ -25,14 +25,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.nori_tura.data.MediaAccessRepository
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.openUrl
+import kotlinx.coroutines.launch
 
 @Composable
 fun MediaUrlChip(
@@ -67,6 +70,9 @@ fun MediaUrlChip(
     }
 
     var showViewer by remember { mutableStateOf(false) }
+    var viewerUrl by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val mediaRepository = remember { MediaAccessRepository() }
 
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -75,10 +81,20 @@ fun MediaUrlChip(
             .height(36.dp)
             .clip(MaterialTheme.shapes.medium)
             .clickable(enabled = url.isNotBlank()) {
-                if (isImage) {
-                    showViewer = true
-                } else {
-                    openUrl(url)
+                scope.launch {
+                    val target = if (url.startsWith("/media/")) {
+                        mediaRepository.getPresignedUrl(url).getOrNull()
+                    } else {
+                        url
+                    }
+                    if (target == null) return@launch
+
+                    if (isImage) {
+                        viewerUrl = target
+                        showViewer = true
+                    } else {
+                        openUrl(target)
+                    }
                 }
             }
     ) {
@@ -122,10 +138,13 @@ fun MediaUrlChip(
         }
     }
 
-    if (showViewer) {
+    if (showViewer && viewerUrl != null) {
         FullscreenImageViewer(
-            url = url,
-            onDismiss = { showViewer = false }
+            url = viewerUrl!!,
+            onDismiss = {
+                showViewer = false
+                viewerUrl = null
+            }
         )
     }
 }

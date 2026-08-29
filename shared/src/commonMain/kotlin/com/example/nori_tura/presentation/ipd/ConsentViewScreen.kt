@@ -48,7 +48,7 @@ import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.SignaturePad
-import com.example.nori_tura.presentation.components.UrlImage
+import com.example.nori_tura.presentation.components.AuthenticatedUrlImage
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.encodeSignatureToPngBase64
 import com.example.nori_tura.util.openUrl
@@ -407,14 +407,14 @@ private fun SignedSuccessCard(
             }
 
             consent.parentSignatureUrl?.let { url ->
-                UrlImage(
+                AuthenticatedUrlImage(
                     url = url,
                     contentDescription = "Parent signature",
                     modifier = Modifier.fillMaxWidth().aspectRatio(2.5f)
                 )
             }
             consent.witnessSignatureUrl?.let { url ->
-                UrlImage(
+                AuthenticatedUrlImage(
                     url = url,
                     contentDescription = "Witness signature",
                     modifier = Modifier.fillMaxWidth().aspectRatio(2.5f)

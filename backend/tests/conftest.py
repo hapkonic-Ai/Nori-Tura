@@ -16,7 +16,7 @@ import httpx
 import pytest
 
 # Point Prisma at the test database *before* any app code is imported.
-TEST_DATABASE_URL = "postgresql://nonitura:nonitura123@localhost:5432/nonitura_test"
+TEST_DATABASE_URL = "postgresql://nonitura:nonitura123@localhost:5433/nonitura_test"
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 

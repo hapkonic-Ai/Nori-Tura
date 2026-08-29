@@ -56,11 +56,11 @@ import com.example.nori_tura.data.dto.PostOpNoteCreateRequest
 import com.example.nori_tura.data.dto.PreOpNoteCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.data.dto.WardRoundNoteCreateRequest
+import com.example.nori_tura.presentation.components.AuthenticatedUrlImageRow
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ImageAttachmentPicker
 import com.example.nori_tura.presentation.components.MediaUrlChipGrid
 import com.example.nori_tura.presentation.components.TemplatePickerDialog
-import com.example.nori_tura.presentation.components.UrlImageRow
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.openUrl
 import androidx.compose.foundation.background
@@ -423,7 +423,7 @@ private fun NoteCard(
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                UrlImageRow(urls = imageUrls)
+                AuthenticatedUrlImageRow(urls = imageUrls)
             }
             if (!videoUrls.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))

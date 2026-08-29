@@ -10,6 +10,7 @@ from app.core.auth_deps import (
     CurrentUser,
     resolve_doctor_id,
 )
+from app.schemas.medical_records import VALID_CATEGORIES, MedicalRecordImageCreate
 from app.services import whatsapp_service, sms_service
 
 router = APIRouter(prefix="/opd", tags=["OPD"])
@@ -27,6 +28,14 @@ class InvestigationCreate(BaseModel):
     status: Optional[str] = "pending"
 
 
+class MedicalImageCreate(BaseModel):
+    image_url: str
+    category: str
+    label: Optional[str] = None
+    description: Optional[str] = None
+    uploaded_by_role: str = "surgeon"
+
+
 class OPDRecordCreate(BaseModel):
     visit_type: str
     complaint: str
@@ -39,6 +48,7 @@ class OPDRecordCreate(BaseModel):
     medications: Optional[List[MedicationCreate]] = None
     investigations: Optional[List[InvestigationCreate]] = None
     prescription_image_urls: Optional[List[str]] = None
+    medical_images: Optional[List[MedicalImageCreate]] = None
 
 
 class WhatsAppPreviewResponse(BaseModel):
@@ -147,7 +157,53 @@ async def create_opd_record(
         data=data,
         include={"medications": True, "investigations": True, "hospital": True, "doctor": True, "patient": True},
     )
+
+    if req.medical_images:
+        await _create_medical_record_for_opd(record, req.medical_images, doctor_id)
+
     return record
+
+
+async def _create_medical_record_for_opd(
+    opd_record,
+    medical_images: List[MedicalImageCreate],
+    doctor_id: str,
+):
+    """Create a linked medical record with the images captured during OPD consult."""
+    if not medical_images:
+        return
+
+    created_at = opd_record.created_at or datetime.now()
+    title = f"OPD Consult Images — {created_at.strftime('%Y-%m-%d')}"
+
+    medical_record = await prisma.medical_records.create(
+        data={
+            "patient_id": opd_record.patient_id,
+            "doctor_id": doctor_id,
+            "title": title,
+            "description": "Images captured during OPD consultation",
+            "opd_record_id": opd_record.id,
+        }
+    )
+
+    await prisma.medical_record_images.create_many(
+        data=[
+            {
+                "medical_record_id": medical_record.id,
+                "image_url": img.image_url,
+                "category": img.category if img.category in VALID_CATEGORIES else "Other",
+                "label": img.label,
+                "description": img.description,
+                "uploaded_by_role": img.uploaded_by_role,
+            }
+            for img in medical_images
+        ]
+    )
+
+    await prisma.opd_records.update(
+        where={"id": opd_record.id},
+        data={"has_medical_records": True},
+    )
 
 
 @router.get("/records/{record_id}")

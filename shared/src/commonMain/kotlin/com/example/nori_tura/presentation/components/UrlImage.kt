@@ -46,6 +46,9 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 
 fun isImageUrl(url: String): Boolean {
     if (url.startsWith("data:image", ignoreCase = true)) return true
+    // Relative authenticated media paths are treated as images by default.
+    // The upload flow for non-image media should keep an explicit extension or type hint.
+    if (url.startsWith("/media/")) return true
     val ext = url.substringAfterLast('/')
         .substringBefore('?')
         .substringAfterLast('.', "")

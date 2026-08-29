@@ -228,7 +228,7 @@ private fun MedicalImageCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            UrlImage(
+            AuthenticatedUrlImage(
                 url = image.url,
                 contentDescription = image.label,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1.5f)
