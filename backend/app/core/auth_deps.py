@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.security import decode_token
 from app.core.database import prisma
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 security = HTTPBearer()
 
@@ -78,6 +78,15 @@ async def resolve_doctor_id(user: CurrentUser) -> str:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Nurse account inactive")
         return nurse.doctor_id
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot resolve doctor_id for this role")
+
+
+async def resolve_hospital_id(user: CurrentUser) -> Optional[str]:
+    """Resolve the hospital_id the user is scoped to via their doctor record."""
+    doctor_id = await resolve_doctor_id(user)
+    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Doctor record not found")
+    return doctor.hospital_id
 
 
 async def get_current_staff(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:

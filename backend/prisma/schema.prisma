@@ -215,6 +215,7 @@ model pre_op_notes {
   risk_level           String?
   special_instructions String?
   image_urls           String[]
+  video_urls           String[]
   completed_at         DateTime?
 
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
@@ -253,6 +254,7 @@ model post_op_notes {
   diet              String?
   medications_json  Json?
   image_urls        String[]
+  video_urls        String[]
   created_at        DateTime @default(now())
 
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
@@ -271,6 +273,7 @@ model ward_round_notes {
   plan                String?
   ready_for_discharge Boolean  @default(false)
   image_urls          String[]
+  video_urls          String[]
   created_at          DateTime @default(now())
 
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
@@ -290,6 +293,7 @@ model discharge_summaries {
   follow_up_date             DateTime?
   red_flags                  String?
   image_urls                 String[]
+  video_urls                 String[]
   major_events               Json?
   created_at                 DateTime @default(now())
 

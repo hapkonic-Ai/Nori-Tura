@@ -49,6 +49,7 @@ data class PreOpNoteDto(
     @SerialName("risk_level") val riskLevel: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null,
     @SerialName("image_urls") val imageUrls: List<String>? = null,
+    @SerialName("video_urls") val videoUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -60,7 +61,8 @@ data class PreOpNoteCreateRequest(
     val investigations: List<String> = emptyList(),
     @SerialName("risk_level") val riskLevel: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null,
-    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList(),
+    @SerialName("video_urls") val videoUrls: List<String> = emptyList()
 )
 
 @Serializable
@@ -102,6 +104,7 @@ data class PostOpNoteDto(
     val diet: String? = null,
     @SerialName("medications_json") val medicationsJson: Map<String, String?>? = null,
     @SerialName("image_urls") val imageUrls: List<String>? = null,
+    @SerialName("video_urls") val videoUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -114,7 +117,8 @@ data class PostOpNoteCreateRequest(
     @SerialName("pain_score") val painScore: Int? = null,
     val diet: String? = null,
     @SerialName("medications_json") val medicationsJson: Map<String, String?>? = null,
-    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList(),
+    @SerialName("video_urls") val videoUrls: List<String> = emptyList()
 )
 
 @Serializable
@@ -126,6 +130,7 @@ data class WardRoundNoteDto(
     val plan: String? = null,
     @SerialName("ready_for_discharge") val readyForDischarge: Boolean = false,
     @SerialName("image_urls") val imageUrls: List<String>? = null,
+    @SerialName("video_urls") val videoUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -136,7 +141,8 @@ data class WardRoundNoteCreateRequest(
     val assessment: String? = null,
     val plan: String? = null,
     @SerialName("ready_for_discharge") val readyForDischarge: Boolean = false,
-    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList(),
+    @SerialName("video_urls") val videoUrls: List<String> = emptyList()
 )
 
 @Serializable
@@ -151,6 +157,7 @@ data class DischargeSummaryDto(
     @SerialName("follow_up_date") val followUpDate: String? = null,
     @SerialName("red_flags") val redFlags: String? = null,
     @SerialName("image_urls") val imageUrls: List<String>? = null,
+    @SerialName("video_urls") val videoUrls: List<String>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -164,5 +171,6 @@ data class DischargeSummaryCreateRequest(
     @SerialName("diet_instructions") val dietInstructions: String? = null,
     @SerialName("follow_up_date") val followUpDate: String? = null,
     @SerialName("red_flags") val redFlags: String? = null,
-    @SerialName("image_urls") val imageUrls: List<String> = emptyList()
+    @SerialName("image_urls") val imageUrls: List<String> = emptyList(),
+    @SerialName("video_urls") val videoUrls: List<String> = emptyList()
 )

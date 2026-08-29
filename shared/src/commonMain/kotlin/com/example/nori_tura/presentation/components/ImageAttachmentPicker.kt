@@ -35,21 +35,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.nori_tura.data.ApiClient
+import com.example.nori_tura.data.UploadedMedia
 import com.example.nori_tura.ui.theme.NorituraColors
 import io.github.vinceglb.filekit.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
 import kotlinx.coroutines.launch
 
+private fun UploadedMedia.isVideo(): Boolean = mimeType.startsWith("video/")
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ImageAttachmentPicker(
-    imageUrls: List<String>,
-    onImageUrlsChange: (List<String>) -> Unit,
+    items: List<UploadedMedia>,
+    onItemsChange: (List<UploadedMedia>) -> Unit,
     modifier: Modifier = Modifier,
     label: String = "Attached media",
-    maxImages: Int = 5,
-    buttonLabel: String = "Add image",
+    maxItems: Int = 5,
+    imageButtonLabel: String = "Add image",
     allowVideo: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
@@ -66,7 +69,9 @@ fun ImageAttachmentPicker(
             isUploadingImage = true
             val pairs = files.map { it.name to it.readBytes() }
             ApiClient.uploadMedia(pairs, resourceType = "image")
-                .onSuccess { urls -> onImageUrlsChange((imageUrls + urls).take(maxImages)) }
+                .onSuccess { uploaded ->
+                    onItemsChange((items + uploaded).take(maxItems))
+                }
                 .onFailure { }
             isUploadingImage = false
         }
@@ -81,7 +86,9 @@ fun ImageAttachmentPicker(
             isUploadingVideo = true
             val pairs = files.map { it.name to it.readBytes() }
             ApiClient.uploadMedia(pairs, resourceType = "video")
-                .onSuccess { urls -> onImageUrlsChange((imageUrls + urls).take(maxImages)) }
+                .onSuccess { uploaded ->
+                    onItemsChange((items + uploaded).take(maxItems))
+                }
                 .onFailure { }
             isUploadingVideo = false
         }
@@ -101,7 +108,7 @@ fun ImageAttachmentPicker(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (imageUrls.size < maxImages) {
+            if (items.size < maxItems) {
                 OutlinedButton(
                     onClick = { imageLauncher.launch() },
                     enabled = !isUploading,
@@ -117,10 +124,10 @@ fun ImageAttachmentPicker(
                         )
                     }
                     Spacer(modifier = Modifier.size(6.dp))
-                    Text(buttonLabel)
+                    Text(imageButtonLabel)
                 }
 
-                if (allowVideo && imageUrls.size < maxImages) {
+                if (allowVideo && items.size < maxItems) {
                     OutlinedButton(
                         onClick = { videoLauncher.launch() },
                         enabled = !isUploading,
@@ -143,28 +150,28 @@ fun ImageAttachmentPicker(
         }
 
         // Attached media — inline image thumbnails + video/PDF chips
-        if (imageUrls.isNotEmpty()) {
+        if (items.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            val imageOnlyUrls = imageUrls.filter { isImageUrl(it) }
-            val otherUrls = imageUrls.filter { !isImageUrl(it) }
+            val imageItems = items.filter { !it.isVideo() }
+            val videoItems = items.filter { it.isVideo() }
 
-            if (imageOnlyUrls.isNotEmpty()) {
+            if (imageItems.isNotEmpty()) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    imageOnlyUrls.forEach { url ->
-                        val index = imageUrls.indexOf(url)
+                    imageItems.forEach { item ->
+                        val index = items.indexOf(item)
                         Box(contentAlignment = Alignment.TopEnd) {
                             AuthenticatedUrlImage(
-                                url = url,
+                                url = item.url,
                                 contentDescription = "Attachment",
                                 modifier = Modifier.size(120.dp)
                             )
                             IconButton(
-                                onClick = { onImageUrlsChange(imageUrls.toMutableList().apply { removeAt(index) }) },
+                                onClick = { onItemsChange(items.toMutableList().apply { removeAt(index) }) },
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
@@ -180,17 +187,18 @@ fun ImageAttachmentPicker(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            if (otherUrls.isNotEmpty()) {
+            if (videoItems.isNotEmpty()) {
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    otherUrls.forEach { url ->
-                        val index = imageUrls.indexOf(url)
+                    videoItems.forEach { item ->
+                        val index = items.indexOf(item)
                         MediaUrlChip(
-                            url = url,
-                            onRemove = { onImageUrlsChange(imageUrls.toMutableList().apply { removeAt(index) }) }
+                            url = item.url,
+                            mimeType = item.mimeType,
+                            onRemove = { onItemsChange(items.toMutableList().apply { removeAt(index) }) }
                         )
                     }
                 }
@@ -198,12 +206,10 @@ fun ImageAttachmentPicker(
             }
 
             Text(
-                text = "${imageUrls.size}/$maxImages attached",
+                text = "${items.size}/$maxItems attached",
                 color = NorituraColors.TextTertiary,
                 style = MaterialTheme.typography.labelSmall
             )
         }
     }
 }
-
-

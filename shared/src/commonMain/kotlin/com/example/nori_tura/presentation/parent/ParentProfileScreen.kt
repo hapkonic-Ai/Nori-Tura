@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.data.UploadedMedia
 import com.example.nori_tura.data.dto.ConsentFormDto
 import com.example.nori_tura.data.dto.DocumentCreateRequest
 import com.example.nori_tura.data.dto.DocumentDto
@@ -48,8 +50,10 @@ import com.example.nori_tura.presentation.components.Avatar
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
+import com.example.nori_tura.presentation.components.ImageAttachmentPicker
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.LongPressCardPreview
+import com.example.nori_tura.presentation.components.MediaUrlChip
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.PdfAttachmentPicker
 import com.example.nori_tura.ui.theme.NorituraColors
@@ -104,6 +108,7 @@ fun ParentProfileScreen(
                     onNavigateToConsentView = onNavigateToConsentView,
                     onLogout = onLogout,
                     onCreateDocument = { request -> viewModel.createDocument(request) },
+                    onDeleteDocument = { id -> viewModel.deleteDocument(id) },
                     modifier = Modifier
                 )
             }
@@ -117,6 +122,7 @@ private fun ProfileContent(
     onNavigateToConsentView: (String) -> Unit,
     onLogout: () -> Unit,
     onCreateDocument: (DocumentCreateRequest) -> Unit,
+    onDeleteDocument: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val child = profile.child
@@ -183,6 +189,7 @@ private fun ProfileContent(
 
         item {
             var uploadedPdfs by remember { mutableStateOf(listOf<String>()) }
+            var uploadedImages by remember { mutableStateOf(listOf<UploadedMedia>()) }
 
             Text(
                 text = "Previous Health Records",
@@ -190,6 +197,16 @@ private fun ProfileContent(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
             Spacer(modifier = Modifier.height(8.dp))
+
+            ImageAttachmentPicker(
+                items = uploadedImages,
+                onItemsChange = { uploadedImages = it },
+                label = "Upload previous health record (image)",
+                maxItems = 5,
+                imageButtonLabel = "Add image"
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             PdfAttachmentPicker(
                 pdfUrls = uploadedPdfs,
@@ -199,11 +216,23 @@ private fun ProfileContent(
                 buttonLabel = "Add PDF"
             )
 
-            if (uploadedPdfs.isNotEmpty()) {
+            if (uploadedImages.isNotEmpty() || uploadedPdfs.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
                         val childId = profile.child?.id ?: return@Button
+                        uploadedImages.forEach { media ->
+                            onCreateDocument(
+                                DocumentCreateRequest(
+                                    patientId = childId,
+                                    name = media.filename,
+                                    url = media.url,
+                                    type = "image",
+                                    category = "previous_health_record",
+                                    uploadedByRole = "parent"
+                                )
+                            )
+                        }
                         uploadedPdfs.forEach { url ->
                             val name = url.takeLastWhile { it != '/' }
                                 .takeIf { it.isNotBlank() } ?: "Health Record"
@@ -218,6 +247,7 @@ private fun ProfileContent(
                                 )
                             )
                         }
+                        uploadedImages = emptyList()
                         uploadedPdfs = emptyList()
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -234,7 +264,12 @@ private fun ProfileContent(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     profile.documents.forEach { document ->
-                        HealthRecordCard(document = document)
+                        HealthRecordCard(
+                            document = document,
+                            onDelete = if (document.uploadedByRole == "parent") {
+                                { document.id?.let(onDeleteDocument) }
+                            } else null
+                        )
                     }
                 }
             }
@@ -419,45 +454,56 @@ private fun ConsentHistoryCard(
 }
 
 @Composable
-private fun HealthRecordCard(document: DocumentDto) {
-    LongPressCardPreview(
+private fun HealthRecordCard(
+    document: DocumentDto,
+    onDelete: (() -> Unit)? = null
+) {
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { openUrl(document.url) },
-        previewTitle = "Health Record Preview"
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Description,
-                    contentDescription = "PDF document",
-                    tint = NorituraColors.PrimaryBlue,
-                    modifier = Modifier.padding(end = 12.dp)
+            Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = "Health record",
+                tint = NorituraColors.PrimaryBlue,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = document.name,
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = document.name,
-                        color = NorituraColors.TextPrimary,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                    )
-                    Text(
-                        text = "${document.type.uppercase()}${document.category?.let { " • ${it.replace("_", " ").replaceFirstChar { c -> c.uppercase() }}" } ?: ""}",
-                        color = NorituraColors.TextTertiary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "Uploaded: ${document.uploadedAt?.take(10) ?: document.recordedAt?.take(10) ?: "-"}",
-                        color = NorituraColors.TextTertiary,
-                        style = MaterialTheme.typography.bodySmall
+                Text(
+                    text = "${document.type.uppercase()}${document.category?.let { " • ${it.replace("_", " ").replaceFirstChar { c -> c.uppercase() }}" } ?: ""}",
+                    color = NorituraColors.TextTertiary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "Uploaded: ${document.uploadedAt?.take(10) ?: document.recordedAt?.take(10) ?: "-"}",
+                    color = NorituraColors.TextTertiary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                MediaUrlChip(
+                    url = document.url,
+                    mimeType = if (document.type == "image") "image/*" else null
+                )
+            }
+            onDelete?.let { delete ->
+                IconButton(onClick = delete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete record",
+                        tint = NorituraColors.Error
                     )
                 }
             }

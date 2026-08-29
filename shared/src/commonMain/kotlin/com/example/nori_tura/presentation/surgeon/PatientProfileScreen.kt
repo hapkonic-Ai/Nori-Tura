@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -40,16 +43,19 @@ import androidx.lifecycle.Lifecycle
 import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.ConsentFormDto
+import com.example.nori_tura.data.dto.DocumentDto
 import com.example.nori_tura.data.dto.OpdRecordDto
 import com.example.nori_tura.data.dto.PatientDto
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.window.Dialog
+import com.example.nori_tura.presentation.components.AuthenticatedUrlImage
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.ipd.AdmitPatientDialog
 import com.example.nori_tura.presentation.components.EmptyState
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.LongPressCardPreview
+import com.example.nori_tura.presentation.components.MediaUrlChip
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.formatDateTime
@@ -118,6 +124,7 @@ fun PatientProfileScreen(
                 ProfileContent(
                     patient = state.patient,
                     opdRecords = state.opdRecords,
+                    parentDocuments = state.parentDocuments,
                     onAddOpdRecord = onAddOpdRecord,
                     onAdmitClick = { showAdmitDialog = true },
                     onNavigateToConsentForm = onNavigateToConsentForm,
@@ -156,6 +163,7 @@ fun PatientProfileScreen(
 private fun ProfileContent(
     patient: PatientDto,
     opdRecords: List<OpdRecordDto>,
+    parentDocuments: List<DocumentDto>,
     onAddOpdRecord: () -> Unit,
     onAdmitClick: () -> Unit,
     onNavigateToConsentForm: (admissionId: String) -> Unit,
@@ -250,6 +258,46 @@ private fun ProfileContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Admit Patient")
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "Parent Uploaded History",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (parentDocuments.isEmpty()) {
+                InlineEmptyProfile("No parent-uploaded history available.")
+            } else {
+                val imageDocs = parentDocuments.filter { it.type == "image" }
+                val pdfDocs = parentDocuments.filter { it.type == "pdf" }
+
+                if (imageDocs.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(imageDocs, key = { it.id ?: it.hashCode() }) { document ->
+                            AuthenticatedUrlImage(
+                                url = document.url,
+                                contentDescription = document.name,
+                                modifier = Modifier.fillMaxHeight().aspectRatio(1f)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                if (pdfDocs.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        pdfDocs.forEach { document ->
+                            MediaUrlChip(url = document.url)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }

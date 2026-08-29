@@ -74,3 +74,27 @@ async def list_documents(
         include={"hospital": True},
     )
     return documents
+
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    document_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    document = await prisma.documents.find_first(
+        where={"id": document_id},
+        include={"patient": True},
+    )
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    patient = document.patient
+    if user.is_parent():
+        if patient.parent_phone != user.phone:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    else:
+        doctor_id = await resolve_doctor_id(user)
+        if patient.doctor_id != doctor_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    await prisma.documents.delete(where={"id": document_id})

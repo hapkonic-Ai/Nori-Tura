@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.data.UploadedMedia
 import com.example.nori_tura.data.dto.AdmissionDto
 import com.example.nori_tura.data.dto.DischargeSummaryCreateRequest
 import com.example.nori_tura.data.dto.IntraOpNoteCreateRequest
@@ -209,7 +210,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Pre-Op Notes")
         for (note in admission.preOpNotes ?: emptyList()) {
-            NoteCard(imageUrls = note.imageUrls) {
+            NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
                 Text("Procedure: ${note.procedure}", fontWeight = FontWeight.SemiBold)
                 note.approach?.let { Text("Approach: $it") }
                 note.anaesthesia?.let { Text("Anaesthesia: $it") }
@@ -239,7 +240,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Post-Op Notes")
         for (note in admission.postOpNotes ?: emptyList()) {
-            NoteCard(imageUrls = note.imageUrls) {
+            NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
                 Text("Day ${note.dayNumber}: ${note.condition}", fontWeight = FontWeight.SemiBold)
                 Text("Vitals: ${note.vitalsJson.entries.joinToString { "${it.key}=${it.value}" }}")
                 note.woundStatus?.let { Text("Wound: $it") }
@@ -253,7 +254,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Ward Round Notes")
         for (note in admission.wardRoundNotes ?: emptyList()) {
-            NoteCard(imageUrls = note.imageUrls) {
+            NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
                 Text("SOAP", fontWeight = FontWeight.SemiBold)
                 note.subjective?.let { Text("S: $it") }
                 note.objective?.let { Text("O: $it") }
@@ -270,7 +271,7 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Discharge Summary")
         (admission.dischargeSummaries ?: emptyList()).firstOrNull()?.let { summary ->
-            NoteCard(imageUrls = summary.imageUrls) {
+            NoteCard(imageUrls = summary.imageUrls, videoUrls = summary.videoUrls) {
                 Text("Condition: ${summary.conditionAtDischarge}", fontWeight = FontWeight.SemiBold)
                 Text("Procedure: ${summary.procedureSummary}")
                 summary.followUpDate?.let { Text("Follow-up: $it") }
@@ -491,7 +492,7 @@ private fun PreOpForm(
     var investigations by remember { mutableStateOf("") }
     var riskLevel by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
-    var imageUrls by remember { mutableStateOf(listOf<String>()) }
+    var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
     var showTemplatePicker by remember { mutableStateOf(false) }
 
     if (showTemplatePicker) {
@@ -499,15 +500,18 @@ private fun PreOpForm(
             templates = templates,
             onDismiss = { showTemplatePicker = false },
             onSelect = { template ->
-                procedure = template.procedure
-                approach = template.approach ?: approach
-                anaesthesia = template.anaesthesia.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: anaesthesia
-                investigations = (investigations.split(",").map { it.trim() }.filter { it.isNotBlank() } +
-                    template.investigations).distinct().joinToString(", ")
-                riskLevel = template.riskLevel ?: riskLevel
-                instructions = template.specialInstructions ?: instructions
+                template?.let {
+                    procedure = it.procedure
+                    approach = it.approach ?: approach
+                    anaesthesia = it.anaesthesia.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: anaesthesia
+                    investigations = (investigations.split(",").map { it.trim() }.filter { it.isNotBlank() } +
+                        it.investigations).distinct().joinToString(", ")
+                    riskLevel = it.riskLevel ?: riskLevel
+                    instructions = it.specialInstructions ?: instructions
+                }
                 showTemplatePicker = false
-            }
+            },
+            showCustomOption = false
         )
     }
 
@@ -515,6 +519,7 @@ private fun PreOpForm(
         title = "Pre-Op Note",
         onDismiss = onDismiss,
         onSave = {
+            val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
             onSave(
                 PreOpNoteCreateRequest(
                     procedure = procedure,
@@ -523,7 +528,8 @@ private fun PreOpForm(
                     investigations = investigations.split(",").map { it.trim() }.filter { it.isNotBlank() },
                     riskLevel = riskLevel.takeIf { it.isNotBlank() },
                     specialInstructions = instructions.takeIf { it.isNotBlank() },
-                    imageUrls = imageUrls
+                    imageUrls = imageUrls,
+                    videoUrls = videoUrls
                 )
             )
         },
@@ -542,10 +548,10 @@ private fun PreOpForm(
         FormTextField(riskLevel, { riskLevel = it }, "Risk Level")
         FormTextField(instructions, { instructions = it }, "Special Instructions")
         ImageAttachmentPicker(
-            imageUrls = imageUrls,
-            onImageUrlsChange = { imageUrls = it },
+            items = mediaItems,
+            onItemsChange = { mediaItems = it },
             label = "Attach images / video",
-            maxImages = 5,
+            maxItems = 5,
             allowVideo = true
         )
     }
@@ -564,7 +570,7 @@ private fun IntraOpForm(
     var bloodLoss by remember { mutableStateOf("") }
     var otStart by remember { mutableStateOf("") }
     var otEnd by remember { mutableStateOf("") }
-    var imageUrls by remember { mutableStateOf(listOf<String>()) }
+    var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
     var showTemplatePicker by remember { mutableStateOf(false) }
 
     if (showTemplatePicker) {
@@ -572,10 +578,13 @@ private fun IntraOpForm(
             templates = templates,
             onDismiss = { showTemplatePicker = false },
             onSelect = { template ->
-                procedure = template.procedure
-                technique = template.technique ?: technique
+                template?.let {
+                    procedure = it.procedure
+                    technique = it.technique ?: technique
+                }
                 showTemplatePicker = false
-            }
+            },
+            showCustomOption = false
         )
     }
 
@@ -583,6 +592,7 @@ private fun IntraOpForm(
         title = "Intra-Op Note",
         onDismiss = onDismiss,
         onSave = {
+            val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
             onSave(
                 IntraOpNoteCreateRequest(
                     procedureDone = procedure,
@@ -592,7 +602,8 @@ private fun IntraOpForm(
                     bloodLoss = bloodLoss.takeIf { it.isNotBlank() },
                     otStart = otStart.takeIf { it.isNotBlank() },
                     otEnd = otEnd.takeIf { it.isNotBlank() },
-                    imageUrls = imageUrls
+                    imageUrls = imageUrls,
+                    videoUrls = videoUrls
                 )
             )
         },
@@ -612,10 +623,10 @@ private fun IntraOpForm(
         FormTextField(otStart, { otStart = it }, "OT Start (ISO)")
         FormTextField(otEnd, { otEnd = it }, "OT End (ISO)")
         ImageAttachmentPicker(
-            imageUrls = imageUrls,
-            onImageUrlsChange = { imageUrls = it },
+            items = mediaItems,
+            onItemsChange = { mediaItems = it },
             label = "Attach images / video",
-            maxImages = 5,
+            maxItems = 5,
             allowVideo = true
         )
     }
@@ -632,12 +643,13 @@ private fun PostOpForm(
     var wound by remember { mutableStateOf("") }
     var pain by remember { mutableStateOf("") }
     var diet by remember { mutableStateOf("") }
-    var imageUrls by remember { mutableStateOf(listOf<String>()) }
+    var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
 
     FormCard(
         title = "Post-Op Note",
         onDismiss = onDismiss,
         onSave = {
+            val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
             onSave(
                 PostOpNoteCreateRequest(
                     dayNumber = day.toIntOrNull() ?: 1,
@@ -646,7 +658,8 @@ private fun PostOpForm(
                     woundStatus = wound.takeIf { it.isNotBlank() },
                     painScore = pain.toIntOrNull(),
                     diet = diet.takeIf { it.isNotBlank() },
-                    imageUrls = imageUrls
+                    imageUrls = imageUrls,
+                    videoUrls = videoUrls
                 )
             )
         },
@@ -659,10 +672,10 @@ private fun PostOpForm(
         FormTextField(pain, { pain = it }, "Pain Score (0-10)")
         FormTextField(diet, { diet = it }, "Diet")
         ImageAttachmentPicker(
-            imageUrls = imageUrls,
-            onImageUrlsChange = { imageUrls = it },
+            items = mediaItems,
+            onItemsChange = { mediaItems = it },
             label = "Attach images / video",
-            maxImages = 5,
+            maxItems = 5,
             allowVideo = true
         )
     }
@@ -678,18 +691,22 @@ private fun WardRoundForm(
     var assessment by remember { mutableStateOf("") }
     var plan by remember { mutableStateOf("") }
     var ready by remember { mutableStateOf(false) }
+    var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
 
     FormCard(
         title = "Ward Round Note",
         onDismiss = onDismiss,
         onSave = {
+            val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
             onSave(
                 WardRoundNoteCreateRequest(
                     subjective = subjective.takeIf { it.isNotBlank() },
                     objective = objective.takeIf { it.isNotBlank() },
                     assessment = assessment.takeIf { it.isNotBlank() },
                     plan = plan.takeIf { it.isNotBlank() },
-                    readyForDischarge = ready
+                    readyForDischarge = ready,
+                    imageUrls = imageUrls,
+                    videoUrls = videoUrls
                 )
             )
         },
@@ -709,6 +726,13 @@ private fun WardRoundForm(
                 Text(if (ready) "Yes" else "No")
             }
         }
+        ImageAttachmentPicker(
+            items = mediaItems,
+            onItemsChange = { mediaItems = it },
+            label = "Attach images / video",
+            maxItems = 5,
+            allowVideo = true
+        )
     }
 }
 
@@ -727,6 +751,7 @@ private fun DischargeForm(
     var followUp by remember { mutableStateOf("") }
     var redFlags by remember { mutableStateOf("") }
     var generated by remember { mutableStateOf(false) }
+    var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
 
     fun applyAutoGenerate() {
         val gen = autoGenerateDischargeSummary(admission)
@@ -744,6 +769,7 @@ private fun DischargeForm(
         title = "Discharge Summary",
         onDismiss = onDismiss,
         onSave = {
+            val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
             onSave(
                 DischargeSummaryCreateRequest(
                     conditionAtDischarge = condition,
@@ -753,7 +779,9 @@ private fun DischargeForm(
                     activityRestrictions = activity.takeIf { it.isNotBlank() },
                     dietInstructions = diet.takeIf { it.isNotBlank() },
                     followUpDate = followUp.takeIf { it.isNotBlank() },
-                    redFlags = redFlags.takeIf { it.isNotBlank() }
+                    redFlags = redFlags.takeIf { it.isNotBlank() },
+                    imageUrls = imageUrls,
+                    videoUrls = videoUrls
                 )
             )
         },
@@ -793,6 +821,13 @@ private fun DischargeForm(
         FormTextField(diet, { diet = it }, "Diet Instructions")
         FormTextField(followUp, { followUp = it }, "Follow-up Date (ISO)")
         FormTextField(redFlags, { redFlags = it }, "Red Flags")
+        ImageAttachmentPicker(
+            items = mediaItems,
+            onItemsChange = { mediaItems = it },
+            label = "Attach images / video",
+            maxItems = 5,
+            allowVideo = true
+        )
     }
 }
 
@@ -876,6 +911,19 @@ private data class DischargeSummaryAutoFill(
     val activity: String,
     val redFlags: String
 )
+
+private fun List<UploadedMedia>.partitionByMimeType(): Pair<List<String>, List<String>> {
+    val images = mutableListOf<String>()
+    val videos = mutableListOf<String>()
+    forEach { item ->
+        if (item.mimeType.startsWith("video/")) {
+            videos += item.url
+        } else {
+            images += item.url
+        }
+    }
+    return images to videos
+}
 
 private fun autoGenerateDischargeSummary(admission: AdmissionDto): DischargeSummaryAutoFill {
     val latestIntraOp = admission.intraOpNotes?.lastOrNull()

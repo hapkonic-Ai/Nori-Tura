@@ -12,13 +12,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -31,8 +35,22 @@ import com.example.nori_tura.ui.theme.NorituraColors
 fun TemplatePickerDialog(
     templates: List<SurgicalTemplateDto>,
     onDismiss: () -> Unit,
-    onSelect: (SurgicalTemplateDto) -> Unit
+    onSelect: (SurgicalTemplateDto?) -> Unit,
+    showCustomOption: Boolean = true
 ) {
+    var query by remember { mutableStateOf("") }
+
+    val filteredTemplates = remember(query, templates) {
+        if (query.isBlank()) {
+            templates
+        } else {
+            templates.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                    it.procedure.contains(query, ignoreCase = true)
+            }
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -53,9 +71,20 @@ fun TemplatePickerDialog(
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                if (templates.isEmpty()) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Search by name or procedure") },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (filteredTemplates.isEmpty() && !showCustomOption) {
                     Text(
                         text = "No templates saved yet. Create templates from the Surgical Templates screen.",
                         color = NorituraColors.TextSecondary,
@@ -66,7 +95,14 @@ fun TemplatePickerDialog(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(templates) { template ->
+                        if (showCustomOption) {
+                            item {
+                                TemplatePickerCustomRow(
+                                    onClick = { onSelect(null) }
+                                )
+                            }
+                        }
+                        items(filteredTemplates) { template ->
                             TemplatePickerRow(
                                 template = template,
                                 onClick = { onSelect(template) }
@@ -87,6 +123,29 @@ fun TemplatePickerDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TemplatePickerCustomRow(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Background),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "— Custom / Blank form —",
+                color = NorituraColors.TextSecondary,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+            )
         }
     }
 }

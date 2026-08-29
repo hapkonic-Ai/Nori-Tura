@@ -19,16 +19,25 @@ import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+@Serializable
+data class UploadedMedia(
+    val id: String,
+    val url: String,
+    @SerialName("mime_type") val mimeType: String,
+    val filename: String
+)
+
 object ApiClient {
     private val settings = Settings()
 
     @Serializable
-    private data class MediaUploadResponse(val urls: List<String>)
+    private data class MediaUploadResponse(val urls: List<UploadedMedia>)
 
     val client: HttpClient = HttpClient {
         install(ContentNegotiation) {
@@ -73,10 +82,10 @@ object ApiClient {
         files: List<Pair<String, ByteArray>>,
         resourceType: String = "auto",
         folder: String = "nonitura"
-    ): Result<List<String>> = safeApiCall {
-        val urls = mutableListOf<String>()
+    ): Result<List<UploadedMedia>> = safeApiCall {
+        val items = mutableListOf<UploadedMedia>()
 
-        // Upload files grouped by resource_type so Cloudinary handles each correctly
+        // Upload files grouped by resource_type so the backend stores each correctly
         val byType = files.groupBy { (name, _) ->
             if (resourceType == "auto") resourceTypeForFilename(name) else resourceType
         }
@@ -100,10 +109,10 @@ object ApiClient {
             val response = client.post("/uploads/media") {
                 setBody(data)
             }
-            urls += response.body<MediaUploadResponse>().urls
+            items += response.body<MediaUploadResponse>().urls
         }
 
-        urls
+        items
     }
 
     private fun resourceTypeForFilename(filename: String): String {

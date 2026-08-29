@@ -55,8 +55,8 @@ fun PdfAttachmentPicker(
             isUploading = true
             val pairs = files.map { it.name to it.readBytes() }
             ApiClient.uploadMedia(pairs, resourceType = "raw")
-                .onSuccess { urls ->
-                    onPdfUrlsChange((pdfUrls + urls).take(maxPdfs))
+                .onSuccess { uploaded ->
+                    onPdfUrlsChange((pdfUrls + uploaded.map { it.url }).take(maxPdfs))
                 }
                 .onFailure { /* errors surfaced by caller if needed */ }
             isUploading = false

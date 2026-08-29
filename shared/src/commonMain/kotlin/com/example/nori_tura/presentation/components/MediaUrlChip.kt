@@ -41,13 +41,14 @@ import kotlinx.coroutines.launch
 fun MediaUrlChip(
     url: String,
     onRemove: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    mimeType: String? = null
 ) {
     val raw = url.substringAfterLast('/').substringBefore('?')
     val ext = raw.substringAfterLast('.').lowercase()
-    val isVideo = ext in listOf("mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp")
+    val isVideo = mimeType?.startsWith("video/") ?: (ext in listOf("mp4", "mov", "avi", "mkv", "webm", "m4v", "3gp"))
     val isPdf = ext in listOf("pdf")
-    val isImage = isImageUrl(url)
+    val isImage = mimeType?.startsWith("image/") ?: (!isVideo && isImageUrl(url))
     val display = if (raw.isNotBlank()) raw else if (isVideo) "video" else if (isPdf) "pdf" else "image"
 
     val icon = when {

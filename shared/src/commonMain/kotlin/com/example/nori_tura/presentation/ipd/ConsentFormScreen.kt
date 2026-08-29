@@ -1,5 +1,6 @@
 package com.example.nori_tura.presentation.ipd
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,7 +18,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,8 +37,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.ConsentFormCreateRequest
+import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.NorituraScaffold
+import com.example.nori_tura.presentation.components.TemplatePickerDialog
 import com.example.nori_tura.ui.theme.NorituraColors
 
 @Composable
@@ -45,9 +51,13 @@ fun ConsentFormScreen(
     onConsentCreated: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val templates by viewModel.templates.collectAsState()
+
+    var selectedTemplate by remember { mutableStateOf<SurgicalTemplateDto?>(null) }
+    var showTemplatePicker by remember { mutableStateOf(false) }
 
     // Core clinical fields
-    var formType by remember { mutableStateOf("Surgical Consent") }
+    var formType by remember { mutableStateOf("") }
     var diagnosis by remember { mutableStateOf("") }
     var procedure by remember { mutableStateOf("") }
     var procedureDescription by remember { mutableStateOf("") }
@@ -88,6 +98,22 @@ fun ConsentFormScreen(
         }
     }
 
+    if (showTemplatePicker) {
+        TemplatePickerDialog(
+            templates = templates,
+            onDismiss = { showTemplatePicker = false },
+            onSelect = { template ->
+                selectedTemplate = template
+                val fields = viewModel.applyTemplate(template)
+                formType = fields.formType
+                procedure = fields.procedure
+                anesthesia = fields.anesthesia
+                procedureDescription = fields.procedureDescription
+                showTemplatePicker = false
+            }
+        )
+    }
+
     val isFormValid = formType.isNotBlank() && diagnosis.isNotBlank() &&
         procedure.isNotBlank() && anesthesia.isNotBlank() &&
         risks.isNotBlank() && benefits.isNotBlank() &&
@@ -113,6 +139,12 @@ fun ConsentFormScreen(
                 text = "Admission: $admissionId",
                 color = NorituraColors.TextTertiary,
                 style = MaterialTheme.typography.labelSmall
+            )
+
+            // ── Template Selector ───────────────────────────────────────
+            ConsentTemplateSelectorCard(
+                selectedTemplateName = selectedTemplate?.name,
+                onClick = { showTemplatePicker = true }
             )
 
             // ── Core Info ──────────────────────────────────────────────
@@ -330,6 +362,48 @@ fun ConsentFormScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun ConsentTemplateSelectorCard(
+    selectedTemplateName: String?,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Template",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NorituraColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = selectedTemplateName ?: "Custom form",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (selectedTemplateName != null) NorituraColors.PrimaryBlue else NorituraColors.TextSecondary
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Select template",
+                tint = NorituraColors.TextTertiary
+            )
         }
     }
 }

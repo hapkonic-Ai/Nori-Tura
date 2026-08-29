@@ -3,9 +3,11 @@ package com.example.nori_tura.presentation.surgeon
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.nori_tura.data.AuthRepository
+import com.example.nori_tura.data.DocumentsRepository
 import com.example.nori_tura.data.IpdRepository
 import com.example.nori_tura.data.SurgeonRepository
 import com.example.nori_tura.data.dto.AdmissionCreateRequest
+import com.example.nori_tura.data.dto.DocumentDto
 import com.example.nori_tura.data.dto.OpdRecordDto
 import com.example.nori_tura.data.dto.PatientDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,14 +19,16 @@ class PatientProfileViewModel(
     private val patientId: String,
     private val authRepository: AuthRepository = AuthRepository(),
     private val surgeonRepository: SurgeonRepository = SurgeonRepository(),
-    private val ipdRepository: IpdRepository = IpdRepository()
+    private val ipdRepository: IpdRepository = IpdRepository(),
+    private val documentsRepository: DocumentsRepository = DocumentsRepository()
 ) : ViewModel() {
 
     sealed class UiState {
         data object Loading : UiState()
         data class Success(
             val patient: PatientDto,
-            val opdRecords: List<OpdRecordDto>
+            val opdRecords: List<OpdRecordDto>,
+            val parentDocuments: List<DocumentDto>
         ) : UiState()
 
         data class Error(val message: String) : UiState()
@@ -57,18 +61,24 @@ class PatientProfileViewModel(
         viewModelScope.launch {
             val patientResult = surgeonRepository.getPatientDetail(token, patientId)
             val opdResult = surgeonRepository.getOpdRecords(token, patientId)
+            val documentsResult = documentsRepository.getPatientDocuments(patientId)
 
             val firstError = listOfNotNull(
                 patientResult.exceptionOrNull(),
-                opdResult.exceptionOrNull()
+                opdResult.exceptionOrNull(),
+                documentsResult.exceptionOrNull()
             ).firstOrNull()
 
             if (firstError != null) {
                 _uiState.value = UiState.Error(firstError.message ?: "Failed to load patient profile")
             } else {
+                val parentDocuments = documentsResult.getOrNull()
+                    ?.filter { it.uploadedByRole == "parent" }
+                    ?: emptyList()
                 _uiState.value = UiState.Success(
                     patient = patientResult.getOrNull() ?: PatientDto(id = patientId),
-                    opdRecords = opdResult.getOrNull() ?: emptyList()
+                    opdRecords = opdResult.getOrNull() ?: emptyList(),
+                    parentDocuments = parentDocuments
                 )
             }
         }

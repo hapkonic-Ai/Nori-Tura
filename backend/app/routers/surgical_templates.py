@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.core.database import prisma
-from app.core.auth_deps import CurrentUser, get_current_surgeon, resolve_doctor_id
+from app.core.auth_deps import CurrentUser, get_current_surgeon, get_current_nurse_or_surgeon, resolve_doctor_id, resolve_hospital_id
 
 router = APIRouter(prefix="/surgical-templates", tags=["Surgical Templates"])
 
@@ -32,10 +32,10 @@ class SurgicalTemplateUpdate(BaseModel):
 
 
 @router.get("")
-async def list_templates(user: CurrentUser = Depends(get_current_surgeon)):
-    doctor_id = await resolve_doctor_id(user)
+async def list_templates(user: CurrentUser = Depends(get_current_nurse_or_surgeon)):
+    hospital_id = await resolve_hospital_id(user)
     templates = await prisma.surgical_templates.find_many(
-        where={"doctor_id": doctor_id},
+        where={"doctor": {"hospital_id": hospital_id}},
         order={"created_at": "desc"},
     )
     return templates

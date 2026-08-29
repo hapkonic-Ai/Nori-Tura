@@ -56,10 +56,10 @@ fun MedicalImagePicker(
             isUploading = true
             val pairs = files.map { it.name to it.readBytes() }
             ApiClient.uploadMedia(pairs)
-                .onSuccess { urls ->
+                .onSuccess { uploaded ->
                     // Show dialog for first image to set category
-                    if (urls.isNotEmpty()) {
-                        pendingImageUrl = urls.first()
+                    if (uploaded.isNotEmpty()) {
+                        pendingImageUrl = uploaded.first().url
                         showCategoryDialog = true
                     }
                 }

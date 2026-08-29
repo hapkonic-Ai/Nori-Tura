@@ -19,15 +19,15 @@ from app.core.storage import get_media_storage
 router = APIRouter(prefix="/uploads", tags=["Uploads"])
 
 
-class MediaUploadResponse(BaseModel):
-    urls: List[str]
-
-
 class MediaItem(BaseModel):
     id: str
     url: str
     filename: str
     mime_type: str
+
+
+class MediaUploadResponse(BaseModel):
+    urls: List[MediaItem]
 
 
 def _guess_mime_type(filename: str) -> str:
@@ -44,7 +44,7 @@ async def upload_media_files(
 ):
     """Upload image, video or raw files (e.g. PDFs) and store them in MinIO."""
     storage = get_media_storage()
-    urls: List[str] = []
+    items: List[MediaItem] = []
 
     for upload in files:
         content = await upload.read()
@@ -74,7 +74,14 @@ async def upload_media_files(
             }
         )
 
-        urls.append(f"/media/{media.id}")
+        items.append(
+            MediaItem(
+                id=media.id,
+                url=f"/media/{media.id}",
+                filename=filename,
+                mime_type=mime_type,
+            )
+        )
         await upload.close()
 
-    return MediaUploadResponse(urls=urls)
+    return MediaUploadResponse(urls=items)

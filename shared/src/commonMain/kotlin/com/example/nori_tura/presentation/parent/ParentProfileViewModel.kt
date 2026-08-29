@@ -89,4 +89,12 @@ class ParentProfileViewModel(
             }
         }
     }
+
+    fun deleteDocument(documentId: String) {
+        viewModelScope.launch {
+            documentsRepository.deleteDocument(documentId).onSuccess {
+                loadProfile()
+            }
+        }
+    }
 }

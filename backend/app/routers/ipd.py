@@ -34,6 +34,7 @@ class PreOpNoteCreate(BaseModel):
     risk_level: Optional[str] = None
     special_instructions: Optional[str] = None
     image_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 
 class IntraOpNoteCreate(BaseModel):
@@ -57,6 +58,7 @@ class PostOpNoteCreate(BaseModel):
     diet: Optional[str] = None
     medications_json: Optional[Dict[str, Any]] = None
     image_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 
 class WardRoundNoteCreate(BaseModel):
@@ -66,6 +68,7 @@ class WardRoundNoteCreate(BaseModel):
     plan: Optional[str] = None
     ready_for_discharge: bool = False
     image_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 
 class DischargeSummaryCreate(BaseModel):
@@ -78,6 +81,7 @@ class DischargeSummaryCreate(BaseModel):
     follow_up_date: Optional[datetime] = None
     red_flags: Optional[str] = None
     image_urls: Optional[List[str]] = None
+    video_urls: Optional[List[str]] = None
 
 
 class IntraOpMediaAdd(BaseModel):
@@ -283,6 +287,7 @@ async def create_pre_op_note(
             "risk_level": req.risk_level,
             "special_instructions": req.special_instructions,
             "image_urls": req.image_urls or [],
+            "video_urls": req.video_urls or [],
         }
     )
     return note
@@ -330,6 +335,7 @@ async def create_post_op_note(
             "diet": req.diet,
             "medications_json": Json(req.medications_json) if req.medications_json is not None else None,
             "image_urls": req.image_urls or [],
+            "video_urls": req.video_urls or [],
         }
     )
     return note
@@ -352,6 +358,7 @@ async def create_ward_round_note(
             "plan": req.plan,
             "ready_for_discharge": req.ready_for_discharge,
             "image_urls": req.image_urls or [],
+            "video_urls": req.video_urls or [],
         }
     )
     return note
@@ -378,6 +385,7 @@ async def create_discharge_summary(
                 "follow_up_date": req.follow_up_date,
                 "red_flags": req.red_flags,
                 "image_urls": req.image_urls or [],
+                "video_urls": req.video_urls or [],
             },
             "create": {
                 "admission_id": admission_id,
@@ -390,6 +398,7 @@ async def create_discharge_summary(
                 "follow_up_date": req.follow_up_date,
                 "red_flags": req.red_flags,
                 "image_urls": req.image_urls or [],
+                "video_urls": req.video_urls or [],
             },
         },
     )

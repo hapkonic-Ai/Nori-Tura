@@ -96,7 +96,7 @@ fun OpdConsultScreen(
     var followUpDate by remember { mutableStateOf("") }
     var medications by remember { mutableStateOf(listOf<MedicationFormData>()) }
     var investigations by remember { mutableStateOf(listOf<InvestigationFormData>()) }
-    var imageUrls by remember { mutableStateOf(listOf<String>()) }
+    var prescriptionMedia by remember { mutableStateOf(listOf<com.example.nori_tura.data.UploadedMedia>()) }
     var medicalImages by remember { mutableStateOf(emptyList<MedicalImageData>()) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -273,8 +273,8 @@ fun OpdConsultScreen(
 
                 item {
                     ImageAttachmentPicker(
-                        imageUrls = imageUrls,
-                        onImageUrlsChange = { imageUrls = it },
+                        items = prescriptionMedia,
+                        onItemsChange = { prescriptionMedia = it },
                         label = "Prescription images"
                     )
                 }
@@ -329,7 +329,7 @@ fun OpdConsultScreen(
                                 investigations = investigations.map {
                                     InvestigationCreateDto(type = it.type)
                                 },
-                                prescriptionImageUrls = imageUrls,
+                                prescriptionImageUrls = prescriptionMedia.map { it.url },
                                 medicalImages = medicalImages.map {
                                     MedicalImageCreateDto(
                                         imageUrl = it.url,
