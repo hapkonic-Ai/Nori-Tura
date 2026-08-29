@@ -194,3 +194,79 @@ Status: Planned. Not started.
 - [ ] Select "Custom form" → prefilled fields are cleared/blank.
 - [ ] Nurse login can also see templates in the consent form screen.
 - [ ] `./gradlew :shared:compileCommonMainKotlinMetadata :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64` succeeds.
+
+
+---
+
+# Parent-Uploaded History (PDF + Images)
+
+Status: Planned. Not started.
+
+## Decisions
+
+- The existing `documents` table and `/documents` endpoints will store parent-uploaded history.
+- Doctor profile section name: **"Parent Uploaded History"**.
+- Doctor sees **only** documents where `uploaded_by_role = "parent"`.
+- Images render as a **thumbnail grid**; PDFs render as document chips.
+- Parent can **delete** their uploaded history records after saving.
+
+## Tasks
+
+### Backend
+
+- [ ] **Add document delete endpoint**
+  - File: `backend/app/routers/documents.py`
+  - Add `DELETE /documents/{document_id}`.
+  - Verify the caller is either:
+    - the parent of the linked patient (`patient.parent_phone == user.phone`), or
+    - the treating doctor (`patient.doctor_id == doctor_id`).
+  - Delete the `documents` row.
+  - *(Optional future cleanup: also remove the linked `media` object from MinIO/Postgres.)*
+
+### Shared (KMP)
+
+- [ ] **Add delete call to `DocumentsRepository`**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/data/DocumentsRepository.kt`
+  - Add `suspend fun deleteDocument(id: String): Result<Unit>`.
+
+- [ ] **Add image upload to parent profile**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/parent/ParentProfileScreen.kt`
+  - Add an `ImageAttachmentPicker` for images alongside the existing `PdfAttachmentPicker`.
+  - On "Save Records", create a `DocumentCreateRequest` for each uploaded image:
+    - `type = "image"`
+    - `category = "previous_health_record"`
+    - `uploadedByRole = "parent"`
+  - PDF creation stays unchanged (`type = "pdf"`).
+
+- [ ] **Fix saved-document viewing in parent profile**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/parent/ParentProfileScreen.kt`
+  - Replace the raw `openUrl(document.url)` in `HealthRecordCard` with `MediaUrlChip(url = document.url)`.
+  - `MediaUrlChip` handles both images and PDFs, resolves `/media/{id}` presigned URLs, and opens the correct viewer.
+
+- [ ] **Allow parent to delete uploaded history**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/parent/ParentProfileViewModel.kt`
+  - Add `deleteDocument(documentId: String)` that calls `DocumentsRepository.deleteDocument` and reloads the profile.
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/parent/ParentProfileScreen.kt`
+  - Add a delete button to `HealthRecordCard` (only when `uploadedByRole == "parent"`).
+
+- [ ] **Load parent documents in doctor patient profile**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/surgeon/PatientProfileViewModel.kt`
+  - Inject `DocumentsRepository`.
+  - Load documents for the patient and expose only `uploadedByRole == "parent"`.
+
+- [ ] **Add "Parent Uploaded History" section to doctor profile**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/surgeon/PatientProfileScreen.kt`
+  - Add a new section titled **"Parent Uploaded History"**.
+  - For each document:
+    - If `type == "image"` → render `AuthenticatedUrlImage` in a thumbnail grid (e.g. `LazyRow` of thumbnails that open fullscreen on tap).
+    - If `type == "pdf"` → render `MediaUrlChip`.
+  - Show an empty message when there are no parent-uploaded documents.
+
+### Validation checklist
+
+- [ ] Parent: upload a PDF → saved → tap to view via presigned URL.
+- [ ] Parent: upload an image → saved → tap to view via presigned URL.
+- [ ] Parent: delete an uploaded document → document disappears and backend row is removed.
+- [ ] Doctor: open patient profile → see "Parent Uploaded History" section with the PDF chip and image thumbnail.
+- [ ] Doctor: tap PDF chip → opens/plays; tap image thumbnail → fullscreen viewer.
+- [ ] `./gradlew :shared:compileCommonMainKotlinMetadata :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64` succeeds.
