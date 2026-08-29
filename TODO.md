@@ -119,3 +119,78 @@ Upload videos from IPD note forms, store them correctly, show a video chip / pla
 
 - [ ] **Android emulator MinIO endpoint**
   - When testing on the Android emulator, set `MINIO_PUBLIC_ENDPOINT=10.0.2.2:9100` in `backend/.env` so presigned URLs are reachable from the emulator.
+
+
+---
+
+# Consent Form Template Autofill (Approach A)
+
+Status: Planned. Not started.
+
+## Decisions
+
+- Reuse existing **surgical templates** (`surgical_templates` table + `/surgical-templates` endpoints).
+- Search by **template name** and **procedure name** (case-insensitive substring match).
+- Allow a **one-off custom form** — no template is saved; surgeons can edit fields after autofill.
+- Templates are **shared across the hospital/clinic** (not restricted to the logged-in doctor).
+- Autofill is **client-side** from the selected `SurgicalTemplateDto`.
+
+## Field mapping from surgical template → consent form
+
+| Surgical Template Field | Consent Form Field | Notes |
+|---|---|---|
+| `name` | `formType` | e.g. "Lap Appendectomy Template" |
+| `procedure` | `procedure` | |
+| `anaesthesia` (list) | `anesthesia` | joined with ", " |
+| `approach` | `procedureDescription` | prefixed "Approach: ..." |
+| `technique` | `procedureDescription` | prefixed "Technique: ..." |
+| `special_instructions` | `procedureDescription` | appended as-is |
+| `risk_level` | *(ignored for now)* | Not enough detail to map safely; surgeon fills risks |
+| `investigations` | *(ignored for now)* | Not used in consent form |
+| All other consent fields | *(remain blank/defaults)* | diagnosis, benefits, alternatives, postOpCare, expectedRecovery, hospital/doctor/guardian, checkboxes |
+
+## Tasks
+
+### Backend
+
+- [ ] **Make `GET /surgical-templates` hospital-wide and nurse-visible**
+  - File: `backend/app/routers/surgical_templates.py`
+  - Change dependency from `get_current_surgeon` to `get_current_nurse_or_surgeon` for the list endpoint only.
+  - Resolve the current user's doctor record to obtain `hospital_id`.
+  - Query templates where `doctor.hospital_id == current_user_hospital_id`.
+  - Leave create/update/delete endpoints surgeon-only.
+
+### Shared (KMP)
+
+- [ ] **Add search + "Custom form" option to `TemplatePickerDialog`**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/components/TemplatePickerDialog.kt`
+  - Add an `OutlinedTextField` for search query.
+  - Filter the list by `template.name.contains(query, ignoreCase = true)` or `template.procedure.contains(query, ignoreCase = true)`.
+  - Add a top row "— Custom / Blank form —" that returns `null` (or a sentinel) so the caller can clear autofill.
+
+- [ ] **Fetch surgical templates in `ConsentFormViewModel`**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/ipd/ConsentFormViewModel.kt`
+  - Inject `SurgicalTemplateRepository`.
+  - Load templates on init and expose a `templates: StateFlow<List<SurgicalTemplateDto>>`.
+  - Add a helper function `applyTemplate(template: SurgicalTemplateDto?)` that returns a bundle of prefilled field values (or `null` for custom/blank).
+
+- [ ] **Wire template selector into `ConsentFormScreen`**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/ipd/ConsentFormScreen.kt`
+  - At the top of the form, add a card/row showing:
+    - Selected template name, or
+    - "Custom form" if no template selected.
+  - Tapping it opens the searchable `TemplatePickerDialog`.
+  - On template selection, set all form states using the mapping above.
+  - On "Custom form" selection, reset only the fields that would have been autofilled (or leave them blank if already blank).
+  - Keep all fields editable after autofill.
+
+### Validation checklist
+
+- [ ] Create a surgical template in the app (Surgeon dashboard → Surgical Templates).
+- [ ] Open Admission → Add Consent Form.
+- [ ] Tap template selector; type in search box and verify filtering by name/procedure.
+- [ ] Select a template → `formType`, `procedure`, `anesthesia`, and `procedureDescription` are prefilled.
+- [ ] Edit prefilled fields and submit → consent form creates successfully.
+- [ ] Select "Custom form" → prefilled fields are cleared/blank.
+- [ ] Nurse login can also see templates in the consent form screen.
+- [ ] `./gradlew :shared:compileCommonMainKotlinMetadata :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64` succeeds.
