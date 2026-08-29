@@ -5,6 +5,10 @@ import platform.UIKit.UIApplication
 
 actual fun openUrl(url: String) {
     NSURL(string = url)?.let {
-        UIApplication.sharedApplication.openURL(it)
+        UIApplication.sharedApplication.openURL(
+            url = it,
+            options = emptyMap<Any?, Any>(),
+            completionHandler = null
+        )
     }
 }
