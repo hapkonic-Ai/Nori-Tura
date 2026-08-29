@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -46,19 +48,21 @@ async def create_document(
 
     hospital_id = patient.hospital_id
 
-    document = await prisma.documents.create(
-        data={
-            "patient_id": req.patient_id,
-            "doctor_id": doctor_id,
-            "hospital_id": hospital_id,
-            "name": req.name,
-            "url": req.url,
-            "type": req.type,
-            "category": req.category,
-            "uploaded_by_role": role,
-            "recorded_at": req.recorded_at,
-        }
-    )
+    data = {
+        "patient": {"connect": {"id": req.patient_id}},
+        "doctor": {"connect": {"id": doctor_id}},
+        "name": req.name,
+        "url": req.url,
+        "type": req.type,
+        "category": req.category,
+        "uploaded_by_role": role,
+    }
+    if hospital_id:
+        data["hospital"] = {"connect": {"id": hospital_id}}
+    if req.recorded_at:
+        data["recorded_at"] = req.recorded_at
+
+    document = await prisma.documents.create(data=data)
     return document
 
 

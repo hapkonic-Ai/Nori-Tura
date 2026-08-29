@@ -52,7 +52,9 @@ async def upload_media_files(
             continue
 
         filename = upload.filename or "upload"
-        mime_type = upload.content_type or _guess_mime_type(filename)
+        mime_type = upload.content_type
+        if not mime_type or mime_type == "application/octet-stream":
+            mime_type = _guess_mime_type(filename)
         media_id = str(uuid4())
         object_key = storage.object_key(media_id, filename)
 

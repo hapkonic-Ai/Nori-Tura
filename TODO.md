@@ -270,3 +270,27 @@ Status: Implemented and build-validated.
 - [x] Doctor: open patient profile → see "Parent Uploaded History" section with the PDF chip and image thumbnail.
 - [x] Doctor: tap PDF chip → opens/plays; tap image thumbnail → fullscreen viewer.
 - [x] `./gradlew :shared:compileCommonMainKotlinMetadata :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64` succeeds.
+
+---
+
+# Post-implementation verification fixes
+
+Status: Applied and validated.
+
+## 1. `POST /documents` create handler
+
+- **File:** `backend/app/routers/documents.py`
+- **Issue:** `prisma.documents.create` failed with `data.patient: A value is required but not set` and `data.recorded_at: A value is required but not set` because the generated Prisma client requires relations via `connect` and passing `recorded_at: None` bypassed the `@default(now())`.
+- **Fix:** Use `patient: { connect: { id } }`, `doctor: { connect: { id } }`, and optional `hospital: { connect: { id } }`; only include `recorded_at` when the client provides one.
+
+## 2. Upload MIME-type fallback
+
+- **File:** `backend/app/routers/uploads.py`
+- **Issue:** Ktor multipart uploads send `application/octet-stream` as the part content type for raw byte arrays, so `.mp4`/`.pdf`/`.jpg` files were stored with the wrong `mime_type`.
+- **Fix:** When the client content type is missing or `application/octet-stream`, fall back to `mimetypes.guess_type(filename)`. Verified `.mp4` → `video/mp4`, `.jpg` → `image/jpeg`, `.pdf` → `application/pdf`.
+
+## 3. `DELETE /documents/{document_id}`
+
+- **File:** `backend/app/routers/documents.py`
+- **Issue:** Earlier smoke test returned 307 because the create step failed and the delete URL had an empty `document_id`.
+- **Fix:** After fixing the create handler, delete returns `204 No Content` and the document is removed.
