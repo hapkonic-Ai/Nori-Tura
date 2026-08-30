@@ -485,6 +485,12 @@ model surgical_templates {
   risk_level           String?
   technique            String?
   special_instructions String?
+  risks                String[]
+  benefits             String[]
+  alternatives         String[]
+  complications        String[]
+  post_op_care         String?
+  expected_recovery    String?
   created_at           DateTime @default(now())
 
   doctor doctors @relation(fields: [doctor_id], references: [id])

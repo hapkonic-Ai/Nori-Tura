@@ -54,7 +54,14 @@ class ConsentFormViewModel(
             formType = template.name,
             procedure = template.procedure,
             anesthesia = template.anaesthesia.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "",
-            procedureDescription = descriptionParts.joinToString("\n\n")
+            procedureDescription = descriptionParts.joinToString("\n\n"),
+            risks = template.risks.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            materialRisks = template.complications.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            possibleComplications = template.complications.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            benefits = template.benefits.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            alternatives = template.alternatives.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            postOpCare = template.postOpCare ?: "",
+            expectedRecovery = template.expectedRecovery ?: ""
         )
     }
 
@@ -86,6 +93,13 @@ class ConsentFormViewModel(
         val formType: String = "",
         val procedure: String = "",
         val anesthesia: String = "",
-        val procedureDescription: String = ""
+        val procedureDescription: String = "",
+        val risks: String = "",
+        val materialRisks: String = "",
+        val possibleComplications: String = "",
+        val benefits: String = "",
+        val alternatives: String = "",
+        val postOpCare: String = "",
+        val expectedRecovery: String = ""
     )
 }

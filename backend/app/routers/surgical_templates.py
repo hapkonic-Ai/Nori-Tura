@@ -18,6 +18,12 @@ class SurgicalTemplateCreate(BaseModel):
     risk_level: Optional[str] = None
     technique: Optional[str] = None
     special_instructions: Optional[str] = None
+    risks: List[str] = []
+    benefits: List[str] = []
+    alternatives: List[str] = []
+    complications: List[str] = []
+    post_op_care: Optional[str] = None
+    expected_recovery: Optional[str] = None
 
 
 class SurgicalTemplateUpdate(BaseModel):
@@ -29,6 +35,12 @@ class SurgicalTemplateUpdate(BaseModel):
     risk_level: Optional[str] = None
     technique: Optional[str] = None
     special_instructions: Optional[str] = None
+    risks: Optional[List[str]] = None
+    benefits: Optional[List[str]] = None
+    alternatives: Optional[List[str]] = None
+    complications: Optional[List[str]] = None
+    post_op_care: Optional[str] = None
+    expected_recovery: Optional[str] = None
 
 
 @router.get("")
@@ -58,6 +70,12 @@ async def create_template(
             "risk_level": req.risk_level,
             "technique": req.technique,
             "special_instructions": req.special_instructions,
+            "risks": req.risks,
+            "benefits": req.benefits,
+            "alternatives": req.alternatives,
+            "complications": req.complications,
+            "post_op_care": req.post_op_care,
+            "expected_recovery": req.expected_recovery,
         }
     )
     return template

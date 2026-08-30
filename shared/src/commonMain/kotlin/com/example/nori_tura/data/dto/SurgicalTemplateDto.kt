@@ -14,6 +14,12 @@ data class SurgicalTemplateDto(
     @SerialName("risk_level") val riskLevel: String? = null,
     val technique: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null,
+    val risks: List<String> = emptyList(),
+    val benefits: List<String> = emptyList(),
+    val alternatives: List<String> = emptyList(),
+    val complications: List<String> = emptyList(),
+    @SerialName("post_op_care") val postOpCare: String? = null,
+    @SerialName("expected_recovery") val expectedRecovery: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -26,7 +32,13 @@ data class SurgicalTemplateCreateRequest(
     val investigations: List<String> = emptyList(),
     @SerialName("risk_level") val riskLevel: String? = null,
     val technique: String? = null,
-    @SerialName("special_instructions") val specialInstructions: String? = null
+    @SerialName("special_instructions") val specialInstructions: String? = null,
+    val risks: List<String> = emptyList(),
+    val benefits: List<String> = emptyList(),
+    val alternatives: List<String> = emptyList(),
+    val complications: List<String> = emptyList(),
+    @SerialName("post_op_care") val postOpCare: String? = null,
+    @SerialName("expected_recovery") val expectedRecovery: String? = null
 )
 
 @Serializable
@@ -38,5 +50,11 @@ data class SurgicalTemplateUpdateRequest(
     val investigations: List<String>? = null,
     @SerialName("risk_level") val riskLevel: String? = null,
     val technique: String? = null,
-    @SerialName("special_instructions") val specialInstructions: String? = null
+    @SerialName("special_instructions") val specialInstructions: String? = null,
+    val risks: List<String>? = null,
+    val benefits: List<String>? = null,
+    val alternatives: List<String>? = null,
+    val complications: List<String>? = null,
+    @SerialName("post_op_care") val postOpCare: String? = null,
+    @SerialName("expected_recovery") val expectedRecovery: String? = null
 )

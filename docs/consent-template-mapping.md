@@ -21,6 +21,12 @@ data class SurgicalTemplateDto(
     val riskLevel: String? = null,            // "low", "moderate", "high", etc.
     val technique: String? = null,            // Step-by-step technique description
     val specialInstructions: String? = null,  // Extra instructions / variations
+    val risks: List<String> = emptyList(),    // General / material risks
+    val benefits: List<String> = emptyList(), // Expected benefits
+    val alternatives: List<String> = emptyList(), // Alternative treatments
+    val complications: List<String> = emptyList(), // Procedure-specific complications
+    val postOpCare: String? = null,           // Post-operative care instructions
+    val expectedRecovery: String? = null      // Expected recovery timeline
 )
 ```
 
@@ -36,6 +42,12 @@ data class SurgicalTemplateDto(
 | `riskLevel` | Risk stratification | "low" / "moderate" / "high" |
 | `technique` | Concise operative technique | "Pneumoperitoneum created via Hasson technique; appendix identified, mesoappendix divided with bipolar diathermy; base transfixed and excised." |
 | `specialInstructions` | Anything else relevant to consent | "Nasogastric tube may be required; conversion to open procedure if laparoscopy unsafe; intraoperative cholangiogram if indicated." |
+| `risks` | General / material risks | `["Bleeding", "Infection", "Anaesthesia reaction"]` |
+| `benefits` | Expected benefits | `["Symptom relief", "Definitive treatment", "Prevention of complications"]` |
+| `alternatives` | Alternative treatment options | `["Conservative management", "Open surgery", "No treatment"]` |
+| `complications` | Procedure-specific complications | `["Injury to adjacent structures", "Recurrence", "Conversion to open"]` |
+| `postOpCare` | Post-operative care instructions | "Wound care, activity restrictions, follow-up in 1 week." |
+| `expectedRecovery` | Expected recovery timeline | "Hospital stay 1-2 days; return to normal activity in 2 weeks." |
 
 ---
 
@@ -112,6 +124,13 @@ The mapping lives in `ConsentFormViewModel.applyTemplate()`.
 | `approach` | `procedureDescription` | prefixed `"Approach: …"` |
 | `technique` | `procedureDescription` | prefixed `"Technique: …"` |
 | `specialInstructions` | `procedureDescription` | appended as-is |
+| `risks` (list) | `risks` | joined with newline |
+| `complications` (list) | `materialRisks` | joined with newline |
+| `complications` (list) | `possibleComplications` | joined with newline |
+| `benefits` (list) | `benefits` | joined with newline |
+| `alternatives` (list) | `alternatives` | joined with newline |
+| `postOpCare` | `postOpCare` | copied as-is |
+| `expectedRecovery` | `expectedRecovery` | copied as-is |
 
 Everything else in the consent form is **not** prefilled and must be entered manually.
 
@@ -126,7 +145,13 @@ Template:
   "approach": "Laparoscopic (3-port)",
   "anaesthesia": ["General anaesthesia"],
   "technique": "Pneumoperitoneum, appendiceal mobilisation, endoloop ligation.",
-  "specialInstructions": "Conversion to open if unsafe."
+  "specialInstructions": "Conversion to open if unsafe.",
+  "risks": ["Bleeding", "Infection", "Anaesthesia reaction"],
+  "benefits": ["Definitive treatment", "Symptom relief"],
+  "alternatives": ["Conservative antibiotics", "Open appendectomy"],
+  "complications": ["Injury to bowel", "Conversion to open", "Wound infection"],
+  "postOpCare": "Wound care, oral analgesics, light diet, review in 1 week.",
+  "expectedRecovery": "Hospital stay 1-2 days; full activity in 2 weeks."
 }
 ```
 
@@ -137,27 +162,29 @@ formType              = "Laparoscopic Appendectomy"
 procedure             = "Appendectomy"
 anesthesia            = "General anaesthesia"
 procedureDescription  = "Approach: Laparoscopic (3-port)\n\nTechnique: Pneumoperitoneum, appendiceal mobilisation, endoloop ligation.\n\nConversion to open if unsafe."
+risks                 = "Bleeding\nInfection\nAnaesthesia reaction"
+materialRisks         = "Injury to bowel\nConversion to open\nWound infection"
+possibleComplications = "Injury to bowel\nConversion to open\nWound infection"
+benefits              = "Definitive treatment\nSymptom relief"
+alternatives          = "Conservative antibiotics\nOpen appendectomy"
+postOpCare            = "Wound care, oral analgesics, light diet, review in 1 week."
+expectedRecovery      = "Hospital stay 1-2 days; full activity in 2 weeks."
 ```
 
 ---
 
 ## 4. Fields That Are NOT Autofilled (Gaps)
 
-These fields remain blank after template selection and must be filled by the surgeon:
+These fields remain blank after template selection and must be filled by the surgeon or pulled from another source:
 
 | Consent Field | Why it is not autofilled | Suggested future source |
 |---|---|---|
 | `diagnosis` | Patient-specific | Admission / OPD record |
-| `risks` | Needs structured risk library | Add `risks` array to surgical template |
-| `materialRisks` | Needs structured risk library | Add `risks` array to surgical template |
-| `possibleComplications` | Procedure-specific; currently free text | Add `complications` array to surgical template |
-| `benefits` | Standard boilerplate + procedure-specific | Add `benefits` array to surgical template |
-| `alternatives` | Standard + procedure-specific | Add `alternatives` array to surgical template |
-| `postOpCare` | Varies by procedure | Add `postOpCare` string to surgical template |
-| `expectedRecovery` | Varies by procedure | Add `expectedRecovery` string to surgical template |
 | `hospitalName` / `hospitalAddress` / `hospitalContact` / `hospitalRegistrationNumber` | Comes from hospital profile | Hospital profile lookup |
 | `doctorQualification` / `doctorRegistrationNumber` | Comes from doctor profile | Doctor profile lookup |
 | `guardianRelationship` | Patient-specific | Parent profile / admission |
+
+All clinical fields (`procedure`, `anesthesia`, `procedureDescription`, `risks`, `materialRisks`, `possibleComplications`, `benefits`, `alternatives`, `postOpCare`, `expectedRecovery`) are now prefilled from the surgical template when populated.
 
 ---
 
@@ -173,9 +200,9 @@ To get the most complete consent forms with the least editing:
 
 ---
 
-## 6. Future Extensions (Not Implemented)
+## 6. Recently Implemented Extensions
 
-If you want richer autofill, extend `SurgicalTemplateDto` / `SurgicalTemplateCreateRequest` with fields such as:
+The following fields were added to `SurgicalTemplateDto` / `SurgicalTemplateCreateRequest` and are now mapped into the consent form:
 
 ```kotlin
 val risks: List<String> = emptyList(),
@@ -183,11 +210,14 @@ val benefits: List<String> = emptyList(),
 val alternatives: List<String> = emptyList(),
 val complications: List<String> = emptyList(),
 val postOpCare: String? = null,
-val expectedRecovery: String? = null,
-val indications: List<String> = emptyList()
+val expectedRecovery: String? = null
 ```
 
-Then update `ConsentFormViewModel.applyTemplate()` to map them into the consent form.
+Future possible additions:
+
+- `indications: List<String>` → map to a new `indications` consent field or append to `procedureDescription`.
+- `hospitalId` override per template.
+- Template versioning so consent forms generated from an older template remain traceable.
 
 ---
 

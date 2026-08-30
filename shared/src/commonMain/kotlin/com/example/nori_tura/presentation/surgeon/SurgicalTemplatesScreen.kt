@@ -240,6 +240,42 @@ private fun TemplateCard(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+            if (template.risks.isNotEmpty()) {
+                Text(
+                    text = "Risks: ${template.risks.joinToString()}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (template.benefits.isNotEmpty()) {
+                Text(
+                    text = "Benefits: ${template.benefits.joinToString()}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (template.alternatives.isNotEmpty()) {
+                Text(
+                    text = "Alternatives: ${template.alternatives.joinToString()}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            if (template.complications.isNotEmpty()) {
+                Text(
+                    text = "Complications: ${template.complications.joinToString()}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            template.postOpCare?.let {
+                Text(
+                    text = "Post-op care: $it",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            template.expectedRecovery?.let {
+                Text(
+                    text = "Expected recovery: $it",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -253,7 +289,13 @@ private fun SurgicalTemplateCreateRequest.toUpdateRequest(): SurgicalTemplateUpd
         investigations = investigations,
         riskLevel = riskLevel,
         technique = technique,
-        specialInstructions = specialInstructions
+        specialInstructions = specialInstructions,
+        risks = risks,
+        benefits = benefits,
+        alternatives = alternatives,
+        complications = complications,
+        postOpCare = postOpCare,
+        expectedRecovery = expectedRecovery
     )
 
 @Composable
@@ -314,6 +356,12 @@ private fun TemplateFormDialog(
     var riskLevel by remember { mutableStateOf(initial?.riskLevel ?: "") }
     var technique by remember { mutableStateOf(initial?.technique ?: "") }
     var instructions by remember { mutableStateOf(initial?.specialInstructions ?: "") }
+    var risks by remember { mutableStateOf(initial?.risks?.joinToString(", ") ?: "") }
+    var benefits by remember { mutableStateOf(initial?.benefits?.joinToString(", ") ?: "") }
+    var alternatives by remember { mutableStateOf(initial?.alternatives?.joinToString(", ") ?: "") }
+    var complications by remember { mutableStateOf(initial?.complications?.joinToString(", ") ?: "") }
+    var postOpCare by remember { mutableStateOf(initial?.postOpCare ?: "") }
+    var expectedRecovery by remember { mutableStateOf(initial?.expectedRecovery ?: "") }
 
     TemplateFormCard(
         title = title,
@@ -328,7 +376,13 @@ private fun TemplateFormDialog(
                     investigations = investigations.split(",").map { it.trim() }.filter { it.isNotBlank() },
                     riskLevel = riskLevel.takeIf { it.isNotBlank() },
                     technique = technique.takeIf { it.isNotBlank() },
-                    specialInstructions = instructions.takeIf { it.isNotBlank() }
+                    specialInstructions = instructions.takeIf { it.isNotBlank() },
+                    risks = risks.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    benefits = benefits.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    alternatives = alternatives.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    complications = complications.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    postOpCare = postOpCare.takeIf { it.isNotBlank() },
+                    expectedRecovery = expectedRecovery.takeIf { it.isNotBlank() }
                 )
             )
         },
@@ -388,6 +442,60 @@ private fun TemplateFormDialog(
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("e.g. Low / Moderate / High") },
             singleLine = true
+        )
+        OutlinedTextField(
+            value = risks,
+            onValueChange = { risks = it },
+            label = { Text("Risks (comma-separated)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Bleeding, Infection, Anaesthesia reaction") },
+            minLines = 2,
+            maxLines = 4
+        )
+        OutlinedTextField(
+            value = benefits,
+            onValueChange = { benefits = it },
+            label = { Text("Benefits (comma-separated)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Symptom relief, Definitive treatment") },
+            minLines = 2,
+            maxLines = 4
+        )
+        OutlinedTextField(
+            value = alternatives,
+            onValueChange = { alternatives = it },
+            label = { Text("Alternatives (comma-separated)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Conservative management, Open surgery") },
+            minLines = 2,
+            maxLines = 4
+        )
+        OutlinedTextField(
+            value = complications,
+            onValueChange = { complications = it },
+            label = { Text("Complications (comma-separated)") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Injury to adjacent structures, Recurrence") },
+            minLines = 2,
+            maxLines = 4
+        )
+        OutlinedTextField(
+            value = postOpCare,
+            onValueChange = { postOpCare = it },
+            label = { Text("Post-operative Care") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Wound care, activity restrictions, follow-up") },
+            minLines = 2,
+            maxLines = 4
+        )
+        OutlinedTextField(
+            value = expectedRecovery,
+            onValueChange = { expectedRecovery = it },
+            label = { Text("Expected Recovery") },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Hospital stay 1-2 days; full activity in 2 weeks") },
+            minLines = 2,
+            maxLines = 4
         )
         OutlinedTextField(
             value = instructions,

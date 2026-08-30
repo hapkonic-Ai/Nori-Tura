@@ -109,6 +109,13 @@ fun ConsentFormScreen(
                 procedure = fields.procedure
                 anesthesia = fields.anesthesia
                 procedureDescription = fields.procedureDescription
+                risks = fields.risks
+                materialRisks = fields.materialRisks
+                possibleComplications = fields.possibleComplications
+                benefits = fields.benefits
+                alternatives = fields.alternatives
+                postOpCare = fields.postOpCare
+                expectedRecovery = fields.expectedRecovery
                 showTemplatePicker = false
             }
         )
