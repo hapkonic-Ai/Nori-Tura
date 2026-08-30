@@ -552,3 +552,36 @@ model consent_acknowledgments {
   @@unique([user_phone, consent_version])
   @@index([user_phone])
 }
+
+model consent_content_templates {
+  id                      String   @id @default(uuid())
+  name                    String
+  procedure               String
+  procedure_description   String?
+  anesthesia              String[]
+  risks                   String[]
+  benefits                String[]
+  alternatives            String[]
+  possible_complications  String[]
+  material_risks          String?
+  post_op_care            String?
+  expected_recovery       String?
+  statutory_reference     String?
+  is_active               Boolean  @default(true)
+  created_by_admin_id     String?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @default(now())
+
+  @@index([name])
+}
+
+model consent_layout_templates {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  html        String?
+  blocks_json Json?
+  styles_json Json?
+  is_default  Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now())
+}
