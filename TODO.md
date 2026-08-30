@@ -294,3 +294,69 @@ Status: Applied and validated.
 - **File:** `backend/app/routers/documents.py`
 - **Issue:** Earlier smoke test returned 307 because the create step failed and the delete URL had an empty `document_id`.
 - **Fix:** After fixing the create handler, delete returns `204 No Content` and the document is removed.
+
+---
+
+# Medical Autocomplete Local Cache + Telemetry
+
+Status: Spec complete; implementation pending.
+
+**Reference docs:**
+- `docs/autocomplete-cache-telemetry-analysis.md` — feasibility, architecture, risks
+- `docs/medservice-autocomplete-telemetry-spec.md` — exact payload contract for MedService
+
+## Phase 1 — Local per-field selection cache
+
+Goal: remember terms the user selects per field type and boost them in future suggestions.
+
+- [ ] **Add `AutocompleteSelectionCache`**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/data/AutocompleteSelectionCache.kt`
+  - Backed by `com.russhwolf.settings.Settings`.
+  - Store per-field term list with `count` and `lastUsedAt`.
+  - Prune to top-K entries per field or entries older than 90 days.
+
+- [ ] **Record selections in `MedicalAutoCompleteTextField`**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/components/MedicalAutoCompleteTextField.kt`
+  - On dropdown item click, call `AutocompleteSelectionCache.recordSelection(fieldType, term)`.
+
+- [ ] **Merge cached terms into suggestions**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/components/MedicalAutoCompleteTextField.kt`
+  - Read cache for the current `fieldType`.
+  - Boost matching cached terms to the top of the dropdown; fill remaining slots with server results.
+  - De-duplicate so the same term is not shown twice.
+  - If server call fails, still show cached suggestions as offline fallback.
+
+## Phase 2 — Telemetry to MedService
+
+Goal: send anonymised selection data to MedService so it can improve autocomplete ranking.
+
+- [ ] **Mobile telemetry buffer**
+  - File: `shared/src/commonMain/kotlin/com/example/nori_tura/data/AutocompleteTelemetryRepository.kt`
+  - Buffer selection events in memory + persistent queue.
+  - Event fields: `field_type`, `query`, `selected_term`, `suggestion_position`, `match_type`, `score`, `screen`, `timestamp`.
+  - Flush when buffer reaches 20–50 events, app goes to background, or every 6–24 hours.
+
+- [ ] **Nori-Tura backend ingestion endpoint**
+  - File: `backend/app/routers/analytics.py` (new)
+  - `POST /analytics/autocomplete` — accept batched events with JWT auth.
+  - Validate and store raw events; aggregate into per-field histograms and query-to-selection maps.
+
+- [ ] **Nori-Tura → MedService forwarding**
+  - Run a periodic job (e.g. nightly) that sends one batch per hospital to:
+    `POST https://med-api.primeworld.tech/api/v1/autocomplete/feedback`
+  - Auth: `X-API-Key` provided by MedService.
+  - Payload includes `histograms`, `query_selections`, and optional `sampled_events`.
+  - See `docs/medservice-autocomplete-telemetry-spec.md` for exact schema.
+
+- [ ] **MedService ranking integration**
+  - MedService ingests feedback and updates ranking.
+  - Short term: popularity boost `final_score = base_score * (1 + log(selection_count + 1) * field_weight)`.
+  - Medium term: build query-to-term learning index.
+  - Long term: field-specific reranker trained on sampled raw events.
+
+### Privacy notes
+
+- Do not send patient identifiers, visit IDs, or free-text notes.
+- Send only selected suggestion terms, field context, and short typed prefixes.
+- `hospital_id` may be included for per-hospital ranking if the hospital consents; otherwise hash or omit it.
+- Consider an opt-out toggle in app settings.
