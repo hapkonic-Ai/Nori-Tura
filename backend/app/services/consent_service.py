@@ -20,8 +20,11 @@ logger = logging.getLogger(__name__)
 _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "consents"
 
 
-def _load_template(name: str) -> Template:
-    """Load a Jinja2 template from the templates/consents directory."""
+def _load_template(name: str, template_html: Optional[str] = None) -> Template:
+    """Load a Jinja2 template from the templates/consents directory or DB html."""
+    if template_html is not None:
+        return Template(template_html)
+
     template_path = _TEMPLATES_DIR / name
     try:
         return Template(template_path.read_text(encoding="utf-8"))
@@ -31,15 +34,33 @@ def _load_template(name: str) -> Template:
 
 
 def _render_pdf(html: str) -> bytes:
-    """Render HTML to PDF using WeasyPrint, falling back to raw HTML bytes."""
+    """Render HTML to PDF using WeasyPrint, falling back to wkhtmltopdf, then HTML bytes."""
     try:
         from weasyprint import HTML
         return HTML(string=html).write_pdf()
     except Exception as exc:
-        logger.warning(
-            "WeasyPrint unavailable (%s); returning HTML fallback for consent PDF", exc
-        )
-        return html.encode("utf-8")
+        logger.warning("WeasyPrint unavailable (%s); trying wkhtmltopdf fallback", exc)
+
+    try:
+        import pdfkit
+        import platform
+
+        config = None
+        if platform.system() == "Windows":
+            candidates = [
+                r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe",
+                r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe",
+            ]
+            for path in candidates:
+                if Path(path).exists():
+                    config = pdfkit.configuration(wkhtmltopdf=path)
+                    break
+
+        return pdfkit.from_string(html, False, configuration=config)
+    except Exception as exc:
+        logger.warning("wkhtmltopdf fallback failed (%s); returning HTML fallback", exc)
+
+    return html.encode("utf-8")
 
 
 def _build_common_context(form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -170,7 +191,7 @@ def _compute_document_hash(html: str) -> str:
     return compute_sha256(html.encode("utf-8"))
 
 
-def generate_consent_pdf(form_data: Dict[str, Any]) -> Dict[str, Any]:
+def generate_consent_pdf(form_data: Dict[str, Any], template_html: Optional[str] = None) -> Dict[str, Any]:
     """Generate an unsigned consent form PDF.
 
     Returns a dict with:
@@ -180,7 +201,7 @@ def generate_consent_pdf(form_data: Dict[str, Any]) -> Dict[str, Any]:
         - pdf_hash_truncated: human-readable truncated hash
     """
     context = _build_unsigned_context(form_data)
-    template = _load_template("consent_base.html")
+    template = _load_template("consent_base.html", template_html=template_html)
 
     # First render: compute content hash from the HTML.
     first_html = template.render(**context)
@@ -207,6 +228,7 @@ def generate_signed_consent_pdf(
     witness_mobile: Optional[str] = None,
     witness_signature_url: Optional[str] = None,
     signed_at: Optional[str] = None,
+    template_html: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Generate a signed consent form PDF with embedded signature images.
 
@@ -225,7 +247,7 @@ def generate_signed_consent_pdf(
         witness_signature_url=witness_signature_url,
         signed_at=signed_at,
     )
-    template = _load_template("consent_signed.html")
+    template = _load_template("consent_signed.html", template_html=template_html)
 
     # First render: compute content hash from the HTML.
     first_html = template.render(**context)

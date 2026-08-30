@@ -25,6 +25,47 @@ from app.schemas.consent_acknowledgment import (
 settings = get_settings()
 router = APIRouter(prefix="/consent", tags=["Consent"])
 
+
+def _apply_surgical_template(template) -> dict:
+    """Map a surgical_templates record into consent form defaults per docs/consent-template-mapping.md."""
+    defaults: dict = {}
+
+    if template.name:
+        defaults["form_type"] = template.name
+    if template.procedure:
+        defaults["procedure"] = template.procedure
+    if template.anaesthesia:
+        defaults["anesthesia"] = ", ".join(template.anaesthesia)
+
+    # Build procedureDescription from approach, technique, specialInstructions
+    procedure_description_parts = []
+    if template.approach:
+        procedure_description_parts.append(f"Approach: {template.approach}")
+    if template.technique:
+        procedure_description_parts.append(f"Technique: {template.technique}")
+    if template.special_instructions:
+        procedure_description_parts.append(template.special_instructions)
+    if procedure_description_parts:
+        defaults["procedure_description"] = "\n\n".join(procedure_description_parts)
+
+    if template.risks:
+        defaults["risks"] = "\n".join(template.risks)
+    if template.complications:
+        complications_text = "\n".join(template.complications)
+        defaults["material_risks"] = complications_text
+        defaults["possible_complications"] = complications_text
+    if template.benefits:
+        defaults["benefits"] = "\n".join(template.benefits)
+    if template.alternatives:
+        defaults["alternatives"] = "\n".join(template.alternatives)
+    if template.post_op_care:
+        defaults["post_op_care"] = template.post_op_care
+    if template.expected_recovery:
+        defaults["expected_recovery"] = template.expected_recovery
+
+    return defaults
+
+
 CONSENT_TEXT = """
 NONI TURA SURGICAL CARE PLATFORM
 Terms & Consent Agreement
@@ -180,15 +221,75 @@ async def create_consent_form(
     now = datetime.now(timezone.utc)
     consent_number = _generate_consent_number()
 
+    # Load optional reusable content template
+    content_template = None
+    if req.content_template_id:
+        content_template = await prisma.consent_content_templates.find_first(
+            where={"id": req.content_template_id, "is_active": True}
+        )
+        if not content_template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Consent content template not found or inactive",
+            )
+
+    # Load optional surgical template and map its fields to consent defaults
+    template_defaults: dict = {}
+    if req.surgical_template_id:
+        surgical_template = await prisma.surgical_templates.find_first(
+            where={"id": req.surgical_template_id}
+        )
+        if not surgical_template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Surgical template not found",
+            )
+        template_defaults.update(_apply_surgical_template(surgical_template))
+
+    # Merge consent content template defaults after surgical template so either can be used
+    if content_template:
+        for field in [
+            "procedure_description",
+            "risks",
+            "benefits",
+            "alternatives",
+            "possible_complications",
+            "material_risks",
+            "post_op_care",
+            "expected_recovery",
+            "statutory_reference",
+        ]:
+            value = getattr(content_template, field)
+            if value is not None:
+                if field in ["risks", "benefits", "alternatives", "possible_complications"]:
+                    template_defaults[field] = "\n".join(value) if isinstance(value, list) else value
+                elif field == "anesthesia":
+                    template_defaults[field] = ", ".join(value) if isinstance(value, list) else value
+                else:
+                    template_defaults[field] = value
+
     # Query consent RAG for procedure-specific clinical content (risks, complications,
-    # alternatives, recovery). RAG output acts as the default; surgeon's request fields
-    # override it when explicitly provided.
+    # alternatives, recovery). RAG output acts as the final default; request fields,
+    # surgical template, and content template override it when explicitly provided.
     rag_content = await get_consent_content(
         procedure=req.procedure,
         diagnosis=req.diagnosis,
         patient_age=patient.age,
         patient_gender=patient.gender,
     ) or {}
+
+    # Load optional layout template from DB
+    layout_html = None
+    if req.layout_template_name:
+        layout = await prisma.consent_layout_templates.find_first(
+            where={"name": req.layout_template_name}
+        )
+        if not layout:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Consent layout template not found",
+            )
+        layout_html = layout.html
 
     # Derive defaults from related records when not provided by the client.
     hospital = doctor.hospital
@@ -217,7 +318,8 @@ async def create_consent_form(
         "status": "Pending",
         "generated_at": now.isoformat(),
         "language": req.language or "English",
-        "form_type": req.form_type,
+        "form_type": req.form_type or template_defaults.get("form_type", ""),
+        "layout_template_name": req.layout_template_name,
 
         # Hospital
         "hospital_name": hospital_name,
@@ -245,18 +347,18 @@ async def create_consent_form(
         "doctor_registration_number": doctor_registration_number,
         "doctor_declaration_timestamp": now.isoformat(),
 
-        # Clinical — surgeon's explicit input takes priority; RAG content fills gaps
+        # Clinical — explicit request takes priority, then template defaults, then RAG
         "diagnosis": req.diagnosis,
-        "procedure": req.procedure,
-        "procedure_description": req.procedure_description or rag_content.get("procedure_description", ""),
-        "anesthesia": req.anesthesia,
-        "benefits": req.benefits,
-        "risks": req.risks or rag_content.get("risks", ""),
-        "material_risks": req.material_risks or req.risks or rag_content.get("material_risks", ""),
-        "possible_complications": req.possible_complications or rag_content.get("possible_complications", ""),
-        "alternatives": req.alternatives or rag_content.get("alternatives", ""),
-        "post_op_care": req.post_op_care or rag_content.get("post_op_care", ""),
-        "expected_recovery": req.expected_recovery or rag_content.get("expected_recovery", ""),
+        "procedure": req.procedure or template_defaults.get("procedure", ""),
+        "procedure_description": req.procedure_description or template_defaults.get("procedure_description") or rag_content.get("procedure_description", ""),
+        "anesthesia": req.anesthesia or template_defaults.get("anesthesia", ""),
+        "benefits": req.benefits or template_defaults.get("benefits") or rag_content.get("benefits", ""),
+        "risks": req.risks or template_defaults.get("risks") or rag_content.get("risks", ""),
+        "material_risks": req.material_risks or req.risks or template_defaults.get("material_risks") or rag_content.get("material_risks", ""),
+        "possible_complications": req.possible_complications or template_defaults.get("possible_complications") or rag_content.get("possible_complications", ""),
+        "alternatives": req.alternatives or template_defaults.get("alternatives") or rag_content.get("alternatives", ""),
+        "post_op_care": req.post_op_care or template_defaults.get("post_op_care") or rag_content.get("post_op_care", ""),
+        "expected_recovery": req.expected_recovery or template_defaults.get("expected_recovery") or rag_content.get("expected_recovery", ""),
         "refusal_consequences": (
             "If consent is refused, the treating doctor will explain the consequences, which may include "
             "worsening of the patient's condition, persistent pain, disability, or other serious outcomes."
@@ -291,7 +393,7 @@ async def create_consent_form(
             "admission_id": req.admission_id,
             "patient_id": patient.id,
             "doctor_id": doctor_id,
-            "form_type": req.form_type,
+            "form_type": form_data["form_type"],
             "content_json": Json(form_data),
             "generated_by": user.role,
             "status": "pending",
@@ -310,18 +412,18 @@ async def create_consent_form(
             "department": department,
             "doctor_qualification": doctor_qualification,
             "doctor_registration_number": doctor_registration_number,
-            "diagnosis": req.diagnosis,
-            "procedure_description": req.procedure_description,
-            "expected_recovery": req.expected_recovery,
-            "possible_complications": req.possible_complications,
-            "material_risks": req.material_risks or req.risks,
+            "diagnosis": form_data["diagnosis"],
+            "procedure_description": form_data["procedure_description"],
+            "expected_recovery": form_data["expected_recovery"],
+            "possible_complications": form_data["possible_complications"],
+            "material_risks": form_data["material_risks"],
         }
     )
 
     # Add the generated consent id back into the stored form data so the PDF
     # footer and QR code reference the correct record.
     form_data["consent_id"] = consent.id
-    pdf_result = generate_consent_pdf(form_data)
+    pdf_result = generate_consent_pdf(form_data, template_html=layout_html)
     pdf_bytes = pdf_result["pdf_bytes"]
     pdf_hash = pdf_result["pdf_hash"]
 
@@ -386,6 +488,16 @@ async def sign_consent_form(
     form_data["consent_id"] = consent.id
     form_data["status"] = "Signed"
 
+    # Load layout template used when the form was created
+    layout_html = None
+    layout_template_name = form_data.get("layout_template_name")
+    if layout_template_name:
+        layout = await prisma.consent_layout_templates.find_first(
+            where={"name": layout_template_name}
+        )
+        if layout:
+            layout_html = layout.html
+
     signed_pdf_result = generate_signed_consent_pdf(
         form_data=form_data,
         parent_signature_url=req.parent_signature_url,
@@ -394,6 +506,7 @@ async def sign_consent_form(
         witness_mobile=req.witness_mobile,
         witness_signature_url=req.witness_signature_url,
         signed_at=signed_at.isoformat(),
+        template_html=layout_html,
     )
     signed_pdf_bytes = signed_pdf_result["pdf_bytes"]
     signed_pdf_hash = signed_pdf_result["pdf_hash"]

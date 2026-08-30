@@ -14,7 +14,7 @@ class ConsentFormCreate(BaseModel):
 
     # Existing fields
     admission_id: str
-    form_type: str
+    form_type: Optional[str] = None
     diagnosis: str
     procedure: str
     anesthesia: str
@@ -45,6 +45,11 @@ class ConsentFormCreate(BaseModel):
     # Consent metadata
     language: Optional[str] = "English"
     consent_version: Optional[str] = "v2.1"
+
+    # Templates
+    surgical_template_id: Optional[str] = None
+    content_template_id: Optional[str] = None
+    layout_template_name: Optional[str] = None
 
     # Specific consents
     consent_for_anesthesia: bool = True
