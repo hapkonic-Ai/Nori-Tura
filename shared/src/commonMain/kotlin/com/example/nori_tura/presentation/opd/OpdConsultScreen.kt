@@ -181,7 +181,7 @@ fun OpdConsultScreen(
                 }
 
                 item {
-                    OutlinedTextField(
+                    MedicalAutoCompleteTextField(
                         value = examination,
                         onValueChange = { examination = it },
                         label = { Text("Examination Findings") },
@@ -228,7 +228,7 @@ fun OpdConsultScreen(
                             )
                         }
                     } else {
-                        OutlinedTextField(
+                        MedicalAutoCompleteTextField(
                             value = surgicalDecision,
                             onValueChange = { surgicalDecision = it },
                             label = { Text("Surgical Decision") },
@@ -238,7 +238,7 @@ fun OpdConsultScreen(
                 }
 
                 item {
-                    OutlinedTextField(
+                    MedicalAutoCompleteTextField(
                         value = advice,
                         onValueChange = { advice = it },
                         label = { Text("Advice") },

@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.ConsentFormCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.presentation.components.BrandTopBar
+import com.example.nori_tura.presentation.components.MedicalAutoCompleteTextField
 import com.example.nori_tura.presentation.components.NorituraScaffold
 import com.example.nori_tura.presentation.components.TemplatePickerDialog
 import com.example.nori_tura.ui.theme.NorituraColors
@@ -166,26 +167,30 @@ fun ConsentFormScreen(
                     value = diagnosis,
                     onValueChange = { diagnosis = it },
                     label = "Diagnosis *",
-                    placeholder = "e.g. Appendicitis, Inguinal Hernia"
+                    placeholder = "e.g. Appendicitis, Inguinal Hernia",
+                    autocomplete = true
                 )
                 ConsentField(
                     value = procedure,
                     onValueChange = { procedure = it },
                     label = "Proposed Procedure *",
-                    placeholder = "e.g. Laparoscopic Appendicectomy"
+                    placeholder = "e.g. Laparoscopic Appendicectomy",
+                    autocomplete = true
                 )
                 ConsentField(
                     value = procedureDescription,
                     onValueChange = { procedureDescription = it },
                     label = "Procedure Description",
                     placeholder = "Step-by-step or lay description for patient",
-                    minLines = 3
+                    minLines = 3,
+                    autocomplete = true
                 )
                 ConsentField(
                     value = anesthesia,
                     onValueChange = { anesthesia = it },
                     label = "Anaesthesia *",
-                    placeholder = "e.g. General Anaesthesia, Spinal"
+                    placeholder = "e.g. General Anaesthesia, Spinal",
+                    autocomplete = true
                 )
             }
 
@@ -196,35 +201,40 @@ fun ConsentFormScreen(
                     onValueChange = { risks = it },
                     label = "General Risks *",
                     placeholder = "Common risks (bleeding, infection, etc.)",
-                    minLines = 3
+                    minLines = 3,
+                    autocomplete = true
                 )
                 ConsentField(
                     value = materialRisks,
                     onValueChange = { materialRisks = it },
                     label = "Material / Serious Risks",
                     placeholder = "Risks of particular significance for this patient",
-                    minLines = 3
+                    minLines = 3,
+                    autocomplete = true
                 )
                 ConsentField(
                     value = possibleComplications,
                     onValueChange = { possibleComplications = it },
                     label = "Possible Complications",
                     placeholder = "Procedure-specific complications",
-                    minLines = 3
+                    minLines = 3,
+                    autocomplete = true
                 )
                 ConsentField(
                     value = benefits,
                     onValueChange = { benefits = it },
                     label = "Benefits *",
                     placeholder = "Expected benefits of the procedure",
-                    minLines = 2
+                    minLines = 2,
+                    autocomplete = true
                 )
                 ConsentField(
                     value = alternatives,
                     onValueChange = { alternatives = it },
                     label = "Alternatives *",
                     placeholder = "Alternative treatment options including no treatment",
-                    minLines = 2
+                    minLines = 2,
+                    autocomplete = true
                 )
             }
 
@@ -235,14 +245,16 @@ fun ConsentFormScreen(
                     onValueChange = { postOpCare = it },
                     label = "Post-operative Care Instructions *",
                     placeholder = "Wound care, activity restrictions, follow-up",
-                    minLines = 3
+                    minLines = 3,
+                    autocomplete = true
                 )
                 ConsentField(
                     value = expectedRecovery,
                     onValueChange = { expectedRecovery = it },
                     label = "Expected Recovery",
                     placeholder = "Estimated recovery timeline",
-                    minLines = 2
+                    minLines = 2,
+                    autocomplete = true
                 )
             }
 
@@ -446,19 +458,34 @@ private fun ConsentField(
     onValueChange: (String) -> Unit,
     label: String,
     placeholder: String = "",
-    minLines: Int = 1
+    minLines: Int = 1,
+    autocomplete: Boolean = false,
+    fieldType: String? = null
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = if (placeholder.isNotBlank()) ({ Text(placeholder, color = NorituraColors.TextTertiary) }) else null,
-        modifier = Modifier.fillMaxWidth(),
-        minLines = minLines,
-        maxLines = if (minLines > 1) minLines + 2 else 1,
-        singleLine = minLines == 1,
-        textStyle = MaterialTheme.typography.bodyMedium
-    )
+    if (autocomplete) {
+        MedicalAutoCompleteTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = minLines,
+            maxLines = if (minLines > 1) minLines + 2 else 1,
+            singleLine = minLines == 1,
+            fieldType = fieldType
+        )
+    } else {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            placeholder = if (placeholder.isNotBlank()) ({ Text(placeholder, color = NorituraColors.TextTertiary) }) else null,
+            modifier = Modifier.fillMaxWidth(),
+            minLines = minLines,
+            maxLines = if (minLines > 1) minLines + 2 else 1,
+            singleLine = minLines == 1,
+            textStyle = MaterialTheme.typography.bodyMedium
+        )
+    }
 }
 
 @Composable

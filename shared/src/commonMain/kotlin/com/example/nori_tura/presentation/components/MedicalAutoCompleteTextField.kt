@@ -61,6 +61,7 @@ fun MedicalAutoCompleteTextField(
     singleLine: Boolean = false,
     minLines: Int = 1,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    fieldType: String? = null,
     repository: MedicalTermRepository = remember { MedicalTermRepository() }
 ) {
     var textFieldValue by remember {
@@ -112,7 +113,11 @@ fun MedicalAutoCompleteTextField(
 
         delay(DEBOUNCE_MS)
 
-        repository.search(query = token, limit = SUGGESTION_LIMIT)
+        repository.search(
+            query = token,
+            fieldTypes = fieldType ?: "all",
+            limit = SUGGESTION_LIMIT
+        )
             .onSuccess { terms ->
                 suggestions = terms
             }

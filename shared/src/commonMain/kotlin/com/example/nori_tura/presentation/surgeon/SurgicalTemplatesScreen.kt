@@ -54,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nori_tura.data.dto.SurgicalTemplateCreateRequest
 import com.example.nori_tura.data.dto.SurgicalTemplateDto
 import com.example.nori_tura.data.dto.SurgicalTemplateUpdateRequest
+import com.example.nori_tura.presentation.components.MedicalAutoCompleteTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -395,7 +396,7 @@ private fun TemplateFormDialog(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = procedure,
             onValueChange = { procedure = it },
             label = { Text("Procedure *") },
@@ -403,14 +404,14 @@ private fun TemplateFormDialog(
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = approach,
             onValueChange = { approach = it },
             label = { Text("Approach (e.g. Laparoscopic, Open)") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = technique,
             onValueChange = { technique = it },
             label = { Text("Technique") },
@@ -418,20 +419,18 @@ private fun TemplateFormDialog(
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = anaesthesia,
             onValueChange = { anaesthesia = it },
             label = { Text("Anaesthesia (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. GA, Spinal, Local") },
             singleLine = true
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = investigations,
             onValueChange = { investigations = it },
             label = { Text("Pre-op Investigations (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. CBC, LFT, ECG, CXR") },
             minLines = 2,
             maxLines = 3
         )
@@ -443,61 +442,55 @@ private fun TemplateFormDialog(
             placeholder = { Text("e.g. Low / Moderate / High") },
             singleLine = true
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = risks,
             onValueChange = { risks = it },
             label = { Text("Risks (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Bleeding, Infection, Anaesthesia reaction") },
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = benefits,
             onValueChange = { benefits = it },
             label = { Text("Benefits (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Symptom relief, Definitive treatment") },
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = alternatives,
             onValueChange = { alternatives = it },
             label = { Text("Alternatives (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Conservative management, Open surgery") },
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = complications,
             onValueChange = { complications = it },
             label = { Text("Complications (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Injury to adjacent structures, Recurrence") },
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = postOpCare,
             onValueChange = { postOpCare = it },
             label = { Text("Post-operative Care") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Wound care, activity restrictions, follow-up") },
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = expectedRecovery,
             onValueChange = { expectedRecovery = it },
             label = { Text("Expected Recovery") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Hospital stay 1-2 days; full activity in 2 weeks") },
             minLines = 2,
             maxLines = 4
         )
-        OutlinedTextField(
+        MedicalAutoCompleteTextField(
             value = instructions,
             onValueChange = { instructions = it },
             label = { Text("Special Instructions / Notes") },

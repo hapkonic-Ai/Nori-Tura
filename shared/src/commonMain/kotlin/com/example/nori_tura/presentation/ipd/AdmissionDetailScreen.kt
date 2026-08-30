@@ -61,6 +61,7 @@ import com.example.nori_tura.presentation.components.AuthenticatedUrlImageRow
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ImageAttachmentPicker
 import com.example.nori_tura.presentation.components.MediaUrlChipGrid
+import com.example.nori_tura.presentation.components.MedicalAutoCompleteTextField
 import com.example.nori_tura.presentation.components.TemplatePickerDialog
 import com.example.nori_tura.ui.theme.NorituraColors
 import com.example.nori_tura.util.openUrl
@@ -541,12 +542,12 @@ private fun PreOpForm(
         ) {
             Text("Apply from Template")
         }
-        FormTextField(procedure, { procedure = it }, "Procedure *")
-        FormTextField(approach, { approach = it }, "Approach")
-        FormTextField(anaesthesia, { anaesthesia = it }, "Anaesthesia")
-        FormTextField(investigations, { investigations = it }, "Investigations (comma separated)")
+        FormTextField(procedure, { procedure = it }, "Procedure *", autocomplete = true)
+        FormTextField(approach, { approach = it }, "Approach", autocomplete = true)
+        FormTextField(anaesthesia, { anaesthesia = it }, "Anaesthesia", autocomplete = true)
+        FormTextField(investigations, { investigations = it }, "Investigations (comma separated)", autocomplete = true)
         FormTextField(riskLevel, { riskLevel = it }, "Risk Level")
-        FormTextField(instructions, { instructions = it }, "Special Instructions")
+        FormTextField(instructions, { instructions = it }, "Special Instructions", autocomplete = true)
         ImageAttachmentPicker(
             items = mediaItems,
             onItemsChange = { mediaItems = it },
@@ -615,10 +616,10 @@ private fun IntraOpForm(
         ) {
             Text("Apply from Template")
         }
-        FormTextField(procedure, { procedure = it }, "Procedure Done *")
-        FormTextField(findings, { findings = it }, "Findings")
-        FormTextField(technique, { technique = it }, "Technique")
-        FormTextField(complications, { complications = it }, "Complications")
+        FormTextField(procedure, { procedure = it }, "Procedure Done *", autocomplete = true)
+        FormTextField(findings, { findings = it }, "Findings", autocomplete = true)
+        FormTextField(technique, { technique = it }, "Technique", autocomplete = true)
+        FormTextField(complications, { complications = it }, "Complications", autocomplete = true)
         FormTextField(bloodLoss, { bloodLoss = it }, "Blood Loss")
         FormTextField(otStart, { otStart = it }, "OT Start (ISO)")
         FormTextField(otEnd, { otEnd = it }, "OT End (ISO)")
@@ -666,11 +667,11 @@ private fun PostOpForm(
         saveEnabled = condition.isNotBlank() && day.toIntOrNull() != null
     ) {
         FormTextField(day, { day = it }, "Day Number *")
-        FormTextField(condition, { condition = it }, "Condition *")
+        FormTextField(condition, { condition = it }, "Condition *", autocomplete = true)
         FormTextField(vitals, { vitals = it }, "Vitals (key=value, comma)")
-        FormTextField(wound, { wound = it }, "Wound Status")
+        FormTextField(wound, { wound = it }, "Wound Status", autocomplete = true)
         FormTextField(pain, { pain = it }, "Pain Score (0-10)")
-        FormTextField(diet, { diet = it }, "Diet")
+        FormTextField(diet, { diet = it }, "Diet", autocomplete = true)
         ImageAttachmentPicker(
             items = mediaItems,
             onItemsChange = { mediaItems = it },
@@ -712,10 +713,10 @@ private fun WardRoundForm(
         },
         saveEnabled = true
     ) {
-        FormTextField(subjective, { subjective = it }, "Subjective")
-        FormTextField(objective, { objective = it }, "Objective")
-        FormTextField(assessment, { assessment = it }, "Assessment")
-        FormTextField(plan, { plan = it }, "Plan")
+        FormTextField(subjective, { subjective = it }, "Subjective", autocomplete = true)
+        FormTextField(objective, { objective = it }, "Objective", autocomplete = true)
+        FormTextField(assessment, { assessment = it }, "Assessment", autocomplete = true)
+        FormTextField(plan, { plan = it }, "Plan", autocomplete = true)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -813,14 +814,14 @@ private fun DischargeForm(
             )
         }
 
-        FormTextField(condition, { condition = it }, "Condition at Discharge *")
-        FormTextField(procedureSummary, { procedureSummary = it }, "Procedure Summary *")
-        FormTextField(medications, { medications = it }, "Medications (key=value, comma)")
-        FormTextField(woundCare, { woundCare = it }, "Wound Care")
-        FormTextField(activity, { activity = it }, "Activity Restrictions")
-        FormTextField(diet, { diet = it }, "Diet Instructions")
+        FormTextField(condition, { condition = it }, "Condition at Discharge *", autocomplete = true)
+        FormTextField(procedureSummary, { procedureSummary = it }, "Procedure Summary *", autocomplete = true)
+        FormTextField(medications, { medications = it }, "Medications (key=value, comma)", autocomplete = true)
+        FormTextField(woundCare, { woundCare = it }, "Wound Care", autocomplete = true)
+        FormTextField(activity, { activity = it }, "Activity Restrictions", autocomplete = true)
+        FormTextField(diet, { diet = it }, "Diet Instructions", autocomplete = true)
         FormTextField(followUp, { followUp = it }, "Follow-up Date (ISO)")
-        FormTextField(redFlags, { redFlags = it }, "Red Flags")
+        FormTextField(redFlags, { redFlags = it }, "Red Flags", autocomplete = true)
         ImageAttachmentPicker(
             items = mediaItems,
             onItemsChange = { mediaItems = it },
@@ -881,14 +882,26 @@ private fun FormCard(
 private fun FormTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String
+    label: String,
+    autocomplete: Boolean = false,
+    fieldType: String? = null
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        modifier = Modifier.fillMaxWidth()
-    )
+    if (autocomplete) {
+        MedicalAutoCompleteTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            fieldType = fieldType
+        )
+    } else {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 private fun parseKeyValue(input: String): Map<String, String?> {
