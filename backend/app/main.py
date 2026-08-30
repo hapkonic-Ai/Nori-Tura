@@ -7,11 +7,13 @@ from contextlib import asynccontextmanager
 from app.core.database import connect_db, disconnect_db
 from app.jobs import start_reminder_scheduler, shutdown_reminder_scheduler
 from app.routers import auth, patients, opd, appointments, ipd, ai, consent, nurses, documents, surgical_templates, admin, doctors, schedule, alerts, uploads, media, medical_records, reports
+from app.services.consent_template_service import ensure_default_layout_templates
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
+    await ensure_default_layout_templates()
     start_reminder_scheduler()
     yield
     shutdown_reminder_scheduler()

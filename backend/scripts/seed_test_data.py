@@ -270,8 +270,40 @@ SURGICAL_TEMPLATES = [
         "anaesthesia": ["General Anaesthesia", "Short GA"],
         "investigations": ["Urine culture (must be sterile pre-op)", "Renal ultrasound", "DMSA scan"],
         "risk_level": "Low",
-        "technique": "STING technique: cystoscope to ureteric orifice, inject 0.3–0.5ml Deflux subdermally at 6 o'clock position of orifice.",
-        "special_instructions": "Prophylactic antibiotics on day of procedure. Check sterile urine pre-op — postpone if any UTI. Follow-up ultrasound at 1 month.",
+        "technique": "STING technique: cystoscope to ureteric orifice, inject 0.3-0.5ml Deflux subdermally at 6 o'clock position of orifice.",
+        "special_instructions": "Prophylactic antibiotics on day of procedure. Check sterile urine pre-op - postpone if any UTI. Follow-up ultrasound at 1 month.",
+    },
+]
+
+# ── Consent Content Templates ───────────────────────────────────────────────
+CONSENT_CONTENT_TEMPLATES = [
+    {
+        "name": "General Surgical Consent - English",
+        "procedure": "General surgical procedure",
+        "procedure_description": "The planned surgical procedure will be performed using the standard approach and technique appropriate for the diagnosis.",
+        "anesthesia": ["General Anaesthesia"],
+        "risks": ["Bleeding", "Infection", "Anaesthesia reaction", "Unplanned conversion to open surgery"],
+        "benefits": ["Symptom relief", "Definitive treatment", "Prevention of complications"],
+        "alternatives": ["Conservative management", "Open surgery", "No treatment"],
+        "possible_complications": ["Injury to adjacent structures", "Recurrence", "Conversion to open"],
+        "material_risks": "Bleeding, infection, injury to adjacent structures, conversion to open procedure.",
+        "post_op_care": "Wound care, activity restrictions, follow-up in 1 week.",
+        "expected_recovery": "Hospital stay 1-2 days; return to normal activity in 2 weeks.",
+        "statutory_reference": "In accordance with NMC and NABH standards for patient rights.",
+    },
+    {
+        "name": "Appendicectomy Consent - English",
+        "procedure": "Appendectomy",
+        "procedure_description": "Approach: Laparoscopic (3-port).\n\nTechnique: Pneumoperitoneum, appendiceal mobilisation, endoloop ligation.\n\nConversion to open if unsafe.",
+        "anesthesia": ["General Anaesthesia"],
+        "risks": ["Bleeding", "Infection", "Anaesthesia reaction"],
+        "benefits": ["Definitive treatment", "Symptom relief"],
+        "alternatives": ["Conservative antibiotics", "Open appendectomy"],
+        "possible_complications": ["Injury to bowel", "Conversion to open", "Wound infection"],
+        "material_risks": "Injury to bowel, conversion to open surgery, wound infection, bleeding.",
+        "post_op_care": "Wound care, oral analgesics, light diet, review in 1 week.",
+        "expected_recovery": "Hospital stay 1-2 days; full activity in 2 weeks.",
+        "statutory_reference": "NMC/NABH informed consent guidelines.",
     },
 ]
 
@@ -641,6 +673,217 @@ async def main() -> None:
         })
         print(f"Created template: {t['name']}")
 
+    # 6a. Seed consent content templates
+    content_template_by_name: dict[str, str] = {}
+    for ct in CONSENT_CONTENT_TEMPLATES:
+        existing = await db.consent_content_templates.find_first(where={"name": ct["name"]})
+        if existing:
+            print(f"Consent content template exists: {ct['name']}")
+            content_template_by_name[ct["name"]] = existing.id
+            continue
+        created = await db.consent_content_templates.create(data={
+            "name": ct["name"],
+            "procedure": ct["procedure"],
+            "procedure_description": ct.get("procedure_description"),
+            "anesthesia": ct.get("anesthesia", []),
+            "risks": ct.get("risks", []),
+            "benefits": ct.get("benefits", []),
+            "alternatives": ct.get("alternatives", []),
+            "possible_complications": ct.get("possible_complications", []),
+            "material_risks": ct.get("material_risks"),
+            "post_op_care": ct.get("post_op_care"),
+            "expected_recovery": ct.get("expected_recovery"),
+            "statutory_reference": ct.get("statutory_reference"),
+            "is_active": True,
+        })
+        content_template_by_name[ct["name"]] = created.id
+        print(f"Created consent content template: {created.name}")
+
+    # 6b. Seed consent forms (one per IPD admission)
+    def _consent_number() -> str:
+        now = datetime.now(timezone.utc)
+        return f"NT-CONSENT-{now.strftime('%Y%m%d%H%M%S')}-{now.strftime('%f')[:4]}"
+
+    # Map patient_idx to a tailored consent form
+    CONSENT_FORMS = [
+        {
+            "patient_idx": 0,
+            "template_name": "Appendicectomy Consent - English",
+            "form_type": "Laparoscopic Appendicectomy Consent",
+            "diagnosis": "Acute appendicitis",
+            "procedure": "Appendectomy",
+            "procedure_description": "Approach: Laparoscopic (3-port).\n\nTechnique: Pneumoperitoneum, appendiceal mobilisation, endoloop ligation.\n\nConversion to open if unsafe.",
+        },
+        {
+            "patient_idx": 2,
+            "template_name": "General Surgical Consent - English",
+            "form_type": "Laparoscopic Herniotomy Consent",
+            "diagnosis": "Right indirect inguinal hernia",
+            "procedure": "Laparoscopic herniotomy",
+            "procedure_description": "Approach: Laparoscopic (PIRS technique).\n\nTechnique: Percutaneous internal ring suturing under laparoscopic vision.\n\nDay-care surgery; discharge same evening if stable.",
+        },
+        {
+            "patient_idx": 4,
+            "template_name": "General Surgical Consent - English",
+            "form_type": "Hypospadias Repair Consent",
+            "diagnosis": "Distal hypospadias",
+            "procedure": "Hypospadias repair (TIPU)",
+            "procedure_description": "Approach: Open perineal.\n\nTechnique: Tubularised incised plate urethroplasty over 6Fr catheter.\n\nCatheter in situ for 10 days; antibiotic prophylaxis.",
+        },
+    ]
+
+    for cf in CONSENT_FORMS:
+        patient_idx = cf["patient_idx"]
+        if patient_idx >= len(patient_ids):
+            continue
+        patient_id = patient_ids[patient_idx]
+        if not patient_id:
+            continue
+        admission_id = admission_ids.get(cf["patient_idx"])
+        if not admission_id:
+            continue
+
+        existing = await db.consent_forms.find_first(where={"admission_id": admission_id})
+        if existing:
+            print(f"Consent form exists for patient_idx {cf['patient_idx']}")
+            continue
+
+        patient = await db.patients.find_unique(where={"id": patient_id})
+        doctor = await db.doctors.find_unique(where={"id": patient.doctor_id})
+        hospital = await db.hospitals.find_first(where={"id": doctor.hospital_id}) if doctor.hospital_id else None
+        admission = await db.ipd_admissions.find_unique(where={"id": admission_id})
+
+        hospital_name = hospital.name if hospital else (admission.hospital_name or "Hospital Name")
+        hospital_address = hospital.address if hospital else ""
+        hospital_contact = hospital.contact if hospital else ""
+        hospital_registration_number = hospital.registration_number if hospital else ""
+        hospital_id = hospital.id if hospital else admission.hospital_id
+        hospital_logo_url = hospital.logo_url if hospital else None
+        doctor_qualification = doctor.specialty or "Pediatric Surgery"
+        ward_room = " / ".join(p for p in [admission.ward, admission.bed_no] if p) or "-"
+        consent_num = _consent_number()
+        now = datetime.now(timezone.utc)
+
+        content_template = None
+        template_name = cf.get("template_name")
+        if template_name and template_name in content_template_by_name:
+            content_template = await db.consent_content_templates.find_unique(
+                where={"id": content_template_by_name[template_name]}
+            )
+
+        procedure_description = cf.get("procedure_description") or (content_template.procedure_description if content_template else "")
+        anesthesia = ", ".join(content_template.anesthesia) if content_template and content_template.anesthesia else "General Anaesthesia"
+        risks = "\n".join(content_template.risks) if content_template and content_template.risks else "Bleeding\nInfection\nAnaesthesia reaction"
+        benefits = "\n".join(content_template.benefits) if content_template and content_template.benefits else "Symptom relief\nDefinitive treatment"
+        alternatives = "\n".join(content_template.alternatives) if content_template and content_template.alternatives else "Conservative management\nOpen surgery\nNo treatment"
+        possible_complications = "\n".join(content_template.possible_complications) if content_template and content_template.possible_complications else "Injury to adjacent structures\nRecurrence"
+        material_risks = content_template.material_risks if content_template and content_template.material_risks else possible_complications
+        post_op_care = content_template.post_op_care if content_template and content_template.post_op_care else "Wound care, activity restrictions, follow-up in 1 week."
+        expected_recovery = content_template.expected_recovery if content_template and content_template.expected_recovery else "Hospital stay 1-2 days; return to normal activity in 2 weeks."
+        statutory_reference = content_template.statutory_reference if content_template and content_template.statutory_reference else "NMC/NABH informed consent guidelines."
+
+        form_data = {
+            "consent_id": "",
+            "patient_id": patient.id,
+            "admission_id": admission_id,
+            "consent_number": consent_num,
+            "version": "v2.1",
+            "status": "Pending",
+            "generated_at": now.isoformat(),
+            "language": "English",
+            "form_type": cf["form_type"],
+            "layout_template_name": None,
+
+            "hospital_name": hospital_name,
+            "hospital_address": hospital_address,
+            "hospital_contact": hospital_contact,
+            "hospital_registration_number": hospital_registration_number,
+
+            "patient_name": patient.name,
+            "patient_uhid": patient.id,
+            "age": patient.age,
+            "gender": patient.gender,
+            "admission_number": admission_id,
+            "department": doctor.specialty or "Pediatric Surgery",
+            "ward_room": ward_room,
+
+            "parent_name": patient.parent_name,
+            "guardian_relationship": "Parent / Guardian",
+            "parent_phone": patient.parent_phone,
+
+            "surgeon_name": doctor.name,
+            "doctor_qualification": doctor_qualification,
+            "doctor_registration_number": "",
+            "doctor_declaration_timestamp": now.isoformat(),
+
+            "diagnosis": cf["diagnosis"],
+            "procedure": cf["procedure"],
+            "procedure_description": procedure_description,
+            "anesthesia": anesthesia,
+            "benefits": benefits,
+            "risks": risks,
+            "material_risks": material_risks,
+            "possible_complications": possible_complications,
+            "alternatives": alternatives,
+            "post_op_care": post_op_care,
+            "expected_recovery": expected_recovery,
+            "refusal_consequences": (
+                "If consent is refused, the treating doctor will explain the consequences, which may include "
+                "worsening of the patient's condition, persistent pain, disability, or other serious outcomes."
+            ),
+            "right_to_withdraw": (
+                "The parent/legal guardian has the right to withdraw consent at any time before or during the "
+                "procedure without affecting the patient's right to future care and treatment."
+            ),
+
+            "consent_for_anesthesia": "Yes",
+            "consent_for_blood_products": "No",
+            "consent_for_photography": "No",
+
+            "privacy_statement": (
+                "Personal and medical information will be kept confidential and used only for treatment, "
+                "billing, quality assurance, and as required by law."
+            ),
+            "statutory_reference": statutory_reference,
+            "rag_assisted": False,
+        }
+
+        created = await db.consent_forms.create(data={
+            "admission_id": admission_id,
+            "patient_id": patient.id,
+            "doctor_id": doctor.id,
+            "form_type": cf["form_type"],
+            "content_json": Json(form_data),
+            "generated_by": "surgeon",
+            "status": "pending",
+            "consent_number": consent_num,
+            "version": "v2.1",
+            "language": "English",
+            "guardian_relationship": "Parent / Guardian",
+            "hospital_id": hospital_id,
+            "hospital_name": hospital_name,
+            "hospital_address": hospital_address,
+            "hospital_contact": hospital_contact,
+            "hospital_registration_number": hospital_registration_number,
+            "hospital_logo_url": hospital_logo_url,
+            "department": doctor.specialty or "Pediatric Surgery",
+            "doctor_qualification": doctor_qualification,
+            "doctor_registration_number": "",
+            "diagnosis": cf["diagnosis"],
+            "procedure_description": procedure_description,
+            "expected_recovery": expected_recovery,
+            "possible_complications": possible_complications,
+            "material_risks": material_risks,
+        })
+
+        # Update stored JSON with the real consent id so PDF downloads reference it correctly
+        form_data["consent_id"] = created.id
+        await db.consent_forms.update(
+            where={"id": created.id},
+            data={"content_json": Json(form_data)},
+        )
+        print(f"Created consent form: {created.form_type} for patient_idx {cf['patient_idx']} ({created.consent_number})")
+
     # 7. Seed appointments (TODAY + tomorrow)
     APPOINTMENTS = make_appointments(today)
     for appt in APPOINTMENTS:
@@ -770,14 +1013,14 @@ async def main() -> None:
             print(f"  + Image [{img['category']}]: {img['label']}")
 
     await db.disconnect()
-    print("\n✓ Test data seeding complete.")
+    print("\n[OK] Test data seeding complete.")
     print("\nTest accounts:")
     print("  Surgeon 1 : +919876543210 (Pediatric Surgery)")
     print("  Surgeon 2 : +919304155460 (Pediatric Urology)")
-    print("  Nurse 1   : +919876543211 (Apollo — Nurse Renu)")
-    print("  Nurse 2   : +919876543213 (Rainbow — Nurse Anjali)")
-    print("  Parent 1  : +918000000001 (Raj Patel → Aarav Patel)")
-    print("  Parent 4  : +918000000004 (Mohan Reddy → Isha Reddy)")
+    print("  Nurse 1   : +919876543211 (Apollo - Nurse Renu)")
+    print("  Nurse 2   : +919876543213 (Rainbow - Nurse Anjali)")
+    print("  Parent 1  : +918000000001 (Raj Patel -> Aarav Patel)")
+    print("  Parent 4  : +918000000004 (Mohan Reddy -> Isha Reddy)")
     print("  OTP for dev: check dev_otp in /auth/send-otp response")
 
 
