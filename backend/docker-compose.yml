@@ -20,8 +20,8 @@ services:
       MINIO_ROOT_USER: nonitura
       MINIO_ROOT_PASSWORD: nonitura123
     ports:
-      - "9100:9000"
-      - "9101:9001"
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"

@@ -118,7 +118,7 @@ Upload videos from IPD note forms, store them correctly, show a video chip / pla
   - OPD consult images now create medical records automatically, but a dedicated screen to create a `medical_records` row and attach images manually is still deferred.
 
 - [x] **Android emulator MinIO endpoint**
-  - When testing on the Android emulator, set `MINIO_PUBLIC_ENDPOINT=10.0.2.2:9100` in `backend/.env` so presigned URLs are reachable from the emulator.
+  - When testing on the Android emulator, set `MINIO_PUBLIC_ENDPOINT=10.0.2.2:9000` in `backend/.env` so presigned URLs are reachable from the emulator.
 
 
 ---
