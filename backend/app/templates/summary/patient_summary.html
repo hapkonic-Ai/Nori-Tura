@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Medical Summary - {{ patient.name }}</title>
+  <style>
+    @page { size: A4; margin: 2cm; }
+    body { font-family: Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.5; }
+    h1 { font-size: 20pt; margin-bottom: 0.2cm; }
+    h2 { font-size: 14pt; margin-top: 1cm; margin-bottom: 0.3cm; border-bottom: 1px solid #ccc; padding-bottom: 0.1cm; }
+    h3 { font-size: 12pt; margin-top: 0.6cm; margin-bottom: 0.2cm; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.3cm; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; font-weight: bold; }
+    .meta { margin-bottom: 0.5cm; color: #666; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3cm; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9pt; }
+    .badge-active { background: #e6f4ea; color: #137333; }
+    .badge-inactive { background: #fce8e8; color: #c5221f; }
+    .section { margin-bottom: 0.8cm; }
+    ul { margin: 0; padding-left: 1.2cm; }
+    .empty { color: #999; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Overall Medical Summary</h1>
+  <div class="meta">
+    Generated at: {{ generated_at }}<br>
+    Patient ID: {{ patient.id }}
+  </div>
+
+  <h2>Patient Information</h2>
+  <table>
+    <tr>
+      <th>Name</th><td>{{ patient.name }}</td>
+      <th>Age / Gender</th><td>{{ patient.age }} / {{ patient.gender }}</td>
+    </tr>
+    <tr>
+      <th>Blood Group</th><td>{{ patient.blood_group }}</td>
+      <th>Allergies</th><td>{{ patient.allergies }}</td>
+    </tr>
+    <tr>
+      <th>Parent / Guardian</th><td>{{ patient.parent_name }}</td>
+      <th>Parent Phone</th><td>{{ patient.parent_phone }}</td>
+    </tr>
+    <tr>
+      <th>Treating Doctor</th><td>{{ doctor.name if doctor else '—' }}</td>
+      <th>Hospital</th><td>{{ hospital.name if hospital else '—' }}</td>
+    </tr>
+  </table>
+
+  <h2>Summary</h2>
+  <table>
+    <tr>
+      <th>Total OPD Visits</th><td>{{ summary.total_opd_visits }}</td>
+      <th>Total Admissions</th><td>{{ summary.total_admissions }}</td>
+    </tr>
+    <tr>
+      <th>Active Admission</th>
+      <td>{% if summary.active_admission %}Yes{% else %}No{% endif %}</td>
+      <th>Total Consent Forms</th><td>{{ summary.total_consents }}</td>
+    </tr>
+    <tr>
+      <th>Signed Consents</th><td>{{ summary.signed_consents }}</td>
+      <th>Pending Consents</th><td>{{ summary.pending_consents }}</td>
+    </tr>
+    <tr>
+      <th>Documents</th><td>{{ summary.total_documents }}</td>
+      <th>Medical Records</th><td>{{ summary.total_medical_records }}</td>
+    </tr>
+  </table>
+
+  <h2>OPD Records</h2>
+  {% if opd_records %}
+    {% for record in opd_records %}
+    <div class="section">
+      <h3>{{ format_datetime(record.created_at) }} — {{ record.visit_type }}</h3>
+      <p><strong>Complaint:</strong> {{ record.complaint or '—' }}</p>
+      <p><strong>Examination:</strong> {{ record.examination or '—' }}</p>
+      <p><strong>Diagnosis:</strong> {{ record.diagnosis or '—' }}</p>
+      <p><strong>Surgical Decision:</strong> {{ record.surgical_decision or '—' }}</p>
+      <p><strong>Planned Procedure:</strong> {{ record.planned_procedure or '—' }}</p>
+      <p><strong>Advice:</strong> {{ record.advice or '—' }}</p>
+      <p><strong>Follow-up Date:</strong> {{ format_datetime(record.follow_up_date) }}</p>
+      {% if record.medications %}
+        <p><strong>Medications:</strong></p>
+        <ul>
+        {% for med in record.medications %}
+          <li>{{ med.name }} — {{ med.dose }} {{ med.frequency }} × {{ med.duration }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+      {% if record.investigations %}
+        <p><strong>Investigations:</strong></p>
+        <ul>
+        {% for inv in record.investigations %}
+          <li>{{ inv.type }} ({{ inv.status }})</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">No OPD records found.</p>
+  {% endif %}
+
+  <h2>IPD Admissions</h2>
+  {% if admissions %}
+    {% for admission in admissions %}
+    <div class="section">
+      <h3>{{ format_datetime(admission.admitted_at) }} — {{ admission.status }}</h3>
+      <p><strong>Urgency:</strong> {{ admission.urgency }}</p>
+      <p><strong>Ward / Bed:</strong> {{ admission.ward or '—' }} / {{ admission.bed_no or '—' }}</p>
+      <p><strong>Consent Status:</strong> {{ admission.consent_status }}</p>
+
+      {% if admission.pre_op_notes %}
+        <p><strong>Pre-op Notes:</strong> {{ admission.pre_op_notes|length }} record(s)</p>
+      {% endif %}
+      {% if admission.intra_op_notes %}
+        <p><strong>Intra-op Notes:</strong> {{ admission.intra_op_notes|length }} record(s)</p>
+      {% endif %}
+      {% if admission.post_op_notes %}
+        <p><strong>Post-op Notes:</strong> {{ admission.post_op_notes|length }} record(s)</p>
+      {% endif %}
+      {% if admission.discharge_summaries %}
+        <p><strong>Discharge Summary:</strong> Available</p>
+      {% endif %}
+      {% if admission.consent_forms %}
+        <p><strong>Consent Forms:</strong> {{ admission.consent_forms|length }} total</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">No admissions found.</p>
+  {% endif %}
+
+  <h2>Documents</h2>
+  {% if documents %}
+    <ul>
+    {% for doc in documents %}
+      <li>{{ doc.name }} ({{ doc.type }}) — {{ format_datetime(doc.uploaded_at) }}</li>
+    {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">No documents found.</p>
+  {% endif %}
+
+  <h2>Medical Record Images</h2>
+  {% if medical_records %}
+    {% for rec in medical_records %}
+    <div class="section">
+      <h3>{{ rec.title }} — {{ format_datetime(rec.created_at) }}</h3>
+      <p>{{ rec.description or '—' }}</p>
+      {% if rec.images %}
+        <ul>
+        {% for img in rec.images %}
+          <li>{{ img.category }} — {{ img.label or '—' }} ({{ img.image_url }})</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">No medical records found.</p>
+  {% endif %}
+
+</body>
+</html>
