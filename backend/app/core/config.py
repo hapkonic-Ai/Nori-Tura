@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     RAG_TIMEOUT_SECONDS: int = 10
 
     # MinIO / S3-compatible object storage
-    MINIO_ENDPOINT: str = "localhost:9000"
-    MINIO_PUBLIC_ENDPOINT: str = ""  # Optional public host for presigned URLs (e.g. 10.0.2.2:9000 for Android emulator)
+    MINIO_ENDPOINT: str = "localhost:9500"
+    MINIO_PUBLIC_ENDPOINT: str = ""  # Optional public host for presigned URLs (e.g. 10.0.2.2:9500 for Android emulator)
     MINIO_ACCESS_KEY: str = "nonitura"
     MINIO_SECRET_KEY: str = "nonitura123"
     MINIO_BUCKET: str = "nonitura-media"
