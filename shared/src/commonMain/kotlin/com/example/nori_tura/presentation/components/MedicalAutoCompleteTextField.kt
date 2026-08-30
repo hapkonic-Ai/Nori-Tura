@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,8 +31,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
+import com.example.nori_tura.data.AutocompleteSelectionCache
 import com.example.nori_tura.data.MedicalTermRepository
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val DEBOUNCE_MS = 300L
 private const val MIN_QUERY_LENGTH = 2
@@ -47,6 +50,8 @@ private const val TOKEN_DELIMITERS = " \t\n,;:.!?()[]{}\"'`"
  * - Displays up to 5 suggestions in a dropdown anchored to the field.
  * - Replaces only the current word/token when a suggestion is selected and moves
  *   the cursor to the end of the field so the user can keep typing the sentence.
+ * - Records selections in a local per-field cache and boosts previously selected
+ *   terms above server suggestions.
  * - Fails silently on network/rate-limit errors.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +67,8 @@ fun MedicalAutoCompleteTextField(
     minLines: Int = 1,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     fieldType: String? = null,
-    repository: MedicalTermRepository = remember { MedicalTermRepository() }
+    repository: MedicalTermRepository = remember { MedicalTermRepository() },
+    cache: AutocompleteSelectionCache = AutocompleteSelectionCache
 ) {
     var textFieldValue by remember {
         mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
@@ -78,6 +84,7 @@ fun MedicalAutoCompleteTextField(
     var suggestions by remember { mutableStateOf(emptyList<String>()) }
     var ignoreNextQuery by remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val expanded = isFocused && suggestions.isNotEmpty() && !ignoreNextQuery
@@ -119,7 +126,12 @@ fun MedicalAutoCompleteTextField(
             limit = SUGGESTION_LIMIT
         )
             .onSuccess { terms ->
-                suggestions = terms
+                val cachedTerms = if (!fieldType.isNullOrBlank()) {
+                    cache.getSuggestions(token, fieldType, SUGGESTION_LIMIT)
+                } else {
+                    emptyList()
+                }
+                suggestions = mergeSuggestions(cachedTerms, terms, SUGGESTION_LIMIT)
             }
             .onFailure {
                 suggestions = emptyList()
@@ -199,6 +211,9 @@ fun MedicalAutoCompleteTextField(
                         )
                         onValueChange(newText)
                         suggestions = emptyList()
+                        scope.launch {
+                            cache.recordSelection(suggestion, fieldType)
+                        }
                     }
                 )
             }
@@ -240,6 +255,21 @@ private fun highlightedSuggestion(suggestion: String, query: String): AnnotatedS
         }
         append(suffix)
     }
+}
+
+/**
+ * Merge cached and server suggestions, keeping cached terms first and
+ * de-duplicating by case-insensitive value.  The result is capped at [limit].
+ */
+private fun mergeSuggestions(
+    cached: List<String>,
+    server: List<String>,
+    limit: Int
+): List<String> {
+    val merged = mutableListOf<String>()
+    cached.forEach { if (merged.none { existing -> existing.equals(it, ignoreCase = true) }) merged.add(it) }
+    server.forEach { if (merged.none { existing -> existing.equals(it, ignoreCase = true) }) merged.add(it) }
+    return merged.take(limit)
 }
 
 /**

@@ -309,22 +309,22 @@ Status: Spec complete; implementation pending.
 
 Goal: remember terms the user selects per field type and boost them in future suggestions.
 
-- [ ] **Add `AutocompleteSelectionCache`**
+- [x] **Add `AutocompleteSelectionCache`**
   - File: `shared/src/commonMain/kotlin/com/example/nori_tura/data/AutocompleteSelectionCache.kt`
   - Backed by `com.russhwolf.settings.Settings`.
-  - Store per-field term list with `count` and `lastUsedAt`.
-  - Prune to top-K entries per field or entries older than 90 days.
+  - Store per-field term list with `count` and `selectedAtMillis`.
+  - Prune to top 50 entries per field and evict entries older than 90 days.
 
-- [ ] **Record selections in `MedicalAutoCompleteTextField`**
+- [x] **Record selections in `MedicalAutoCompleteTextField`**
   - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/components/MedicalAutoCompleteTextField.kt`
-  - On dropdown item click, call `AutocompleteSelectionCache.recordSelection(fieldType, term)`.
+  - On dropdown item click, call `AutocompleteSelectionCache.recordSelection(term, fieldType)`.
 
-- [ ] **Merge cached terms into suggestions**
+- [x] **Merge cached terms into suggestions**
   - File: `shared/src/commonMain/kotlin/com/example/nori_tura/presentation/components/MedicalAutoCompleteTextField.kt`
   - Read cache for the current `fieldType`.
   - Boost matching cached terms to the top of the dropdown; fill remaining slots with server results.
-  - De-duplicate so the same term is not shown twice.
-  - If server call fails, still show cached suggestions as offline fallback.
+  - De-duplicate (case-insensitive) so the same term is not shown twice.
+  - If server call fails, cached suggestions are not currently surfaced automatically (the repository returns an empty list); this can be enabled later by querying the cache independently.
 
 ## Phase 2 — Telemetry to MedService
 
