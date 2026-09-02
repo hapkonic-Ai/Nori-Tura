@@ -521,7 +521,9 @@ async def _log_consent_audit(
     screen) and the signer's masked phone, documenting the assisted,
     in-person consent workflow.
     """
-    actor_user_id = user.doctor_id or user.nurse_id or user.patient_id
+    # Prefer the id matching the actor's own role (nurse / patient) over the
+    # supervising doctor so the audit names the actual initiator.
+    actor_user_id = user.nurse_id or user.patient_id or user.doctor_id
     await prisma.consent_audit_events.create(
         data={
             "consent_id": consent.id,

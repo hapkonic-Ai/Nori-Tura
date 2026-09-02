@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nori_tura.data.AuthRepository
 import com.example.nori_tura.data.dto.ConsentOtpVerifyRequest
 import kotlinx.serialization.json.JsonObject
 import com.example.nori_tura.presentation.components.BrandTopBar
@@ -127,6 +128,11 @@ private fun ConsentViewContent(
     var acknowledged by remember { mutableStateOf(false) }
     var signerAttested by remember { mutableStateOf(false) }
     val witnessPhoneValid = witnessMobile.matches(Regex("^\\+91[0-9]{10}$"))
+    // The handover notice is an instruction to hospital staff only; a parent
+    // viewing this screen on their own device must not see it.
+    val isStaff = remember {
+        AuthRepository().getRole()?.lowercase() in listOf("surgeon", "nurse")
+    }
 
     Column(
         modifier = Modifier
@@ -240,18 +246,20 @@ private fun ConsentViewContent(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = NorituraColors.PrimaryBlueLight),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Text(
-                            text = "Hand the device to the parent / patient to review the summary and enter their OTP.",
-                            color = NorituraColors.PrimaryBlue,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            modifier = Modifier.padding(12.dp)
-                        )
+                    if (isStaff) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = NorituraColors.PrimaryBlueLight),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Text(
+                                text = "Hand the device to the parent / patient to review the summary and enter their OTP.",
+                                color = NorituraColors.PrimaryBlue,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
                 }
                 is ConsentViewViewModel.OtpState.Error -> {
