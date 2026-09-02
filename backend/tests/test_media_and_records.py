@@ -11,6 +11,8 @@ import io
 
 import pytest
 
+from app.core.database import prisma
+
 
 @pytest.mark.asyncio
 async def test_upload_image_stores_media_and_returns_url(client, auth_headers):

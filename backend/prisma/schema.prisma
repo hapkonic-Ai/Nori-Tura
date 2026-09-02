@@ -386,11 +386,13 @@ model otp_sessions {
   phone      String
   otp_hash   String
   role       String?
+  purpose    String   @default("login")
+  context_id String?
   expires_at DateTime
   verified   Boolean  @default(false)
   created_at DateTime @default(now())
-  
-  @@index([phone])
+
+  @@index([phone, purpose])
 }
 
 model consent_forms {
@@ -405,6 +407,9 @@ model consent_forms {
   parent_signature_url       String?
   witness_name               String?
   witness_signature_url      String?
+  parent_auth_method         String?
+  parent_auth_phone          String?
+  otp_verified_at            DateTime?
   generated_at               DateTime  @default(now())
   signed_at                  DateTime?
   generated_by               String    @default("surgeon")

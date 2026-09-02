@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ConsentFormCreate(BaseModel):
@@ -66,14 +66,13 @@ class ConsentSuggestRequest(BaseModel):
     patient_gender: Optional[str] = None
 
 
-class ConsentSignRequest(BaseModel):
-    """Request body for signing a consent form."""
+class ConsentOtpVerifyRequest(BaseModel):
+    """Request body for signing a consent form via parent OTP verification."""
 
-    parent_signature_url: str
-    witness_name: Optional[str] = None
+    otp: str = Field(..., min_length=6, max_length=6)
+    witness_name: Optional[str] = Field(None, min_length=2)
     witness_relationship: Optional[str] = None
-    witness_mobile: Optional[str] = None
-    witness_signature_url: Optional[str] = None
+    witness_mobile: Optional[str] = Field(None, pattern=r"^\+91[0-9]{10}$")
 
 
 class ConsentFormResponse(BaseModel):

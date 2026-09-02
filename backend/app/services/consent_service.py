@@ -152,22 +152,29 @@ def _build_unsigned_context(form_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def _build_signed_context(
     form_data: Dict[str, Any],
-    parent_signature_url: str,
+    parent_auth_method: str = "otp",
+    parent_auth_phone: Optional[str] = None,
     witness_name: Optional[str] = None,
     witness_relationship: Optional[str] = None,
     witness_mobile: Optional[str] = None,
-    witness_signature_url: Optional[str] = None,
     signed_at: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build context for the signed consent template."""
     context = _build_common_context(form_data)
     context["status"] = "Signed"
-    context["parent_signature_url"] = parent_signature_url
+    context["parent_auth_method"] = parent_auth_method
+    context["parent_auth_phone"] = parent_auth_phone or ""
     context["witness_name"] = witness_name or ""
     context["witness_relationship"] = witness_relationship or ""
     context["witness_mobile"] = witness_mobile or ""
-    context["witness_signature_url"] = witness_signature_url or ""
     context["signed_at"] = signed_at or datetime.now().isoformat()
+    if parent_auth_method == "otp":
+        context["otp_attestation"] = (
+            f"Parent/Guardian consent verified via OTP sent to "
+            f"{context['parent_auth_phone']} at {context['signed_at']}"
+        )
+    else:
+        context["otp_attestation"] = ""
 
     # QR code for signed form includes the signed timestamp
     qr_url = generate_consent_qr_data_uri(
@@ -222,15 +229,15 @@ def generate_consent_pdf(form_data: Dict[str, Any], template_html: Optional[str]
 
 def generate_signed_consent_pdf(
     form_data: Dict[str, Any],
-    parent_signature_url: str,
+    parent_auth_method: str = "otp",
+    parent_auth_phone: Optional[str] = None,
     witness_name: Optional[str] = None,
     witness_relationship: Optional[str] = None,
     witness_mobile: Optional[str] = None,
-    witness_signature_url: Optional[str] = None,
     signed_at: Optional[str] = None,
     template_html: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Generate a signed consent form PDF with embedded signature images.
+    """Generate a signed consent form PDF with an OTP verification attestation.
 
     Returns a dict with:
         - pdf_bytes: the generated PDF bytes
@@ -240,11 +247,11 @@ def generate_signed_consent_pdf(
     """
     context = _build_signed_context(
         form_data=form_data,
-        parent_signature_url=parent_signature_url,
+        parent_auth_method=parent_auth_method,
+        parent_auth_phone=parent_auth_phone,
         witness_name=witness_name,
         witness_relationship=witness_relationship,
         witness_mobile=witness_mobile,
-        witness_signature_url=witness_signature_url,
         signed_at=signed_at,
     )
     template = _load_template("consent_signed.html", template_html=template_html)
@@ -271,11 +278,11 @@ def render_consent_html_preview(form_data: Dict[str, Any], signed: bool = False)
     if signed:
         context = _build_signed_context(
             form_data=form_data,
-            parent_signature_url=form_data.get("parent_signature_url", ""),
+            parent_auth_method=form_data.get("parent_auth_method", "otp"),
+            parent_auth_phone=form_data.get("parent_auth_phone"),
             witness_name=form_data.get("witness_name"),
             witness_relationship=form_data.get("witness_relationship"),
             witness_mobile=form_data.get("witness_mobile"),
-            witness_signature_url=form_data.get("witness_signature_url"),
             signed_at=form_data.get("signed_at"),
         )
         template = _load_template("consent_signed.html")

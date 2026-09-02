@@ -65,7 +65,7 @@ async def send_otp(req: SendOtpRequest):
             role = "patient_parent"
         records = {}
 
-    returned_otp = await create_otp_session(req.phone, role)
+    returned_otp = await create_otp_session(req.phone, role, purpose="login")
 
     return {
         "message": "OTP sent successfully",
@@ -117,7 +117,7 @@ async def verify_otp_endpoint(req: VerifyOtpRequest):
     from app.services.otp_service import verify_otp
 
     try:
-        result = await verify_otp(req.phone, req.otp)
+        result = await verify_otp(req.phone, req.otp, purpose="login")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 

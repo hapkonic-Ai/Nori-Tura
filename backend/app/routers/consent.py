@@ -15,7 +15,7 @@ from app.core.auth_deps import (
 from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
 from app.services.rag_service import get_consent_content
 from app.core.config import get_settings
-from app.schemas.consent import ConsentFormCreate, ConsentSignRequest, ConsentSuggestRequest
+from app.schemas.consent import ConsentFormCreate, ConsentOtpVerifyRequest, ConsentSuggestRequest
 from app.schemas.consent_acknowledgment import (
     ConsentAcknowledgmentRequest,
     ConsentAcknowledgmentResponse,
@@ -467,15 +467,27 @@ async def get_consent_form(
     return consent
 
 
-@router.post("/forms/{consent_id}/sign")
-async def sign_consent_form(
+def _mask_phone(phone: str) -> str:
+    """Mask an Indian mobile number for display, e.g. +91*****43210."""
+    if len(phone) >= 5:
+        return phone[:3] + "*****" + phone[-4:]
+    return phone
+
+
+@router.post("/forms/{consent_id}/request-otp")
+async def request_consent_otp(
     consent_id: str,
-    req: ConsentSignRequest,
     user: CurrentUser = Depends(get_current_user),
 ):
-    consent = await prisma.consent_forms.find_first(
-        where={"id": consent_id},
-    )
+    """Send a 6-digit OTP to the patient's parent phone for consent signing.
+
+    The OTP is bound to this consent form (purpose="consent_sign",
+    context_id=consent_id) so it cannot be replayed for login or for another
+    consent form.
+    """
+    from app.services.otp_service import create_otp_session
+
+    consent = await prisma.consent_forms.find_first(where={"id": consent_id})
     if not consent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
     await _require_consent_access(user, consent)
@@ -483,7 +495,58 @@ async def sign_consent_form(
     if consent.status != "pending":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
 
+    patient = await prisma.patients.find_first(where={"id": consent.patient_id})
+    if not patient or not patient.parent_phone:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient has no registered parent phone")
+
+    returned_otp = await create_otp_session(
+        patient.parent_phone,
+        role="patient_parent",
+        purpose="consent_sign",
+        context_id=consent_id,
+    )
+
+    return {
+        "message": "OTP sent successfully",
+        "expires_in_minutes": settings.OTP_EXPIRY_MINUTES,
+        "phone": _mask_phone(patient.parent_phone),
+        "dev_otp": returned_otp,
+    }
+
+
+@router.post("/forms/{consent_id}/verify-otp")
+async def verify_consent_otp_and_sign(
+    consent_id: str,
+    req: ConsentOtpVerifyRequest,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Verify the parent OTP and mark the consent form as signed."""
+    from app.services.otp_service import verify_otp
+
+    consent = await prisma.consent_forms.find_first(where={"id": consent_id})
+    if not consent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
+    await _require_consent_access(user, consent)
+
+    if consent.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
+
+    patient = await prisma.patients.find_first(where={"id": consent.patient_id})
+    if not patient or not patient.parent_phone:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient has no registered parent phone")
+
+    try:
+        await verify_otp(
+            patient.parent_phone,
+            req.otp,
+            purpose="consent_sign",
+            context_id=consent_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
     signed_at = datetime.now(timezone.utc)
+    masked_phone = _mask_phone(patient.parent_phone)
     form_data = consent.content_json if isinstance(consent.content_json, dict) else dict(consent.content_json or {})
     form_data["consent_id"] = consent.id
     form_data["status"] = "Signed"
@@ -500,11 +563,11 @@ async def sign_consent_form(
 
     signed_pdf_result = generate_signed_consent_pdf(
         form_data=form_data,
-        parent_signature_url=req.parent_signature_url,
+        parent_auth_method="otp",
+        parent_auth_phone=masked_phone,
         witness_name=req.witness_name,
         witness_relationship=req.witness_relationship,
         witness_mobile=req.witness_mobile,
-        witness_signature_url=req.witness_signature_url,
         signed_at=signed_at.isoformat(),
         template_html=layout_html,
     )
@@ -516,11 +579,12 @@ async def sign_consent_form(
     updated = await prisma.consent_forms.update(
         where={"id": consent_id},
         data={
-            "parent_signature_url": req.parent_signature_url,
+            "parent_auth_method": "otp",
+            "parent_auth_phone": masked_phone,
+            "otp_verified_at": signed_at,
             "witness_name": req.witness_name,
             "witness_relationship": req.witness_relationship,
             "witness_mobile": req.witness_mobile,
-            "witness_signature_url": req.witness_signature_url,
             "signed_at": signed_at,
             "signed_pdf_url": signed_pdf_url,
             "signed_pdf_hash": signed_pdf_hash,

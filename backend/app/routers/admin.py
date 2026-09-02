@@ -952,11 +952,11 @@ async def download_consent_form_pdf(
     if consent.status == "signed":
         pdf_result = generate_signed_consent_pdf(
             form_data=form_data,
-            parent_signature_url=consent.parent_signature_url or "",
+            parent_auth_method=consent.parent_auth_method or "otp",
+            parent_auth_phone=consent.parent_auth_phone,
             witness_name=consent.witness_name,
             witness_relationship=consent.witness_relationship,
             witness_mobile=consent.witness_mobile,
-            witness_signature_url=consent.witness_signature_url,
             signed_at=consent.signed_at.isoformat() if consent.signed_at else datetime.now(timezone.utc).isoformat(),
             template_html=layout_html,
         )

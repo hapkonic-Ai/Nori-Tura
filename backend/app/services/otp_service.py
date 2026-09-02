@@ -31,32 +31,50 @@ async def send_otp_sms(phone: str, otp: str) -> bool:
     return True
 
 
-async def create_otp_session(phone: str, role: str = None) -> str:
+async def create_otp_session(
+    phone: str,
+    role: str = None,
+    purpose: str = "login",
+    context_id: str = None,
+) -> str:
     otp = generate_otp(settings.OTP_LENGTH)
     hashed = hash_otp(otp)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
-    
-    # Invalidate old sessions for this phone
-    await prisma.otp_sessions.delete_many(where={"phone": phone})
-    
+
+    # Invalidate old sessions for this phone + purpose (login and consent
+    # OTPs for the same phone must not clobber each other).
+    await prisma.otp_sessions.delete_many(where={"phone": phone, "purpose": purpose})
+
     await prisma.otp_sessions.create(data={
         "phone": phone,
         "otp_hash": hashed,
         "role": role,
+        "purpose": purpose,
+        "context_id": context_id,
         "expires_at": expires_at,
         "verified": False
     })
-    
+
     await send_otp_sms(phone, otp)
     return otp  # Return only for dev/testing; production should not return
 
 
-async def verify_otp(phone: str, otp: str) -> dict:
+async def verify_otp(
+    phone: str,
+    otp: str,
+    purpose: str = "login",
+    context_id: str = None,
+) -> dict:
+    where = {
+        "phone": phone,
+        "verified": False,
+        "purpose": purpose,
+    }
+    if context_id is not None:
+        where["context_id"] = context_id
+
     session = await prisma.otp_sessions.find_first(
-        where={
-            "phone": phone,
-            "verified": False,
-        },
+        where=where,
         order={"created_at": "desc"}
     )
     

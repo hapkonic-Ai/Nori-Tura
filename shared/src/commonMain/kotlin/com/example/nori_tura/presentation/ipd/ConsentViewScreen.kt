@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -27,30 +27,28 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.nori_tura.data.dto.ConsentSignRequest
+import com.example.nori_tura.data.dto.ConsentOtpVerifyRequest
 import kotlinx.serialization.json.JsonObject
 import com.example.nori_tura.presentation.components.BrandTopBar
 import com.example.nori_tura.presentation.components.ErrorState
 import com.example.nori_tura.presentation.components.LoadingState
 import com.example.nori_tura.presentation.components.NorituraScaffold
-import com.example.nori_tura.presentation.components.SignaturePad
-import com.example.nori_tura.presentation.components.AuthenticatedUrlImage
 import com.example.nori_tura.ui.theme.NorituraColors
-import com.example.nori_tura.util.encodeSignatureToPngBase64
 import com.example.nori_tura.util.openUrl
 
 @Composable
@@ -62,6 +60,7 @@ fun ConsentViewScreen(
     topBarTitle: String = "Consent Form"
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val otpState by viewModel.otpState.collectAsState()
 
     NorituraScaffold(
         topBar = {
@@ -89,8 +88,10 @@ fun ConsentViewScreen(
             is ConsentViewViewModel.UiState.Success -> {
                 ConsentViewContent(
                     consent = state.consent,
-                    onSign = { request ->
-                        viewModel.signConsent(request)
+                    otpState = otpState,
+                    onRequestOtp = { viewModel.requestOtp() },
+                    onVerifyOtp = { request ->
+                        viewModel.verifyOtp(request)
                     }
                 )
             }
@@ -101,16 +102,18 @@ fun ConsentViewScreen(
 @Composable
 private fun ConsentViewContent(
     consent: com.example.nori_tura.data.dto.ConsentFormDto,
-    onSign: (ConsentSignRequest) -> Unit
+    otpState: ConsentViewViewModel.OtpState,
+    onRequestOtp: () -> Unit,
+    onVerifyOtp: (ConsentOtpVerifyRequest) -> Unit
 ) {
     val isSigned = consent.status == "signed"
     val content = consent.contentJson
 
+    var otp by remember { mutableStateOf("") }
+    var witnessOn by remember { mutableStateOf(false) }
     var witnessName by remember { mutableStateOf(consent.witnessName ?: "") }
-    val parentSignaturePaths = remember { mutableStateListOf<List<Offset>>() }
-    var parentSignatureDataUrl by remember { mutableStateOf("") }
-    val witnessSignaturePaths = remember { mutableStateListOf<List<Offset>>() }
-    var witnessSignatureDataUrl by remember { mutableStateOf("") }
+    var witnessRelationship by remember { mutableStateOf(consent.witnessRelationship ?: "") }
+    var witnessMobile by remember { mutableStateOf(consent.witnessMobile ?: "") }
     var acknowledged by remember { mutableStateOf(false) }
 
     Column(
@@ -200,49 +203,120 @@ private fun ConsentViewContent(
             }
 
             Text(
-                text = "Parent / Guardian Signature",
+                text = "Parent Verification",
                 color = NorituraColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
 
-            SignaturePad(
-                modifier = Modifier.fillMaxWidth(),
-                onPathsChange = { paths ->
-                    parentSignaturePaths.clear()
-                    parentSignaturePaths.addAll(paths)
-                    parentSignatureDataUrl = if (paths.isNotEmpty()) {
-                        encodeSignatureToPngBase64(paths, 800, 300)
-                    } else {
-                        ""
-                    }
-                }
-            )
-
             Text(
-                text = "Witness Signature (optional)",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                text = "An OTP will be sent to the parent / guardian's registered phone number. Signing happens only after the parent shares the OTP.",
+                color = NorituraColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
             )
 
-            SignaturePad(
-                modifier = Modifier.fillMaxWidth(),
-                onPathsChange = { paths ->
-                    witnessSignaturePaths.clear()
-                    witnessSignaturePaths.addAll(paths)
-                    witnessSignatureDataUrl = if (paths.isNotEmpty()) {
-                        encodeSignatureToPngBase64(paths, 800, 300)
-                    } else {
-                        ""
+            when (val state = otpState) {
+                is ConsentViewViewModel.OtpState.Sent -> {
+                    Text(
+                        text = "OTP sent to ${state.phone}",
+                        color = NorituraColors.PostOp,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                    state.devOtp?.let {
+                        Text(
+                            text = "Dev OTP: $it",
+                            color = NorituraColors.TextTertiary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
-            )
+                is ConsentViewViewModel.OtpState.Error -> {
+                    Text(
+                        text = state.message,
+                        color = NorituraColors.PreOp,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                else -> {}
+            }
+
+            OutlinedButton(
+                onClick = onRequestOtp,
+                enabled = otpState !is ConsentViewViewModel.OtpState.Sending &&
+                    otpState !is ConsentViewViewModel.OtpState.Verifying,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (otpState is ConsentViewViewModel.OtpState.Sent) "Resend OTP"
+                    else if (otpState is ConsentViewViewModel.OtpState.Sending) "Sending OTP…"
+                    else "Send OTP"
+                )
+            }
 
             OutlinedTextField(
-                value = witnessName,
-                onValueChange = { witnessName = it },
-                label = { Text("Witness Name (optional)") },
+                value = otp,
+                onValueChange = { input ->
+                    if (input.length <= 6 && input.all { it.isDigit() }) otp = input
+                },
+                label = { Text("6-digit OTP") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Add witness (optional)",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                Switch(
+                    checked = witnessOn,
+                    onCheckedChange = { checked ->
+                        witnessOn = checked
+                        if (!checked) {
+                            witnessName = ""
+                            witnessRelationship = ""
+                            witnessMobile = ""
+                        }
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = NorituraColors.Surface,
+                        checkedTrackColor = NorituraColors.PrimaryBlue,
+                        uncheckedThumbColor = NorituraColors.TextTertiary
+                    )
+                )
+            }
+
+            AnimatedVisibility(visible = witnessOn) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = witnessName,
+                        onValueChange = { witnessName = it },
+                        label = { Text("Witness Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = witnessRelationship,
+                        onValueChange = { witnessRelationship = it },
+                        label = { Text("Relationship to Patient") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = witnessMobile,
+                        onValueChange = { witnessMobile = it },
+                        label = { Text("Witness Phone (+91…)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -266,21 +340,28 @@ private fun ConsentViewContent(
 
             Button(
                 onClick = {
-                    if (parentSignatureDataUrl.isNotBlank()) {
-                        onSign(
-                            ConsentSignRequest(
-                                parentSignatureUrl = parentSignatureDataUrl,
-                                witnessName = witnessName.takeIf { it.isNotBlank() },
-                                witnessSignatureUrl = witnessSignatureDataUrl.takeIf { it.isNotBlank() }
-                            )
+                    onVerifyOtp(
+                        ConsentOtpVerifyRequest(
+                            otp = otp,
+                            witnessName = witnessName.takeIf { witnessOn && it.isNotBlank() },
+                            witnessRelationship = witnessRelationship.takeIf { witnessOn && it.isNotBlank() },
+                            witnessMobile = witnessMobile.takeIf { witnessOn && it.isNotBlank() }
                         )
-                    }
+                    )
                 },
-                enabled = parentSignatureDataUrl.isNotBlank() && acknowledged,
+                enabled = otp.length == 6 &&
+                    acknowledged &&
+                    (!witnessOn || witnessName.isNotBlank()) &&
+                    (otpState is ConsentViewViewModel.OtpState.Sent ||
+                        otpState is ConsentViewViewModel.OtpState.Error) &&
+                    otpState !is ConsentViewViewModel.OtpState.Verifying,
                 colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.PrimaryBlue),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Sign Consent")
+                Text(
+                    if (otpState is ConsentViewViewModel.OtpState.Verifying) "Verifying…"
+                    else "Verify OTP & Sign Consent"
+                )
             }
         } else {
             SignedSuccessCard(consent = consent)
@@ -397,27 +478,11 @@ private fun SignedSuccessCard(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-
-            if (consent.parentSignatureUrl != null || consent.witnessSignatureUrl != null) {
+            consent.witnessMobile?.let {
                 Text(
-                    text = "Signatures",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                )
-            }
-
-            consent.parentSignatureUrl?.let { url ->
-                AuthenticatedUrlImage(
-                    url = url,
-                    contentDescription = "Parent signature",
-                    modifier = Modifier.fillMaxWidth().aspectRatio(2.5f)
-                )
-            }
-            consent.witnessSignatureUrl?.let { url ->
-                AuthenticatedUrlImage(
-                    url = url,
-                    contentDescription = "Witness signature",
-                    modifier = Modifier.fillMaxWidth().aspectRatio(2.5f)
+                    text = "Witness Phone: $it",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 

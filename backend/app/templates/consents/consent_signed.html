@@ -472,27 +472,22 @@
     <h2>8. Signatures</h2>
     <div class="signature-grid">
       <div class="signature-block">
-        {% if parent_signature_url %}
-        <img class="signature-img" src="{{ parent_signature_url }}" alt="Parent signature"><br>
-        {% endif %}
         <div class="signature-line">
-          <strong>Parent / Guardian Signature</strong><br>
+          <strong>Parent / Guardian</strong><br>
+          {% if otp_attestation %}
+          <span class="small muted">{{ otp_attestation }}</span><br>
+          {% endif %}
           <span class="small muted">{{ parent_name | default("", true) }}</span>
         </div>
       </div>
+      {% if witness_name %}
       <div class="signature-block">
-        {% if witness_signature_url %}
-        <img class="signature-img" src="{{ witness_signature_url }}" alt="Witness signature"><br>
-        {% endif %}
         <div class="signature-line">
-          <strong>Witness Signature</strong><br>
-          {% if witness_name %}
+          <strong>Witness</strong><br>
           <span class="small muted">{{ witness_name }}{% if witness_relationship %}, {{ witness_relationship }}{% endif %}{% if witness_mobile %}, {{ witness_mobile }}{% endif %}</span>
-          {% else %}
-          <span class="small muted">Name, Relationship, Mobile</span>
-          {% endif %}
         </div>
       </div>
+      {% endif %}
     </div>
     <div class="signature-grid" style="margin-top: 18px;">
       <div class="signature-block">

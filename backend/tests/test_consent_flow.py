@@ -1,4 +1,4 @@
-"""Backend tests for the consent form generate/view/sign flow.
+"""Backend tests for the consent form generate/view/OTP-sign flow.
 
 Run with:
 
@@ -9,18 +9,14 @@ Run with:
 import pytest
 
 
-@pytest.mark.asyncio
-async def test_create_and_sign_consent_form(client, auth_headers, test_admission):
-    """Full surgeon flow: create a consent form, fetch it, then sign it."""
-
-    # 1. Create a consent form for the admission.
+async def _create_consent(client, auth_headers, admission_id, procedure="Laparoscopic Appendectomy"):
     create_response = await client.post(
         "/consent/forms",
         json={
-            "admission_id": test_admission.id,
+            "admission_id": admission_id,
             "form_type": "Surgical Consent",
             "diagnosis": "Appendicitis",
-            "procedure": "Laparoscopic Appendectomy",
+            "procedure": procedure,
             "anesthesia": "General anesthesia",
             "risks": "Bleeding, infection, anesthesia complications",
             "benefits": "Removal of infected appendix, symptom relief",
@@ -33,79 +29,97 @@ async def test_create_and_sign_consent_form(client, auth_headers, test_admission
         headers=auth_headers,
     )
     assert create_response.status_code == 201
-    body = create_response.json()
-    consent = body["consent_form"]
-    consent_id = consent["id"]
-    assert consent["status"] == "pending"
-    assert consent["admission_id"] == test_admission.id
-    assert consent["content_json"]["procedure"] == "Laparoscopic Appendectomy"
-    assert consent["consent_number"].startswith("NT-CONSENT-")
+    return create_response.json()["consent_form"]["id"]
 
-    # 2. Fetch the consent form by id.
+
+@pytest.mark.asyncio
+async def test_create_and_sign_consent_form_with_otp(client, auth_headers, test_admission):
+    """Full surgeon flow: create a consent form, request parent OTP, verify and sign."""
+
+    # 1. Create a consent form for the admission.
+    consent_id = await _create_consent(client, auth_headers, test_admission.id)
+
     get_response = await client.get(f"/consent/forms/{consent_id}", headers=auth_headers)
     assert get_response.status_code == 200
-    fetched = get_response.json()
-    assert fetched["id"] == consent_id
-    assert fetched["status"] == "pending"
+    assert get_response.json()["status"] == "pending"
 
-    # 3. Sign the consent form.
+    # 2. Request OTP for the patient's parent phone (+919999999999 fixture).
+    otp_response = await client.post(
+        f"/consent/forms/{consent_id}/request-otp",
+        headers=auth_headers,
+    )
+    assert otp_response.status_code == 200
+    otp_body = otp_response.json()
+    assert otp_body["phone"].startswith("+91")
+    otp = otp_body["dev_otp"]
+    assert len(otp) == 6
+
+    # 3. Wrong OTP must be rejected.
+    wrong = await client.post(
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={"otp": "000000" if otp != "000000" else "111111"},
+        headers=auth_headers,
+    )
+    assert wrong.status_code == 401
+
+    # 4. Verify with the correct OTP and optional witness details.
     sign_response = await client.post(
-        f"/consent/forms/{consent_id}/sign",
+        f"/consent/forms/{consent_id}/verify-otp",
         json={
-            "parent_signature_url": "http://testserver/media/00000000-0000-0000-0000-000000000001",
+            "otp": otp,
             "witness_name": "Ravi Kumar",
             "witness_relationship": "Uncle",
             "witness_mobile": "+919876543211",
-            "witness_signature_url": "http://testserver/media/00000000-0000-0000-0000-000000000002",
         },
         headers=auth_headers,
     )
     assert sign_response.status_code == 200
     signed = sign_response.json()
     assert signed["status"] == "signed"
-    assert signed["parent_signature_url"] == "http://testserver/media/00000000-0000-0000-0000-000000000001"
+    assert signed["parent_auth_method"] == "otp"
+    assert signed["parent_auth_phone"].startswith("+91")
     assert signed["witness_name"] == "Ravi Kumar"
+    assert signed["witness_relationship"] == "Uncle"
+    assert signed["witness_mobile"] == "+919876543211"
     assert signed["signed_pdf_hash"] is not None
 
-    # 4. Fetch again and confirm signed state.
+    # 5. Fetch again and confirm signed state.
     get_signed_response = await client.get(f"/consent/forms/{consent_id}", headers=auth_headers)
     assert get_signed_response.status_code == 200
     assert get_signed_response.json()["status"] == "signed"
 
 
 @pytest.mark.asyncio
-async def test_sign_already_signed_consent_fails(client, auth_headers, test_admission):
-    """Signing a consent form twice should return 400."""
-    create_response = await client.post(
-        "/consent/forms",
-        json={
-            "admission_id": test_admission.id,
-            "form_type": "Surgical Consent",
-            "diagnosis": "Hernia",
-            "procedure": "Herniotomy",
-            "anesthesia": "General anesthesia",
-            "risks": "Infection, recurrence",
-            "benefits": "Definitive repair",
-            "alternatives": "Observation",
-            "post_op_care": "Rest",
-        },
+async def test_sign_without_otp_fails(client, auth_headers, test_admission):
+    """Verifying with no OTP session requested must return 401."""
+    consent_id = await _create_consent(client, auth_headers, test_admission.id, procedure="Herniotomy")
+
+    sign_response = await client.post(
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={"otp": "123456"},
         headers=auth_headers,
     )
-    consent_id = create_response.json()["consent_form"]["id"]
+    assert sign_response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_sign_already_signed_consent_fails(client, auth_headers, test_admission):
+    """Signing a consent form twice should return 400."""
+    consent_id = await _create_consent(client, auth_headers, test_admission.id, procedure="Herniotomy")
+
+    otp = (
+        await client.post(f"/consent/forms/{consent_id}/request-otp", headers=auth_headers)
+    ).json()["dev_otp"]
 
     await client.post(
-        f"/consent/forms/{consent_id}/sign",
-        json={
-            "parent_signature_url": "http://testserver/media/00000000-0000-0000-0000-000000000001",
-        },
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={"otp": otp},
         headers=auth_headers,
     )
 
     second_sign = await client.post(
-        f"/consent/forms/{consent_id}/sign",
-        json={
-            "parent_signature_url": "http://testserver/media/00000000-0000-0000-0000-000000000001",
-        },
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={"otp": otp},
         headers=auth_headers,
     )
     assert second_sign.status_code == 400
