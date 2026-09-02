@@ -67,8 +67,8 @@ actual fun encodeSignatureToPngBase64(paths: List<List<Offset>>, width: Int, hei
 
     UIColor.blackColor.setStroke()
     CGContextSetLineWidth(context, 4.0)
-    CGContextSetLineCap(context, 1u as CGLineCap)
-    CGContextSetLineJoin(context, 1u as CGLineJoin)
+    CGContextSetLineCap(context, CGLineCap.kCGLineCapRound)
+    CGContextSetLineJoin(context, CGLineJoin.kCGLineJoinRound)
 
     paths.forEach { stroke ->
         if (stroke.size < 2) return@forEach
