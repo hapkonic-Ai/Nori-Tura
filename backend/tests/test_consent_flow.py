@@ -62,7 +62,15 @@ async def test_create_and_sign_consent_form_with_otp(client, auth_headers, test_
     )
     assert wrong.status_code == 401
 
-    # 4. Verify with the correct OTP and optional witness details.
+    # 4. Request witness OTP and verify both OTPs to sign.
+    witness_otp_response = await client.post(
+        f"/consent/forms/{consent_id}/request-witness-otp",
+        json={"witness_mobile": "+919876543211"},
+        headers=auth_headers,
+    )
+    assert witness_otp_response.status_code == 200
+    witness_otp = witness_otp_response.json()["dev_otp"]
+
     sign_response = await client.post(
         f"/consent/forms/{consent_id}/verify-otp",
         json={
@@ -70,6 +78,7 @@ async def test_create_and_sign_consent_form_with_otp(client, auth_headers, test_
             "witness_name": "Ravi Kumar",
             "witness_relationship": "Uncle",
             "witness_mobile": "+919876543211",
+            "witness_otp": witness_otp,
         },
         headers=auth_headers,
     )
@@ -81,6 +90,7 @@ async def test_create_and_sign_consent_form_with_otp(client, auth_headers, test_
     assert signed["witness_name"] == "Ravi Kumar"
     assert signed["witness_relationship"] == "Uncle"
     assert signed["witness_mobile"] == "+919876543211"
+    assert signed["witness_verified_at"] is not None
     assert signed["signed_pdf_hash"] is not None
 
     # 5. Fetch again and confirm signed state.
@@ -124,3 +134,72 @@ async def test_sign_already_signed_consent_fails(client, auth_headers, test_admi
     )
     assert second_sign.status_code == 400
     assert "already signed" in second_sign.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_witness_otp_required_when_witness_given(client, auth_headers, test_admission):
+    """Providing witness details without witness_otp must fail validation (422)."""
+    consent_id = await _create_consent(client, auth_headers, test_admission.id, procedure="Herniotomy")
+
+    otp = (
+        await client.post(f"/consent/forms/{consent_id}/request-otp", headers=auth_headers)
+    ).json()["dev_otp"]
+
+    sign_response = await client.post(
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={
+            "otp": otp,
+            "witness_name": "Ravi Kumar",
+            "witness_mobile": "+919876543211",
+        },
+        headers=auth_headers,
+    )
+    assert sign_response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_wrong_witness_otp_rejected(client, auth_headers, test_admission):
+    """A valid parent OTP but wrong witness OTP must not sign the consent."""
+    consent_id = await _create_consent(client, auth_headers, test_admission.id, procedure="Herniotomy")
+
+    otp = (
+        await client.post(f"/consent/forms/{consent_id}/request-otp", headers=auth_headers)
+    ).json()["dev_otp"]
+    witness_otp = (
+        await client.post(
+            f"/consent/forms/{consent_id}/request-witness-otp",
+            json={"witness_mobile": "+919876543211"},
+            headers=auth_headers,
+        )
+    ).json()["dev_otp"]
+
+    sign_response = await client.post(
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={
+            "otp": otp,
+            "witness_name": "Ravi Kumar",
+            "witness_mobile": "+919876543211",
+            "witness_otp": "000000" if witness_otp != "000000" else "111111",
+        },
+        headers=auth_headers,
+    )
+    assert sign_response.status_code == 401
+    assert "witness" in sign_response.json()["detail"].lower()
+
+    # Consent must remain pending so the flow can be retried.
+    get_response = await client.get(f"/consent/forms/{consent_id}", headers=auth_headers)
+    assert get_response.json()["status"] == "pending"
+
+    # Retry with the correct witness OTP succeeds.
+    retry = await client.post(
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={
+            "otp": otp,
+            "witness_name": "Ravi Kumar",
+            "witness_mobile": "+919876543211",
+            "witness_otp": witness_otp,
+        },
+        headers=auth_headers,
+    )
+    assert retry.status_code == 200
+    assert retry.json()["status"] == "signed"

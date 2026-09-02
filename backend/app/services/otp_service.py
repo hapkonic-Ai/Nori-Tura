@@ -64,6 +64,7 @@ async def verify_otp(
     otp: str,
     purpose: str = "login",
     context_id: str = None,
+    mark_verified: bool = True,
 ) -> dict:
     where = {
         "phone": phone,
@@ -77,20 +78,22 @@ async def verify_otp(
         where=where,
         order={"created_at": "desc"}
     )
-    
+
     if not session:
         raise ValueError("No active OTP session found")
-    
+
     if session.expires_at < datetime.now(timezone.utc):
         raise ValueError("OTP expired")
-    
+
     if hash_otp(otp) != session.otp_hash:
         raise ValueError("Invalid OTP")
-    
-    # Mark verified
-    await prisma.otp_sessions.update(
-        where={"id": session.id},
-        data={"verified": True}
-    )
-    
+
+    # Mark verified (set mark_verified=False for a non-consuming check when
+    # multiple OTPs must all pass before any session is consumed).
+    if mark_verified:
+        await prisma.otp_sessions.update(
+            where={"id": session.id},
+            data={"verified": True}
+        )
+
     return {"session": session}

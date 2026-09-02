@@ -15,7 +15,7 @@ from app.core.auth_deps import (
 from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
 from app.services.rag_service import get_consent_content
 from app.core.config import get_settings
-from app.schemas.consent import ConsentFormCreate, ConsentOtpVerifyRequest, ConsentSuggestRequest
+from app.schemas.consent import ConsentFormCreate, ConsentOtpVerifyRequest, ConsentSuggestRequest, ConsentWitnessOtpRequest
 from app.schemas.consent_acknowledgment import (
     ConsentAcknowledgmentRequest,
     ConsentAcknowledgmentResponse,
@@ -514,6 +514,43 @@ async def request_consent_otp(
     }
 
 
+@router.post("/forms/{consent_id}/request-witness-otp")
+async def request_witness_otp(
+    consent_id: str,
+    req: ConsentWitnessOtpRequest,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Send a 6-digit OTP to the witness's mobile for consent signing.
+
+    The OTP is bound to this consent form (purpose="consent_witness",
+    context_id=consent_id) so it cannot be replayed for login, the parent
+    consent OTP, or another consent form.
+    """
+    from app.services.otp_service import create_otp_session
+
+    consent = await prisma.consent_forms.find_first(where={"id": consent_id})
+    if not consent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
+    await _require_consent_access(user, consent)
+
+    if consent.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
+
+    returned_otp = await create_otp_session(
+        req.witness_mobile,
+        role="consent_witness",
+        purpose="consent_witness",
+        context_id=consent_id,
+    )
+
+    return {
+        "message": "OTP sent successfully",
+        "expires_in_minutes": settings.OTP_EXPIRY_MINUTES,
+        "phone": _mask_phone(req.witness_mobile),
+        "dev_otp": returned_otp,
+    }
+
+
 @router.post("/forms/{consent_id}/verify-otp")
 async def verify_consent_otp_and_sign(
     consent_id: str,
@@ -535,15 +572,49 @@ async def verify_consent_otp_and_sign(
     if not patient or not patient.parent_phone:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient has no registered parent phone")
 
+    # Check both OTPs without consuming either; only when both are valid are
+    # the sessions marked verified. This keeps the flow retryable when the
+    # witness OTP is mistyped (the parent OTP stays valid).
     try:
         await verify_otp(
             patient.parent_phone,
             req.otp,
             purpose="consent_sign",
             context_id=consent_id,
+            mark_verified=False,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    if req.witness_name:
+        try:
+            await verify_otp(
+                req.witness_mobile,
+                req.witness_otp,
+                purpose="consent_witness",
+                context_id=consent_id,
+                mark_verified=False,
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Witness OTP: {e}",
+            )
+
+    witness_verified = False
+    await verify_otp(
+        patient.parent_phone,
+        req.otp,
+        purpose="consent_sign",
+        context_id=consent_id,
+    )
+    if req.witness_name:
+        await verify_otp(
+            req.witness_mobile,
+            req.witness_otp,
+            purpose="consent_witness",
+            context_id=consent_id,
+        )
+        witness_verified = True
 
     signed_at = datetime.now(timezone.utc)
     masked_phone = _mask_phone(patient.parent_phone)
@@ -568,6 +639,7 @@ async def verify_consent_otp_and_sign(
         witness_name=req.witness_name,
         witness_relationship=req.witness_relationship,
         witness_mobile=req.witness_mobile,
+        witness_verified=witness_verified,
         signed_at=signed_at.isoformat(),
         template_html=layout_html,
     )
@@ -585,6 +657,7 @@ async def verify_consent_otp_and_sign(
             "witness_name": req.witness_name,
             "witness_relationship": req.witness_relationship,
             "witness_mobile": req.witness_mobile,
+            "witness_verified_at": signed_at if witness_verified else None,
             "signed_at": signed_at,
             "signed_pdf_url": signed_pdf_url,
             "signed_pdf_hash": signed_pdf_hash,

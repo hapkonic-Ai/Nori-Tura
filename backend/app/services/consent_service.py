@@ -157,6 +157,7 @@ def _build_signed_context(
     witness_name: Optional[str] = None,
     witness_relationship: Optional[str] = None,
     witness_mobile: Optional[str] = None,
+    witness_verified: bool = False,
     signed_at: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build context for the signed consent template."""
@@ -175,6 +176,12 @@ def _build_signed_context(
         )
     else:
         context["otp_attestation"] = ""
+    if witness_name and witness_verified:
+        context["witness_attestation"] = (
+            "Witness identity verified via OTP sent to the registered mobile number"
+        )
+    else:
+        context["witness_attestation"] = ""
 
     # QR code for signed form includes the signed timestamp
     qr_url = generate_consent_qr_data_uri(
@@ -234,6 +241,7 @@ def generate_signed_consent_pdf(
     witness_name: Optional[str] = None,
     witness_relationship: Optional[str] = None,
     witness_mobile: Optional[str] = None,
+    witness_verified: bool = False,
     signed_at: Optional[str] = None,
     template_html: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -252,6 +260,7 @@ def generate_signed_consent_pdf(
         witness_name=witness_name,
         witness_relationship=witness_relationship,
         witness_mobile=witness_mobile,
+        witness_verified=witness_verified,
         signed_at=signed_at,
     )
     template = _load_template("consent_signed.html", template_html=template_html)

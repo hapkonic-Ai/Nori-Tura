@@ -61,6 +61,7 @@ fun ConsentViewScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val otpState by viewModel.otpState.collectAsState()
+    val witnessOtpState by viewModel.witnessOtpState.collectAsState()
 
     NorituraScaffold(
         topBar = {
@@ -89,7 +90,12 @@ fun ConsentViewScreen(
                 ConsentViewContent(
                     consent = state.consent,
                     otpState = otpState,
+                    witnessOtpState = witnessOtpState,
                     onRequestOtp = { viewModel.requestOtp() },
+                    onRequestWitnessOtp = { witnessMobile ->
+                        viewModel.requestWitnessOtp(witnessMobile)
+                    },
+                    onResetWitnessOtp = { viewModel.resetWitnessOtp() },
                     onVerifyOtp = { request ->
                         viewModel.verifyOtp(request)
                     }
@@ -103,18 +109,23 @@ fun ConsentViewScreen(
 private fun ConsentViewContent(
     consent: com.example.nori_tura.data.dto.ConsentFormDto,
     otpState: ConsentViewViewModel.OtpState,
+    witnessOtpState: ConsentViewViewModel.OtpState,
     onRequestOtp: () -> Unit,
+    onRequestWitnessOtp: (String) -> Unit,
+    onResetWitnessOtp: () -> Unit,
     onVerifyOtp: (ConsentOtpVerifyRequest) -> Unit
 ) {
     val isSigned = consent.status == "signed"
     val content = consent.contentJson
 
     var otp by remember { mutableStateOf("") }
+    var witnessOtp by remember { mutableStateOf("") }
     var witnessOn by remember { mutableStateOf(false) }
     var witnessName by remember { mutableStateOf(consent.witnessName ?: "") }
     var witnessRelationship by remember { mutableStateOf(consent.witnessRelationship ?: "") }
     var witnessMobile by remember { mutableStateOf(consent.witnessMobile ?: "") }
     var acknowledged by remember { mutableStateOf(false) }
+    val witnessPhoneValid = witnessMobile.matches(Regex("^\\+91[0-9]{10}$"))
 
     Column(
         modifier = Modifier
@@ -281,6 +292,8 @@ private fun ConsentViewContent(
                             witnessName = ""
                             witnessRelationship = ""
                             witnessMobile = ""
+                            witnessOtp = ""
+                            onResetWitnessOtp()
                         }
                     },
                     colors = SwitchDefaults.colors(
@@ -309,12 +322,75 @@ private fun ConsentViewContent(
                     )
                     OutlinedTextField(
                         value = witnessMobile,
-                        onValueChange = { witnessMobile = it },
+                        onValueChange = {
+                            if (it != witnessMobile) {
+                                witnessOtp = ""
+                                onResetWitnessOtp()
+                            }
+                            witnessMobile = it
+                        },
                         label = { Text("Witness Phone (+91…)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    if (!witnessPhoneValid) {
+                        Text(
+                            text = "Enter a valid +91 mobile number to verify the witness",
+                            color = NorituraColors.TextTertiary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    } else {
+                        when (val wState = witnessOtpState) {
+                            is ConsentViewViewModel.OtpState.Sent -> {
+                                Text(
+                                    text = "Witness OTP sent to ${wState.phone}",
+                                    color = NorituraColors.PostOp,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                )
+                                wState.devOtp?.let {
+                                    Text(
+                                        text = "Dev OTP: $it",
+                                        color = NorituraColors.TextTertiary,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                            is ConsentViewViewModel.OtpState.Error -> {
+                                Text(
+                                    text = wState.message,
+                                    color = NorituraColors.PreOp,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            else -> {}
+                        }
+
+                        OutlinedButton(
+                            onClick = { onRequestWitnessOtp(witnessMobile) },
+                            enabled = witnessOtpState !is ConsentViewViewModel.OtpState.Sending &&
+                                witnessOtpState !is ConsentViewViewModel.OtpState.Verifying,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                if (witnessOtpState is ConsentViewViewModel.OtpState.Sent) "Resend Witness OTP"
+                                else if (witnessOtpState is ConsentViewViewModel.OtpState.Sending) "Sending OTP…"
+                                else "Send OTP to Witness"
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = witnessOtp,
+                            onValueChange = { input ->
+                                if (input.length <= 6 && input.all { it.isDigit() }) witnessOtp = input
+                            },
+                            label = { Text("Witness 6-digit OTP") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 
@@ -345,13 +421,14 @@ private fun ConsentViewContent(
                             otp = otp,
                             witnessName = witnessName.takeIf { witnessOn && it.isNotBlank() },
                             witnessRelationship = witnessRelationship.takeIf { witnessOn && it.isNotBlank() },
-                            witnessMobile = witnessMobile.takeIf { witnessOn && it.isNotBlank() }
+                            witnessMobile = witnessMobile.takeIf { witnessOn && witnessPhoneValid },
+                            witnessOtp = witnessOtp.takeIf { witnessOn && it.length == 6 }
                         )
                     )
                 },
                 enabled = otp.length == 6 &&
                     acknowledged &&
-                    (!witnessOn || witnessName.isNotBlank()) &&
+                    (!witnessOn || (witnessName.isNotBlank() && witnessPhoneValid && witnessOtp.length == 6)) &&
                     (otpState is ConsentViewViewModel.OtpState.Sent ||
                         otpState is ConsentViewViewModel.OtpState.Error) &&
                     otpState !is ConsentViewViewModel.OtpState.Verifying,

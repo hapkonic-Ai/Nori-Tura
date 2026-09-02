@@ -4,6 +4,7 @@ import com.example.nori_tura.data.dto.ConsentFormCreateRequest
 import com.example.nori_tura.data.dto.ConsentFormDto
 import com.example.nori_tura.data.dto.ConsentOtpRequestResponse
 import com.example.nori_tura.data.dto.ConsentOtpVerifyRequest
+import com.example.nori_tura.data.dto.ConsentWitnessOtpRequest
 import kotlinx.serialization.SerialName
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -29,6 +30,13 @@ class ConsentRepository(
 
     suspend fun requestConsentOtp(id: String): Result<ConsentOtpRequestResponse> = safeApiCall {
         client.post("/consent/forms/$id/request-otp").body()
+    }
+
+    suspend fun requestWitnessOtp(id: String, request: ConsentWitnessOtpRequest): Result<ConsentOtpRequestResponse> = safeApiCall {
+        client.post("/consent/forms/$id/request-witness-otp") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
     }
 
     suspend fun verifyConsentOtp(id: String, request: ConsentOtpVerifyRequest): Result<ConsentFormDto> = safeApiCall {

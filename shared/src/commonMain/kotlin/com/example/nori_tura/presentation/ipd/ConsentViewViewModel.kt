@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.nori_tura.data.ConsentRepository
 import com.example.nori_tura.data.dto.ConsentFormDto
 import com.example.nori_tura.data.dto.ConsentOtpVerifyRequest
+import com.example.nori_tura.data.dto.ConsentWitnessOtpRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,9 @@ class ConsentViewViewModel(
 
     private val _otpState = MutableStateFlow<OtpState>(OtpState.Idle)
     val otpState: StateFlow<OtpState> = _otpState.asStateFlow()
+
+    private val _witnessOtpState = MutableStateFlow<OtpState>(OtpState.Idle)
+    val witnessOtpState: StateFlow<OtpState> = _witnessOtpState.asStateFlow()
 
     init {
         loadConsent()
@@ -52,6 +56,26 @@ class ConsentViewViewModel(
                     _otpState.value = OtpState.Error(error.message ?: "Failed to send OTP")
                 }
         }
+    }
+
+    fun requestWitnessOtp(witnessMobile: String) {
+        _witnessOtpState.value = OtpState.Sending
+        viewModelScope.launch {
+            repository.requestWitnessOtp(consentId, ConsentWitnessOtpRequest(witnessMobile))
+                .onSuccess { response ->
+                    _witnessOtpState.value = OtpState.Sent(
+                        phone = response.phone,
+                        devOtp = response.devOtp
+                    )
+                }
+                .onFailure { error ->
+                    _witnessOtpState.value = OtpState.Error(error.message ?: "Failed to send witness OTP")
+                }
+        }
+    }
+
+    fun resetWitnessOtp() {
+        _witnessOtpState.value = OtpState.Idle
     }
 
     fun verifyOtp(request: ConsentOtpVerifyRequest) {

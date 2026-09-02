@@ -484,7 +484,10 @@
       <div class="signature-block">
         <div class="signature-line">
           <strong>Witness</strong><br>
-          <span class="small muted">{{ witness_name }}{% if witness_relationship %}, {{ witness_relationship }}{% endif %}{% if witness_mobile %}, {{ witness_mobile }}{% endif %}</span>
+          <span class="small muted">{{ witness_name }}{% if witness_relationship %}, {{ witness_relationship }}{% endif %}{% if witness_mobile %}, {{ witness_mobile }}{% endif %}</span><br>
+          {% if witness_attestation %}
+          <span class="small muted">{{ witness_attestation }}</span>
+          {% endif %}
         </div>
       </div>
       {% endif %}

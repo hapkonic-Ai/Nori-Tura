@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ConsentFormCreate(BaseModel):
@@ -67,12 +67,32 @@ class ConsentSuggestRequest(BaseModel):
 
 
 class ConsentOtpVerifyRequest(BaseModel):
-    """Request body for signing a consent form via parent OTP verification."""
+    """Request body for signing a consent form via parent OTP verification.
+
+    When witness details are provided, the witness must also complete OTP
+    verification (``witness_mobile`` + ``witness_otp`` become required).
+    """
 
     otp: str = Field(..., min_length=6, max_length=6)
     witness_name: Optional[str] = Field(None, min_length=2)
     witness_relationship: Optional[str] = None
     witness_mobile: Optional[str] = Field(None, pattern=r"^\+91[0-9]{10}$")
+    witness_otp: Optional[str] = Field(None, min_length=6, max_length=6)
+
+    @model_validator(mode="after")
+    def _witness_requires_otp(self):
+        if self.witness_name:
+            if not self.witness_mobile:
+                raise ValueError("witness_mobile is required when witness_name is provided")
+            if not self.witness_otp:
+                raise ValueError("witness_otp is required when witness_name is provided")
+        return self
+
+
+class ConsentWitnessOtpRequest(BaseModel):
+    """Request body for sending an OTP to the witness's mobile."""
+
+    witness_mobile: str = Field(..., pattern=r"^\+91[0-9]{10}$")
 
 
 class ConsentFormResponse(BaseModel):

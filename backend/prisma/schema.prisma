@@ -410,6 +410,7 @@ model consent_forms {
   parent_auth_method         String?
   parent_auth_phone          String?
   otp_verified_at            DateTime?
+  witness_verified_at        DateTime?
   generated_at               DateTime  @default(now())
   signed_at                  DateTime?
   generated_by               String    @default("surgeon")
