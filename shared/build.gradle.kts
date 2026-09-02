@@ -79,7 +79,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.example.nori_tura.shared"
+    namespace = "com.nonituracare.shared"
     compileSdk = 34
 
     buildFeatures {

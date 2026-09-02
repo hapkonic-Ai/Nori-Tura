@@ -99,7 +99,7 @@ def _generate_consent_number() -> str:
     now = datetime.now(timezone.utc)
     timestamp = now.strftime("%Y%m%d%H%M%S")
     random_suffix = now.strftime("%f")[:4]
-    return f"NT-CONSENT-{timestamp}-{random_suffix}"
+    return f"NC-CONSENT-{timestamp}-{random_suffix}"
 
 
 def _upload_consent_pdf(pdf_bytes: bytes, filename: str) -> Optional[str]:

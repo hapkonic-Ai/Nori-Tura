@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		227E464A5FA5E30B8EBC4908 /* Noritura.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Noritura.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		227E464A5FA5E30B8EBC4908 /* NonituraCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NonituraCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,7 +59,7 @@
 		9FE695164DCA8A4C456F1F5F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				227E464A5FA5E30B8EBC4908 /* Noritura.app */,
+				227E464A5FA5E30B8EBC4908 /* NonituraCare.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,7 +87,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = 227E464A5FA5E30B8EBC4908 /* Noritura.app */;
+			productReference = 227E464A5FA5E30B8EBC4908 /* NonituraCare.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -303,7 +303,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.noritura.Noritura;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nonituracare;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -332,7 +332,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.noritura.Noritura;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nonituracare;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

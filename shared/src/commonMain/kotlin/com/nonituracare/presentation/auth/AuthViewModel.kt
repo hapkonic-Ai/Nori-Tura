@@ -1,0 +1,141 @@
+package com.nonituracare.presentation.auth
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.nonituracare.data.AuthRepository
+import com.nonituracare.data.MeResponse
+import com.nonituracare.data.RegisterDoctorRequest
+import com.nonituracare.util.PushTokenProvider
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class AuthViewModel(
+    private val repository: AuthRepository = AuthRepository()
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
+    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    fun sendOtp(phone: String) {
+        val normalized = normalizePhone(phone)
+        if (normalized == null) {
+            _uiState.value = AuthUiState.Error("Please enter a valid Indian phone number (+91 followed by 10 digits).")
+            return
+        }
+
+        _uiState.value = AuthUiState.Loading
+        viewModelScope.launch {
+            repository.sendOtp(normalized)
+                .onSuccess { response ->
+                    _uiState.value = AuthUiState.OtpSent(normalized, devOtp = response.devOtp)
+                }
+                .onFailure { error ->
+                    _uiState.value = AuthUiState.Error(error.message ?: "Failed to send OTP")
+                }
+        }
+    }
+
+    fun verifyOtp(phone: String, otp: String) {
+        if (otp.length != 6 || !otp.all { it.isDigit() }) {
+            _uiState.value = AuthUiState.Error("Please enter a valid 6-digit OTP.")
+            return
+        }
+
+        _uiState.value = AuthUiState.Loading
+        viewModelScope.launch {
+            repository.verifyOtp(phone, otp)
+                .onSuccess { response ->
+                    repository.saveToken(response.access_token)
+                    repository.saveRole(response.role)
+                    registerFcmToken()
+                    _uiState.value = AuthUiState.Authenticated(response.role, profile = null)
+                }
+                .onFailure { error ->
+                    _uiState.value = AuthUiState.Error(error.message ?: "Failed to verify OTP")
+                }
+        }
+    }
+
+    fun registerDoctor(name: String, phone: String, hospital: String, specialty: String) {
+        val normalized = normalizePhone(phone)
+        if (normalized == null) {
+            _uiState.value = AuthUiState.Error("Please enter a valid Indian phone number (+91 followed by 10 digits).")
+            return
+        }
+        if (name.isBlank() || hospital.isBlank() || specialty.isBlank()) {
+            _uiState.value = AuthUiState.Error("Please fill in all fields.")
+            return
+        }
+
+        _uiState.value = AuthUiState.Loading
+        viewModelScope.launch {
+            repository.registerDoctor(
+                RegisterDoctorRequest(
+                    name = name,
+                    phone = normalized,
+                    hospital = hospital,
+                    specialty = specialty
+                )
+            )
+                .onSuccess { response ->
+                    _uiState.value = AuthUiState.RegistrationSubmitted(
+                        response.message ?: "Registration submitted. Wait for admin approval."
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = AuthUiState.Error(error.message ?: "Failed to register")
+                }
+        }
+    }
+
+    fun checkAuthStatus() {
+        val token = repository.getToken() ?: return
+        _uiState.value = AuthUiState.Loading
+        viewModelScope.launch {
+            repository.getMe()
+                .onSuccess { me ->
+                    val role = me.role ?: repository.getRole()
+                    if (role != null) {
+                        registerFcmToken()
+                        _uiState.value = AuthUiState.Authenticated(role, me)
+                    } else {
+                        repository.clearAll()
+                        _uiState.value = AuthUiState.Idle
+                    }
+                }
+                .onFailure {
+                    repository.clearAll()
+                    _uiState.value = AuthUiState.Idle
+                }
+        }
+    }
+
+    fun resetError() {
+        if (_uiState.value is AuthUiState.Error) {
+            _uiState.value = AuthUiState.Idle
+        }
+    }
+
+    fun logout() {
+        repository.clearAll()
+        _uiState.value = AuthUiState.Idle
+    }
+
+    private fun normalizePhone(phone: String): String? {
+        val digits = phone.filter { it.isDigit() }
+        return when {
+            digits.startsWith("91") && digits.length == 12 -> "+$digits"
+            digits.length == 10 -> "+91$digits"
+            else -> null
+        }
+    }
+
+    private fun registerFcmToken() {
+        viewModelScope.launch {
+            val token = PushTokenProvider.getToken() ?: return@launch
+            repository.registerFcm(token, PushTokenProvider.getPlatform())
+        }
+    }
+}

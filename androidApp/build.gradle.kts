@@ -21,12 +21,12 @@ dependencies {
 }
 
 android {
-    namespace = "com.example.nori_tura"
+    namespace = "com.nonituracare"
     compileSdk = 34
     ndkVersion = "27.2.12479018"
 
     defaultConfig {
-        applicationId = "com.example.nori_tura"
+        applicationId = "com.nonituracare"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

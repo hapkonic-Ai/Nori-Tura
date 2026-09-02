@@ -1,0 +1,93 @@
+package com.nonituracare.data
+
+import com.nonituracare.data.dto.AdmissionDto
+import com.nonituracare.data.dto.AiDiagnosisRequest
+import com.nonituracare.data.dto.AiDiagnosisResponse
+import com.nonituracare.data.dto.AppointmentDto
+import com.nonituracare.data.dto.DoctorDto
+import com.nonituracare.data.dto.OpdRecordCreateRequest
+import com.nonituracare.data.dto.OpdRecordDto
+import com.nonituracare.data.dto.PatientCreateRequest
+import com.nonituracare.data.dto.PatientDto
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+
+class SurgeonRepository(
+    private val client: HttpClient = ApiClient.client
+) {
+
+    suspend fun getPatients(
+        token: String,
+        search: String? = null,
+        diagnosis: String? = null,
+        status: String? = null
+    ): Result<List<PatientDto>> = safeApiCall {
+        client.get("/patients") {
+            search?.let { parameter("search", it) }
+            diagnosis?.let { parameter("diagnosis", it) }
+            status?.let { parameter("status", it) }
+        }.body()
+    }
+
+    suspend fun createPatient(request: PatientCreateRequest): Result<PatientDto> = safeApiCall {
+        client.post("/patients") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
+
+    suspend fun getPatientDetail(token: String, patientId: String): Result<PatientDto> = safeApiCall {
+        client.get("/patients/$patientId").body()
+    }
+
+    suspend fun getOpdRecords(token: String, patientId: String): Result<List<OpdRecordDto>> = safeApiCall {
+        client.get("/opd/patients/$patientId/records").body()
+    }
+
+    suspend fun getOpdRecord(token: String, recordId: String): Result<OpdRecordDto> = safeApiCall {
+        client.get("/opd/records/$recordId").body()
+    }
+
+    suspend fun getAppointments(token: String): Result<List<AppointmentDto>> = safeApiCall {
+        client.get("/appointments").body()
+    }
+
+    suspend fun getAdmissions(token: String): Result<List<AdmissionDto>> = safeApiCall {
+        client.get("/ipd/admissions").body()
+    }
+
+    suspend fun getAdmission(token: String, admissionId: String): Result<AdmissionDto> = safeApiCall {
+        client.get("/ipd/admissions/$admissionId").body()
+    }
+
+    suspend fun getDoctor(token: String, doctorId: String): Result<DoctorDto> = safeApiCall {
+        client.get("/doctors/$doctorId").body()
+    }
+
+    suspend fun createOpdRecord(
+        token: String,
+        patientId: String,
+        request: OpdRecordCreateRequest
+    ): Result<OpdRecordDto> = safeApiCall {
+        client.post("/opd/patients/$patientId/records") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
+
+    suspend fun suggestDiagnosis(
+        token: String,
+        request: AiDiagnosisRequest
+    ): Result<AiDiagnosisResponse> = safeApiCall {
+        client.post("/ai/suggest-diagnosis") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
+}

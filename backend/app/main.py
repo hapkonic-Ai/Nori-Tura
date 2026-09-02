@@ -93,4 +93,4 @@ app.include_router(reports.router)
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "noni-tura-api"}
+    return {"status": "ok", "service": "nonituracare-api"}

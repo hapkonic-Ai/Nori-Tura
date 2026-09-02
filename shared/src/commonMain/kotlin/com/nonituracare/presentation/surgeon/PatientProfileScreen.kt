@@ -1,0 +1,865 @@
+package com.nonituracare.presentation.surgeon
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import com.nonituracare.data.AuthRepository
+import com.nonituracare.data.dto.AdmissionDto
+import com.nonituracare.data.dto.ConsentFormDto
+import com.nonituracare.data.dto.DocumentDto
+import com.nonituracare.data.dto.OpdRecordDto
+import com.nonituracare.data.dto.PatientDto
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.window.Dialog
+import com.nonituracare.presentation.components.AuthenticatedUrlImage
+import com.nonituracare.presentation.components.BrandTopBar
+import com.nonituracare.presentation.ipd.AdmitPatientDialog
+import com.nonituracare.presentation.components.EmptyState
+import com.nonituracare.presentation.components.ErrorState
+import com.nonituracare.presentation.components.LoadingState
+import com.nonituracare.presentation.components.LongPressCardPreview
+import com.nonituracare.presentation.components.MediaUrlChip
+import com.nonituracare.presentation.components.NorituraScaffold
+import com.nonituracare.ui.theme.NorituraColors
+import com.nonituracare.util.formatDateTime
+import com.nonituracare.util.openUrl
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+
+@Composable
+fun PatientProfileScreen(
+    patientId: String,
+    viewModel: PatientProfileViewModel = viewModel(key = patientId) { PatientProfileViewModel(patientId) },
+    onBack: () -> Unit,
+    onAddOpdRecord: () -> Unit,
+    onNavigateToConsentForm: (admissionId: String) -> Unit = {},
+    onNavigateToConsentView: (consentId: String) -> Unit = {},
+    onNavigateToOpdRecordDetail: (recordId: String) -> Unit = {},
+    onNavigateToMedicalRecords: () -> Unit = {},
+    onNavigateToAdmission: (admissionId: String) -> Unit = {}
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val admitState by viewModel.admitUiState.collectAsState()
+    var showAdmitDialog by remember { mutableStateOf(false) }
+    val isNurse = remember { AuthRepository().getRole()?.lowercase() == "nurse" }
+
+    LaunchedEffect(admitState) {
+        if (admitState is PatientProfileViewModel.AdmitUiState.Success) {
+            showAdmitDialog = false
+            viewModel.resetAdmitState()
+        }
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (uiState !is PatientProfileViewModel.UiState.Loading) {
+            viewModel.loadProfile()
+        }
+    }
+
+    NorituraScaffold(
+        topBar = {
+            BrandTopBar(
+                initials = "DR",
+                title = "Patient Profile",
+                onBack = onBack,
+                notificationCount = 0
+            )
+        }
+    ) {
+        when (val state = uiState) {
+            is PatientProfileViewModel.UiState.Loading -> {
+                LoadingState(modifier = Modifier.fillMaxSize())
+            }
+            is PatientProfileViewModel.UiState.Error -> {
+                ErrorState(
+                    message = state.message,
+                    onRetry = { viewModel.loadProfile() },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            is PatientProfileViewModel.UiState.Success -> {
+                ProfileContent(
+                    patient = state.patient,
+                    opdRecords = state.opdRecords,
+                    parentDocuments = state.parentDocuments,
+                    onAddOpdRecord = onAddOpdRecord,
+                    onAdmitClick = { showAdmitDialog = true },
+                    onNavigateToConsentForm = onNavigateToConsentForm,
+                    onNavigateToConsentView = onNavigateToConsentView,
+                    onNavigateToOpdRecordDetail = onNavigateToOpdRecordDetail,
+                    onNavigateToMedicalRecords = onNavigateToMedicalRecords,
+                    onNavigateToAdmission = onNavigateToAdmission
+                )
+
+                if (showAdmitDialog) {
+                    Dialog(
+                        onDismissRequest = {
+                            showAdmitDialog = false
+                            viewModel.resetAdmitState()
+                        }
+                    ) {
+                        AdmitPatientDialog(
+                            patients = emptyList(),
+                            patient = state.patient,
+                            error = (admitState as? PatientProfileViewModel.AdmitUiState.Error)?.message,
+                            allowWardBed = !isNurse,
+                            onDismiss = {
+                                showAdmitDialog = false
+                                viewModel.resetAdmitState()
+                            },
+                            onAdmit = { request -> viewModel.admitPatient(request) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileContent(
+    patient: PatientDto,
+    opdRecords: List<OpdRecordDto>,
+    parentDocuments: List<DocumentDto>,
+    onAddOpdRecord: () -> Unit,
+    onAdmitClick: () -> Unit,
+    onNavigateToConsentForm: (admissionId: String) -> Unit,
+    onNavigateToConsentView: (consentId: String) -> Unit,
+    onNavigateToOpdRecordDetail: (recordId: String) -> Unit,
+    onNavigateToMedicalRecords: () -> Unit = {},
+    onNavigateToAdmission: (admissionId: String) -> Unit = {}
+) {
+    val activeStatuses = setOf("admitted", "pre-op", "in-surgery", "recovery")
+    val activeAdmission = patient.ipdAdmissions?.firstOrNull {
+        it.status?.lowercase() in activeStatuses
+    }
+    val latestOpd = opdRecords.firstOrNull() ?: patient.opdRecords?.firstOrNull()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NorituraColors.Background)
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            PatientHeaderCard(patient = patient)
+        }
+
+        item {
+            Text(
+                text = "Latest OPD Record",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (latestOpd != null) {
+                OpdRecordCard(
+                    opdRecord = latestOpd,
+                    onClick = { latestOpd.id?.let(onNavigateToOpdRecordDetail) }
+                )
+            } else {
+                InlineEmptyProfile("No OPD records available.")
+            }
+        }
+
+        if (activeAdmission != null) {
+            item {
+                Text(
+                    text = "Active Admission",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                AdmissionCard(
+                    admission = activeAdmission,
+                    onClick = { activeAdmission.id?.let(onNavigateToAdmission) }
+                )
+            }
+        }
+
+        item {
+            Text(
+                text = "Documents & Consents",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (activeAdmission != null) {
+                val consents = (activeAdmission.consentForms ?: emptyList()).sortedByDescending { it.generatedAt }
+                if (consents.isEmpty()) {
+                    InlineEmptyProfile("No consent forms yet.")
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        consents.forEach { consent ->
+                            ConsentFormListCard(
+                                consent = consent,
+                                onClick = { consent.id?.let(onNavigateToConsentView) }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { activeAdmission.id?.let(onNavigateToConsentForm) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Generate New Consent")
+                }
+            } else {
+                InlineEmptyProfile("No active admission.")
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onAdmitClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Admit Patient")
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "Parent Uploaded History",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (parentDocuments.isEmpty()) {
+                InlineEmptyProfile("No parent-uploaded history available.")
+            } else {
+                val imageDocs = parentDocuments.filter { it.type == "image" }
+                val pdfDocs = parentDocuments.filter { it.type == "pdf" }
+
+                if (imageDocs.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(imageDocs, key = { it.id ?: it.hashCode() }) { document ->
+                            AuthenticatedUrlImage(
+                                url = document.url,
+                                contentDescription = document.name,
+                                modifier = Modifier.fillMaxHeight().aspectRatio(1f)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                if (pdfDocs.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        pdfDocs.forEach { document ->
+                            MediaUrlChip(url = document.url)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "IPD History",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            val admissions = patient.ipdAdmissions ?: emptyList()
+            if (admissions.isEmpty()) {
+                InlineEmptyProfile("No IPD admissions.")
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    admissions.forEach { admission ->
+                        IpdHistoryCard(admission = admission)
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "Surgical Records",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            val surgicalRecords = patient.ipdAdmissions?.flatMap { admission ->
+                admission.intraOpNotes?.map { note -> admission to note } ?: emptyList()
+            } ?: emptyList()
+            if (surgicalRecords.isEmpty()) {
+                InlineEmptyProfile("No surgical records.")
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    surgicalRecords.forEach { (admission, note) ->
+                        SurgicalRecordRow(admission = admission, note = note)
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "OPD History",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+        }
+
+        if (opdRecords.isEmpty()) {
+            item {
+                InlineEmptyProfile("No OPD history.")
+            }
+        } else {
+            items(opdRecords, key = { it.id ?: it.hashCode() }) { record ->
+                OpdRecordCard(
+                    opdRecord = record,
+                    onClick = { record.id?.let(onNavigateToOpdRecordDetail) }
+                )
+            }
+        }
+
+        item {
+            OutlinedButton(
+                onClick = onNavigateToMedicalRecords,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("View Medical Records")
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onAddOpdRecord,
+                colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.PrimaryBlue),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Add OPD Record")
+            }
+            Spacer(modifier = Modifier.height(80.dp))
+        }
+    }
+}
+
+@Composable
+private fun PatientHeaderCard(patient: PatientDto) {
+    val initials = patient.name
+        ?.split(" ")
+        ?.take(2)
+        ?.mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        ?.joinToString("") ?: "?"
+
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        previewTitle = "Patient Preview"
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Avatar + name row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(NorituraColors.PrimaryBlue.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initials,
+                            color = NorituraColors.PrimaryBlue,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = patient.name ?: "Unknown",
+                            color = NorituraColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        val ageGender = listOfNotNull(
+                            patient.age?.toString(),
+                            patient.gender?.replaceFirstChar { it.uppercase() }
+                        ).joinToString(" · ")
+                        if (ageGender.isNotBlank()) {
+                            Text(
+                                text = ageGender,
+                                color = NorituraColors.TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+
+                // Blood group + allergy chips
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (!patient.bloodGroup.isNullOrBlank()) {
+                        InfoChip(text = patient.bloodGroup, style = InfoChipStyle.PRIMARY)
+                    }
+                    val hasAllergies = !patient.allergies.isNullOrBlank() &&
+                        patient.allergies.lowercase() != "none" &&
+                        patient.allergies != "-"
+                    if (hasAllergies) {
+                        InfoChip(text = "⚠ ${patient.allergies}", style = InfoChipStyle.ALERT)
+                    } else {
+                        InfoChip(text = "No Known Allergies", style = InfoChipStyle.NEUTRAL)
+                    }
+                }
+
+                // Parent contact
+                if (!patient.parentName.isNullOrBlank() || !patient.parentPhone.isNullOrBlank()) {
+                    HorizontalDivider(color = NorituraColors.Divider)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Guardian",
+                                color = NorituraColors.TextTertiary,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = patient.parentName ?: "-",
+                                color = NorituraColors.TextPrimary,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                        }
+                        if (!patient.parentPhone.isNullOrBlank()) {
+                            OutlinedButton(
+                                onClick = { openUrl("tel:${patient.parentPhone}") },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Call,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = patient.parentPhone,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private enum class InfoChipStyle { PRIMARY, ALERT, NEUTRAL }
+
+@Composable
+private fun InfoChip(text: String, style: InfoChipStyle = InfoChipStyle.NEUTRAL) {
+    val bg = when (style) {
+        InfoChipStyle.ALERT -> MaterialTheme.colorScheme.errorContainer
+        InfoChipStyle.PRIMARY -> NorituraColors.PrimaryBlue.copy(alpha = 0.12f)
+        InfoChipStyle.NEUTRAL -> NorituraColors.SurfaceVariant
+    }
+    val fg = when (style) {
+        InfoChipStyle.ALERT -> MaterialTheme.colorScheme.error
+        InfoChipStyle.PRIMARY -> NorituraColors.PrimaryBlue
+        InfoChipStyle.NEUTRAL -> NorituraColors.TextSecondary
+    }
+    Surface(shape = RoundedCornerShape(8.dp), color = bg) {
+        Text(
+            text = text,
+            color = fg,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        )
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Column {
+        Text(
+            text = label,
+            color = NorituraColors.TextTertiary,
+            style = MaterialTheme.typography.bodySmall
+        )
+        Text(
+            text = value,
+            color = NorituraColors.TextPrimary,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+        )
+    }
+}
+
+@Composable
+private fun OpdRecordCard(
+    opdRecord: OpdRecordDto,
+    onClick: (() -> Unit)? = null
+) {
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onClick?.invoke() },
+        previewTitle = "OPD Record Preview"
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Header: date + hospital/role badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = opdRecord.createdAt?.let { formatDateTime(it) } ?: "-",
+                        color = NorituraColors.TextTertiary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!opdRecord.hospitalName.isNullOrBlank()) {
+                            Text(
+                                text = opdRecord.hospitalName,
+                                color = NorituraColors.TextTertiary,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        opdRecord.createdBy?.let { role ->
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = NorituraColors.PrimaryBlue.copy(alpha = 0.10f)
+                            ) {
+                                Text(
+                                    text = role.replaceFirstChar { it.uppercase() },
+                                    color = NorituraColors.PrimaryBlue,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Main diagnosis
+                val mainText = opdRecord.diagnosis?.takeIf { it.isNotBlank() && it != "-" }
+                    ?: opdRecord.chiefComplaint?.takeIf { it.isNotBlank() }
+                    ?: "OPD Record"
+                Text(
+                    text = mainText,
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                )
+
+                // Procedure or complaint
+                val secondaryText = if (!opdRecord.plannedProcedure.isNullOrBlank() && opdRecord.plannedProcedure != "-") {
+                    opdRecord.plannedProcedure
+                } else if (!opdRecord.chiefComplaint.isNullOrBlank() && opdRecord.diagnosis != null) {
+                    "CC: ${opdRecord.chiefComplaint}"
+                } else null
+                secondaryText?.let {
+                    Text(
+                        text = it,
+                        color = NorituraColors.TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                // Footer: medication count + tap hint
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val medCount = opdRecord.medications?.size ?: 0
+                    if (medCount > 0) {
+                        Text(
+                            text = "$medCount medication${if (medCount != 1) "s" else ""}",
+                            color = NorituraColors.AccentGreen,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.size(1.dp))
+                    }
+                    if (onClick != null) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = null,
+                            tint = NorituraColors.TextTertiary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdmissionCard(admission: AdmissionDto, onClick: (() -> Unit)? = null) {
+    val statusColor = when (admission.status?.lowercase()) {
+        "pre-op" -> NorituraColors.PreOp
+        "in-surgery" -> NorituraColors.InOt
+        "recovery" -> NorituraColors.PostOp
+        else -> NorituraColors.TextTertiary
+    }
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onClick?.invoke() },
+        previewTitle = "Admission Preview"
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = statusColor.copy(alpha = 0.08f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Status: ${admission.status ?: "-"}",
+                    color = statusColor,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Ward: ${admission.ward ?: "-"}, Bed: ${admission.bedNo ?: "-"}",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Procedure: ${admission.procedure ?: "-"}",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Admitted: ${admission.admittedAt ?: "-"}",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InlineEmptyProfile(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            color = NorituraColors.TextSecondary,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+@Composable
+private fun ConsentFormListCard(
+    consent: ConsentFormDto,
+    onClick: () -> Unit
+) {
+    val isSigned = consent.status == "signed"
+    val statusColor = if (isSigned) NorituraColors.PostOp else NorituraColors.Warning
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        previewTitle = "Consent Preview"
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = consent.formType ?: "Consent Form",
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = consent.status?.replaceFirstChar { it.uppercase() } ?: "Pending",
+                        color = statusColor,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Generated: ${consent.generatedAt?.take(10) ?: "-"}",
+                    color = NorituraColors.TextTertiary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun IpdHistoryCard(admission: AdmissionDto) {
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        previewTitle = "Admission History Preview"
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = admission.status?.replaceFirstChar { it.uppercase() } ?: "Admission",
+                        color = NorituraColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = admission.admittedAt?.take(10) ?: "-",
+                        color = NorituraColors.TextTertiary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Ward: ${admission.ward ?: "-"} • Bed: ${admission.bedNo ?: "-"}",
+                color = NorituraColors.TextSecondary,
+                style = MaterialTheme.typography.bodySmall
+            )
+            admission.dischargeSummaries?.firstOrNull()?.let { summary ->
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = NorituraColors.Divider)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Discharge Summary",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                InfoRow(label = "Procedure", value = summary.procedureSummary)
+                InfoRow(label = "Condition", value = summary.conditionAtDischarge)
+            }
+        }
+    }
+    }
+}
+
+@Composable
+private fun SurgicalRecordRow(
+    admission: AdmissionDto,
+    note: com.nonituracare.data.dto.IntraOpNoteDto
+) {
+    LongPressCardPreview(
+        modifier = Modifier.fillMaxWidth(),
+        previewTitle = "Surgical Record Preview"
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = note.procedureDone,
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "OT Date: ${note.otStart?.take(10) ?: note.createdAt?.take(10) ?: "-"}",
+                    color = NorituraColors.TextTertiary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (!note.findings.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Findings: ${note.findings}",
+                        color = NorituraColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (admission.dischargeAt != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Discharged: ${admission.dischargeAt.take(10)}",
+                        color = NorituraColors.AccentGreen,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
