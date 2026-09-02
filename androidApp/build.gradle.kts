@@ -26,7 +26,7 @@ android {
     ndkVersion = "27.2.12479018"
 
     defaultConfig {
-        applicationId = "com.nonituracare"
+        applicationId = "com.nonituracare.app"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
