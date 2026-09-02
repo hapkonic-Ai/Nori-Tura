@@ -78,6 +78,7 @@ class ConsentOtpVerifyRequest(BaseModel):
     witness_relationship: Optional[str] = None
     witness_mobile: Optional[str] = Field(None, pattern=r"^\+91[0-9]{10}$")
     witness_otp: Optional[str] = Field(None, min_length=6, max_length=6)
+    signer_attested: bool = False
 
     @model_validator(mode="after")
     def _witness_requires_otp(self):

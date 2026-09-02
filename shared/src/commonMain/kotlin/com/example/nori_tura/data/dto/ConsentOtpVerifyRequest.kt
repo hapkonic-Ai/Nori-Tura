@@ -9,7 +9,8 @@ data class ConsentOtpVerifyRequest(
     @SerialName("witness_name") val witnessName: String? = null,
     @SerialName("witness_relationship") val witnessRelationship: String? = null,
     @SerialName("witness_mobile") val witnessMobile: String? = null,
-    @SerialName("witness_otp") val witnessOtp: String? = null
+    @SerialName("witness_otp") val witnessOtp: String? = null,
+    @SerialName("signer_attested") val signerAttested: Boolean = false
 )
 
 @Serializable

@@ -958,6 +958,7 @@ async def download_consent_form_pdf(
             witness_relationship=consent.witness_relationship,
             witness_mobile=consent.witness_mobile,
             witness_verified=bool(consent.witness_verified_at),
+            signer_attested=bool(consent.signer_attested_at),
             signed_at=consent.signed_at.isoformat() if consent.signed_at else datetime.now(timezone.utc).isoformat(),
             template_html=layout_html,
         )

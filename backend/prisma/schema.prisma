@@ -395,6 +395,21 @@ model otp_sessions {
   @@index([phone, purpose])
 }
 
+model consent_audit_events {
+  id             String   @id @default(uuid())
+  consent_id     String
+  consent_number String?
+  event_type     String
+  actor_user_id  String?
+  actor_role     String?
+  actor_phone    String?
+  signer_phone   String?
+  detail         Json?
+  created_at     DateTime @default(now())
+
+  @@index([consent_id])
+}
+
 model consent_forms {
   id                         String    @id @default(uuid())
   admission_id               String
@@ -411,6 +426,7 @@ model consent_forms {
   parent_auth_phone          String?
   otp_verified_at            DateTime?
   witness_verified_at        DateTime?
+  signer_attested_at         DateTime?
   generated_at               DateTime  @default(now())
   signed_at                  DateTime?
   generated_by               String    @default("surgeon")

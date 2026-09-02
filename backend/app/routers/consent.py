@@ -467,11 +467,73 @@ async def get_consent_form(
     return consent
 
 
+@router.get("/forms/{consent_id}/audit")
+async def get_consent_audit_events(
+    consent_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Return the audit trail for a consent form (OTP requests, signing events)."""
+    consent = await prisma.consent_forms.find_first(where={"id": consent_id})
+    if not consent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
+    await _require_consent_access(user, consent)
+
+    events = await prisma.consent_audit_events.find_many(
+        where={"consent_id": consent_id},
+        order={"created_at": "asc"},
+    )
+    return {
+        "consent_id": consent_id,
+        "consent_number": consent.consent_number,
+        "events": [
+            {
+                "id": e.id,
+                "event_type": e.event_type,
+                "actor_user_id": e.actor_user_id,
+                "actor_role": e.actor_role,
+                "actor_phone": e.actor_phone,
+                "signer_phone": e.signer_phone,
+                "detail": e.detail,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events
+        ],
+    }
+
+
 def _mask_phone(phone: str) -> str:
     """Mask an Indian mobile number for display, e.g. +91*****43210."""
     if len(phone) >= 5:
         return phone[:3] + "*****" + phone[-4:]
     return phone
+
+
+async def _log_consent_audit(
+    consent,
+    event_type: str,
+    user: CurrentUser,
+    signer_phone: Optional[str] = None,
+    detail: Optional[dict] = None,
+) -> None:
+    """Record an audit event for a consent form.
+
+    Captures the consent reference, the initiating user (who operated the
+    screen) and the signer's masked phone, documenting the assisted,
+    in-person consent workflow.
+    """
+    actor_user_id = user.doctor_id or user.nurse_id or user.patient_id
+    await prisma.consent_audit_events.create(
+        data={
+            "consent_id": consent.id,
+            "consent_number": getattr(consent, "consent_number", None),
+            "event_type": event_type,
+            "actor_user_id": actor_user_id,
+            "actor_role": user.role,
+            "actor_phone": _mask_phone(user.phone) if user.phone else None,
+            "signer_phone": signer_phone,
+            "detail": Json(detail) if detail is not None else Json("{}"),
+        }
+    )
 
 
 @router.post("/forms/{consent_id}/request-otp")
@@ -504,6 +566,12 @@ async def request_consent_otp(
         role="patient_parent",
         purpose="consent_sign",
         context_id=consent_id,
+    )
+    await _log_consent_audit(
+        consent,
+        "parent_otp_requested",
+        user,
+        signer_phone=_mask_phone(patient.parent_phone),
     )
 
     return {
@@ -542,6 +610,12 @@ async def request_witness_otp(
         purpose="consent_witness",
         context_id=consent_id,
     )
+    await _log_consent_audit(
+        consent,
+        "witness_otp_requested",
+        user,
+        signer_phone=_mask_phone(req.witness_mobile),
+    )
 
     return {
         "message": "OTP sent successfully",
@@ -572,6 +646,18 @@ async def verify_consent_otp_and_sign(
     if not patient or not patient.parent_phone:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient has no registered parent phone")
 
+    if not req.signer_attested:
+        await _log_consent_audit(
+            consent,
+            "sign_rejected_no_attestation",
+            user,
+            signer_phone=_mask_phone(patient.parent_phone),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Signer attestation is required before signing",
+        )
+
     # Check both OTPs without consuming either; only when both are valid are
     # the sessions marked verified. This keeps the flow retryable when the
     # witness OTP is mistyped (the parent OTP stays valid).
@@ -584,6 +670,13 @@ async def verify_consent_otp_and_sign(
             mark_verified=False,
         )
     except ValueError as e:
+        await _log_consent_audit(
+            consent,
+            "sign_rejected_invalid_otp",
+            user,
+            signer_phone=_mask_phone(patient.parent_phone),
+            detail={"reason": str(e)},
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     if req.witness_name:
         try:
@@ -595,6 +688,13 @@ async def verify_consent_otp_and_sign(
                 mark_verified=False,
             )
         except ValueError as e:
+            await _log_consent_audit(
+                consent,
+                "sign_rejected_invalid_witness_otp",
+                user,
+                signer_phone=_mask_phone(req.witness_mobile),
+                detail={"reason": str(e)},
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Witness OTP: {e}",
@@ -640,6 +740,7 @@ async def verify_consent_otp_and_sign(
         witness_relationship=req.witness_relationship,
         witness_mobile=req.witness_mobile,
         witness_verified=witness_verified,
+        signer_attested=req.signer_attested,
         signed_at=signed_at.isoformat(),
         template_html=layout_html,
     )
@@ -658,10 +759,24 @@ async def verify_consent_otp_and_sign(
             "witness_relationship": req.witness_relationship,
             "witness_mobile": req.witness_mobile,
             "witness_verified_at": signed_at if witness_verified else None,
+            "signer_attested_at": signed_at,
             "signed_at": signed_at,
             "signed_pdf_url": signed_pdf_url,
             "signed_pdf_hash": signed_pdf_hash,
             "status": "signed",
+        },
+    )
+    await _log_consent_audit(
+        consent,
+        "signed",
+        user,
+        signer_phone=masked_phone,
+        detail={
+            "parent_auth_method": "otp",
+            "witness_present": bool(req.witness_name),
+            "witness_verified": witness_verified,
+            "signer_attested": True,
+            "signed_pdf_hash": signed_pdf_hash,
         },
     )
     return updated

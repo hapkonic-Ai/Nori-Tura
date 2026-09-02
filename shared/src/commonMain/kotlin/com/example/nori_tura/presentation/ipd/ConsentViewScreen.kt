@@ -125,6 +125,7 @@ private fun ConsentViewContent(
     var witnessRelationship by remember { mutableStateOf(consent.witnessRelationship ?: "") }
     var witnessMobile by remember { mutableStateOf(consent.witnessMobile ?: "") }
     var acknowledged by remember { mutableStateOf(false) }
+    var signerAttested by remember { mutableStateOf(false) }
     val witnessPhoneValid = witnessMobile.matches(Regex("^\\+91[0-9]{10}$"))
 
     Column(
@@ -237,6 +238,19 @@ private fun ConsentViewContent(
                             text = "Dev OTP: $it",
                             color = NorituraColors.TextTertiary,
                             style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = NorituraColors.PrimaryBlueLight),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Text(
+                            text = "Hand the device to the parent / patient to review the summary and enter their OTP.",
+                            color = NorituraColors.PrimaryBlue,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            modifier = Modifier.padding(12.dp)
                         )
                     }
                 }
@@ -414,6 +428,26 @@ private fun ConsentViewContent(
                 )
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = signerAttested,
+                    onCheckedChange = { signerAttested = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = NorituraColors.PrimaryBlue,
+                        uncheckedColor = NorituraColors.Outline
+                    )
+                )
+                Text(
+                    text = "I have read the consent terms and am entering the OTP myself.",
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
             Button(
                 onClick = {
                     onVerifyOtp(
@@ -422,12 +456,14 @@ private fun ConsentViewContent(
                             witnessName = witnessName.takeIf { witnessOn && it.isNotBlank() },
                             witnessRelationship = witnessRelationship.takeIf { witnessOn && it.isNotBlank() },
                             witnessMobile = witnessMobile.takeIf { witnessOn && witnessPhoneValid },
-                            witnessOtp = witnessOtp.takeIf { witnessOn && it.length == 6 }
+                            witnessOtp = witnessOtp.takeIf { witnessOn && it.length == 6 },
+                            signerAttested = signerAttested
                         )
                     )
                 },
                 enabled = otp.length == 6 &&
                     acknowledged &&
+                    signerAttested &&
                     (!witnessOn || (witnessName.isNotBlank() && witnessPhoneValid && witnessOtp.length == 6)) &&
                     (otpState is ConsentViewViewModel.OtpState.Sent ||
                         otpState is ConsentViewViewModel.OtpState.Error) &&

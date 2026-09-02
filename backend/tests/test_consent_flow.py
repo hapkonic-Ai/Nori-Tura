@@ -57,7 +57,7 @@ async def test_create_and_sign_consent_form_with_otp(client, auth_headers, test_
     # 3. Wrong OTP must be rejected.
     wrong = await client.post(
         f"/consent/forms/{consent_id}/verify-otp",
-        json={"otp": "000000" if otp != "000000" else "111111"},
+        json={"otp": "000000" if otp != "000000" else "111111", "signer_attested": True},
         headers=auth_headers,
     )
     assert wrong.status_code == 401
@@ -79,6 +79,7 @@ async def test_create_and_sign_consent_form_with_otp(client, auth_headers, test_
             "witness_relationship": "Uncle",
             "witness_mobile": "+919876543211",
             "witness_otp": witness_otp,
+            "signer_attested": True,
         },
         headers=auth_headers,
     )
@@ -106,7 +107,7 @@ async def test_sign_without_otp_fails(client, auth_headers, test_admission):
 
     sign_response = await client.post(
         f"/consent/forms/{consent_id}/verify-otp",
-        json={"otp": "123456"},
+        json={"otp": "123456", "signer_attested": True},
         headers=auth_headers,
     )
     assert sign_response.status_code == 401
@@ -123,13 +124,13 @@ async def test_sign_already_signed_consent_fails(client, auth_headers, test_admi
 
     await client.post(
         f"/consent/forms/{consent_id}/verify-otp",
-        json={"otp": otp},
+        json={"otp": otp, "signer_attested": True},
         headers=auth_headers,
     )
 
     second_sign = await client.post(
         f"/consent/forms/{consent_id}/verify-otp",
-        json={"otp": otp},
+        json={"otp": otp, "signer_attested": True},
         headers=auth_headers,
     )
     assert second_sign.status_code == 400
@@ -180,6 +181,7 @@ async def test_wrong_witness_otp_rejected(client, auth_headers, test_admission):
             "witness_name": "Ravi Kumar",
             "witness_mobile": "+919876543211",
             "witness_otp": "000000" if witness_otp != "000000" else "111111",
+            "signer_attested": True,
         },
         headers=auth_headers,
     )
@@ -198,8 +200,92 @@ async def test_wrong_witness_otp_rejected(client, auth_headers, test_admission):
             "witness_name": "Ravi Kumar",
             "witness_mobile": "+919876543211",
             "witness_otp": witness_otp,
+            "signer_attested": True,
         },
         headers=auth_headers,
     )
     assert retry.status_code == 200
     assert retry.json()["status"] == "signed"
+
+
+@pytest.mark.asyncio
+async def test_sign_without_attestation_fails(client, auth_headers, test_admission):
+    """A valid OTP without the signer attestation must be rejected (400)."""
+    consent_id = await _create_consent(client, auth_headers, test_admission.id, procedure="Herniotomy")
+
+    otp = (
+        await client.post(f"/consent/forms/{consent_id}/request-otp", headers=auth_headers)
+    ).json()["dev_otp"]
+
+    sign_response = await client.post(
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={"otp": otp},
+        headers=auth_headers,
+    )
+    assert sign_response.status_code == 400
+    assert "attestation" in sign_response.json()["detail"].lower()
+
+    get_response = await client.get(f"/consent/forms/{consent_id}", headers=auth_headers)
+    assert get_response.json()["status"] == "pending"
+
+    # The rejection is captured in the audit trail.
+    audit = (
+        await client.get(f"/consent/forms/{consent_id}/audit", headers=auth_headers)
+    ).json()
+    rejection = [e for e in audit["events"] if e["event_type"] == "sign_rejected_no_attestation"]
+    assert len(rejection) == 1
+
+
+@pytest.mark.asyncio
+async def test_audit_trail_recorded_for_full_flow(client, auth_headers, test_admission, test_doctor):
+    """OTP requests and signing are logged with actor and masked signer phone."""
+    consent_id = await _create_consent(client, auth_headers, test_admission.id, procedure="Herniotomy")
+
+    otp = (
+        await client.post(f"/consent/forms/{consent_id}/request-otp", headers=auth_headers)
+    ).json()["dev_otp"]
+    witness_otp = (
+        await client.post(
+            f"/consent/forms/{consent_id}/request-witness-otp",
+            json={"witness_mobile": "+919876543211"},
+            headers=auth_headers,
+        )
+    ).json()["dev_otp"]
+
+    sign_response = await client.post(
+        f"/consent/forms/{consent_id}/verify-otp",
+        json={
+            "otp": otp,
+            "witness_name": "Ravi Kumar",
+            "witness_mobile": "+919876543211",
+            "witness_otp": witness_otp,
+            "signer_attested": True,
+        },
+        headers=auth_headers,
+    )
+    assert sign_response.status_code == 200
+    assert sign_response.json()["signer_attested_at"] is not None
+
+    audit_response = await client.get(f"/consent/forms/{consent_id}/audit", headers=auth_headers)
+    assert audit_response.status_code == 200
+    audit = audit_response.json()
+    assert audit["consent_number"] is not None
+
+    events = {e["event_type"]: e for e in audit["events"]}
+    assert "parent_otp_requested" in events
+    assert "witness_otp_requested" in events
+    assert "signed" in events
+
+    parent_req = events["parent_otp_requested"]
+    assert parent_req["actor_user_id"] == test_doctor.id
+    assert parent_req["actor_role"] == "surgeon"
+    assert parent_req["signer_phone"].startswith("+91")
+    assert "*****" in parent_req["signer_phone"]
+
+    witness_req = events["witness_otp_requested"]
+    assert witness_req["signer_phone"].startswith("+91")
+
+    signed = events["signed"]
+    assert signed["actor_user_id"] == test_doctor.id
+    assert signed["detail"]["signer_attested"] is True
+    assert signed["detail"]["witness_present"] is True

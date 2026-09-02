@@ -69,6 +69,7 @@ _TRUNCATED_TABLES = [
     "documents",
     "surgical_templates",
     "otp_sessions",
+    "consent_audit_events",
     "consent_acknowledgments",
     "admins",
     "hospitals",

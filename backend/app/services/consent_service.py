@@ -158,6 +158,7 @@ def _build_signed_context(
     witness_relationship: Optional[str] = None,
     witness_mobile: Optional[str] = None,
     witness_verified: bool = False,
+    signer_attested: bool = False,
     signed_at: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build context for the signed consent template."""
@@ -170,10 +171,15 @@ def _build_signed_context(
     context["witness_mobile"] = witness_mobile or ""
     context["signed_at"] = signed_at or datetime.now().isoformat()
     if parent_auth_method == "otp":
-        context["otp_attestation"] = (
+        attestation = (
             f"Parent/Guardian consent verified via OTP sent to "
             f"{context['parent_auth_phone']} at {context['signed_at']}"
         )
+        if signer_attested:
+            attestation += (
+                "; signatory attested to reading the consent terms and entering the OTP personally"
+            )
+        context["otp_attestation"] = attestation
     else:
         context["otp_attestation"] = ""
     if witness_name and witness_verified:
@@ -242,6 +248,7 @@ def generate_signed_consent_pdf(
     witness_relationship: Optional[str] = None,
     witness_mobile: Optional[str] = None,
     witness_verified: bool = False,
+    signer_attested: bool = False,
     signed_at: Optional[str] = None,
     template_html: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -261,6 +268,7 @@ def generate_signed_consent_pdf(
         witness_relationship=witness_relationship,
         witness_mobile=witness_mobile,
         witness_verified=witness_verified,
+        signer_attested=signer_attested,
         signed_at=signed_at,
     )
     template = _load_template("consent_signed.html", template_html=template_html)
