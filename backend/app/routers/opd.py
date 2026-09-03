@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import date, datetime, timedelta, time
 
+from app.core.config import get_settings
 from app.core.database import prisma
 from app.core.auth_deps import (
     get_current_user,

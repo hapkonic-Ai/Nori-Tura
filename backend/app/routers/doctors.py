@@ -39,6 +39,48 @@ class DoctorAvailabilityResponse(BaseModel):
     slots: List[AvailabilitySlot]
 
 
+@router.get("/available-slots", response_model=AvailableSlotsResponse)
+async def get_available_slots(
+    doctor_id: str = Query(..., description="Doctor UUID"),
+    date: str = Query(..., description="Date in YYYY-MM-DD format"),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Return available 30-minute appointment slots for a doctor on a given date."""
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD.",
+        )
+
+    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
+        )
+
+    start_dt = datetime.combine(target_date, time(8, 0))
+    end_dt = datetime.combine(target_date, time(17, 0))
+
+    existing = await prisma.appointments.find_many(
+        where={
+            "doctor_id": doctor_id,
+            "slot_datetime": {"gte": start_dt, "lt": end_dt},
+        }
+    )
+    booked_slots = {a.slot_datetime for a in existing}
+
+    slots = []
+    current = start_dt
+    while current < end_dt:
+        if current not in booked_slots:
+            slots.append(current.isoformat())
+        current += timedelta(minutes=30)
+
+    return AvailableSlotsResponse(doctor_id=doctor_id, date=date, slots=slots)
+
+
 @router.get("/{doctor_id}", response_model=DoctorResponse)
 async def get_doctor(
     doctor_id: str,
@@ -154,48 +196,6 @@ async def get_doctor_stats(user: CurrentUser = Depends(get_current_user)):
         "surgeries": total_surgeries,
         "success_rate": success_rate,
     }
-
-
-@router.get("/available-slots", response_model=AvailableSlotsResponse)
-async def get_available_slots(
-    doctor_id: str = Query(..., description="Doctor UUID"),
-    date: str = Query(..., description="Date in YYYY-MM-DD format"),
-    user: CurrentUser = Depends(get_current_user),
-):
-    """Return available 30-minute appointment slots for a doctor on a given date."""
-    try:
-        target_date = datetime.strptime(date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid date format. Use YYYY-MM-DD.",
-        )
-
-    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
-    if not doctor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
-        )
-
-    start_dt = datetime.combine(target_date, time(8, 0))
-    end_dt = datetime.combine(target_date, time(17, 0))
-
-    existing = await prisma.appointments.find_many(
-        where={
-            "doctor_id": doctor_id,
-            "slot_datetime": {"gte": start_dt, "lt": end_dt},
-        }
-    )
-    booked_slots = {a.slot_datetime for a in existing}
-
-    slots = []
-    current = start_dt
-    while current < end_dt:
-        if current not in booked_slots:
-            slots.append(current.isoformat())
-        current += timedelta(minutes=30)
-
-    return AvailableSlotsResponse(doctor_id=doctor_id, date=date, slots=slots)
 
 
 @router.get("/{doctor_id}/availability", response_model=DoctorAvailabilityResponse)

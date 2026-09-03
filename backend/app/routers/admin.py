@@ -775,7 +775,7 @@ async def list_all_surgical_templates(
         where["doctor_id"] = doctor_id
     templates = await prisma.surgical_templates.find_many(
         where=where,
-        include={"doctor": True},
+        include={"doctor": {"include": {"hospital": True}}},
         order={"created_at": "desc"},
     )
     return templates

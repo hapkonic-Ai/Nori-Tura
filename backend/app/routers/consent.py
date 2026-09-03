@@ -252,6 +252,11 @@ async def create_consent_form(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Surgical template not found",
             )
+        if surgical_template.doctor_id != doctor_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
         template_defaults.update(_apply_surgical_template(surgical_template))
 
     # Merge consent content template defaults after surgical template so either can be used
@@ -270,7 +275,10 @@ async def create_consent_form(
             "statutory_reference",
         ]:
             value = getattr(content_template, field)
-            if value is not None:
+            # Truthy, not just non-None: an unset list field defaults to `[]` (never
+            # None) on this model, and would otherwise be treated as "explicitly set
+            # to empty," clobbering a surgical template's real value with "".
+            if value:
                 if field in ["risks", "benefits", "alternatives", "possible_complications"]:
                     template_defaults[field] = "\n".join(value) if isinstance(value, list) else value
                 elif field == "anesthesia":
