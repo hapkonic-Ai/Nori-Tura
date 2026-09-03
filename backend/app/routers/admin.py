@@ -11,6 +11,7 @@ from prisma import Json
 from app.core.database import prisma
 from app.core.auth_deps import CurrentUser, get_current_staff, get_current_superadmin
 from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
+from app.services.hospital_service import resolve_or_create_hospital
 from app.utils.excel_parser import parse_excel_bytes, validate_and_prepare_rows
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -75,6 +76,11 @@ class AdminPatientCreate(BaseModel):
 class ConsentContentTemplateCreate(BaseModel):
     name: str = Field(..., min_length=1)
     procedure: str = Field(..., min_length=1)
+    approach: Optional[str] = None
+    technique: Optional[str] = None
+    risk_level: Optional[str] = None
+    special_instructions: Optional[str] = None
+    investigations: List[str] = []
     procedure_description: Optional[str] = None
     anesthesia: List[str] = []
     risks: List[str] = []
@@ -91,6 +97,11 @@ class ConsentContentTemplateCreate(BaseModel):
 class ConsentContentTemplateUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1)
     procedure: Optional[str] = Field(None, min_length=1)
+    approach: Optional[str] = None
+    technique: Optional[str] = None
+    risk_level: Optional[str] = None
+    special_instructions: Optional[str] = None
+    investigations: Optional[List[str]] = None
     procedure_description: Optional[str] = None
     anesthesia: Optional[List[str]] = None
     risks: Optional[List[str]] = None
@@ -124,26 +135,36 @@ def _phone_error(field: str) -> str:
     return f"{field} must be +91 followed by 10 digits"
 
 
-async def _resolve_or_create_hospital(
-    hospital_id: Optional[str], hospital_name: Optional[str]
-) -> Optional[str]:
-    """Return hospital_id, creating hospital by name if needed."""
-    if hospital_id:
-        existing = await prisma.hospitals.find_first(where={"id": hospital_id})
-        if existing:
-            return existing.id
+@router.get("/stats")
+async def get_platform_stats(user: CurrentUser = Depends(get_current_staff)):
+    """Platform-wide counts for the admin/superadmin dashboard."""
+    hospitals_count = await prisma.hospitals.count()
+    doctors_total = await prisma.doctors.count()
+    doctors_active = await prisma.doctors.count(where={"is_active": True})
+    doctors_pending = doctors_total - doctors_active
+    nurses_total = await prisma.nurses.count()
+    nurses_active = await prisma.nurses.count(where={"is_active": True})
+    patients_count = await prisma.patients.count()
+    active_admissions = await prisma.ipd_admissions.count(where={"status": {"not": "discharged"}})
+    total_admissions = await prisma.ipd_admissions.count()
 
-    if hospital_name and hospital_name.strip():
-        name = hospital_name.strip()
-        existing = await prisma.hospitals.find_first(
-            where={"name": {"equals": name, "mode": "insensitive"}}
-        )
-        if existing:
-            return existing.id
-        new_hospital = await prisma.hospitals.create(data={"name": name})
-        return new_hospital.id
-
-    return None
+    return {
+        "hospitals": hospitals_count,
+        "doctors": {
+            "total": doctors_total,
+            "active": doctors_active,
+            "pending": doctors_pending,
+        },
+        "nurses": {
+            "total": nurses_total,
+            "active": nurses_active,
+        },
+        "patients": patients_count,
+        "admissions": {
+            "active": active_admissions,
+            "total": total_admissions,
+        },
+    }
 
 
 @router.get("/doctors")
@@ -214,7 +235,7 @@ async def create_doctor(
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phone already registered as nurse")
 
-    hospital_id = await _resolve_or_create_hospital(req.hospital_id, req.hospital_name)
+    hospital_id = await resolve_or_create_hospital(req.hospital_id, req.hospital_name)
 
     doctor = await prisma.doctors.create(
         data={
@@ -226,6 +247,12 @@ async def create_doctor(
         },
         include={"hospital": True},
     )
+
+    if hospital_id:
+        await prisma.doctor_hospitals.create(
+            data={"doctor_id": doctor.id, "hospital_id": hospital_id}
+        )
+
     return doctor
 
 
@@ -249,10 +276,21 @@ async def update_doctor(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phone already in use")
 
     if "hospital_name" in update_data or "hospital_id" in update_data:
-        hospital_id = await _resolve_or_create_hospital(
+        hospital_id = await resolve_or_create_hospital(
             update_data.get("hospital_id"), update_data.pop("hospital_name", None)
         )
         update_data["hospital_id"] = hospital_id
+
+        # Changing a doctor's primary hospital must not drop their existing
+        # affiliations — ensure the new hospital is (or becomes) one of them.
+        if hospital_id:
+            existing_affiliation = await prisma.doctor_hospitals.find_first(
+                where={"doctor_id": doctor_id, "hospital_id": hospital_id}
+            )
+            if not existing_affiliation:
+                await prisma.doctor_hospitals.create(
+                    data={"doctor_id": doctor_id, "hospital_id": hospital_id}
+                )
 
     updated = await prisma.doctors.update(
         where={"id": doctor_id},
@@ -260,6 +298,95 @@ async def update_doctor(
         include={"hospital": True},
     )
     return updated
+
+
+@router.get("/doctors/{doctor_id}/hospitals")
+async def list_doctor_hospitals(
+    doctor_id: str,
+    user: CurrentUser = Depends(get_current_staff),
+):
+    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
+
+    affiliations = await prisma.doctor_hospitals.find_many(
+        where={"doctor_id": doctor_id},
+        include={"hospital": True},
+        order={"created_at": "asc"},
+    )
+    return [
+        {
+            "hospital_id": a.hospital_id,
+            "hospital_name": a.hospital.name if a.hospital else None,
+            "hospital_logo_url": a.hospital.logo_url if a.hospital else None,
+            "is_primary": a.hospital_id == doctor.hospital_id,
+        }
+        for a in affiliations
+    ]
+
+
+class AdminDoctorHospitalCreate(BaseModel):
+    hospital_id: Optional[str] = None
+    hospital_name: Optional[str] = None
+    make_primary: bool = False
+
+
+@router.post("/doctors/{doctor_id}/hospitals", status_code=status.HTTP_201_CREATED)
+async def add_doctor_hospital(
+    doctor_id: str,
+    req: AdminDoctorHospitalCreate,
+    user: CurrentUser = Depends(get_current_staff),
+):
+    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
+
+    hospital_id = await resolve_or_create_hospital(req.hospital_id, req.hospital_name)
+    if not hospital_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="hospital_id or hospital_name is required")
+
+    existing_affiliation = await prisma.doctor_hospitals.find_first(
+        where={"doctor_id": doctor_id, "hospital_id": hospital_id}
+    )
+    if not existing_affiliation:
+        await prisma.doctor_hospitals.create(
+            data={"doctor_id": doctor_id, "hospital_id": hospital_id}
+        )
+
+    if req.make_primary or not doctor.hospital_id:
+        await prisma.doctors.update(where={"id": doctor_id}, data={"hospital_id": hospital_id})
+
+    return {"doctor_id": doctor_id, "hospital_id": hospital_id}
+
+
+@router.delete("/doctors/{doctor_id}/hospitals/{hospital_id}")
+async def remove_doctor_hospital(
+    doctor_id: str,
+    hospital_id: str,
+    user: CurrentUser = Depends(get_current_staff),
+):
+    doctor = await prisma.doctors.find_first(where={"id": doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
+
+    affiliation = await prisma.doctor_hospitals.find_first(
+        where={"doctor_id": doctor_id, "hospital_id": hospital_id}
+    )
+    if not affiliation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Affiliation not found")
+
+    await prisma.doctor_hospitals.delete(where={"id": affiliation.id})
+
+    if doctor.hospital_id == hospital_id:
+        remaining = await prisma.doctor_hospitals.find_first(
+            where={"doctor_id": doctor_id}, order={"created_at": "asc"}
+        )
+        await prisma.doctors.update(
+            where={"id": doctor_id},
+            data={"hospital_id": remaining.hospital_id if remaining else None},
+        )
+
+    return {"doctor_id": doctor_id, "removed_hospital_id": hospital_id}
 
 
 @router.patch("/doctors/{doctor_id}/status")
@@ -272,6 +399,8 @@ async def update_doctor_status(
     if not doctor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
 
+    # A doctor's hospitals come from where they have nursing support (or a
+    # direct admin assignment) — approval itself doesn't require one yet.
     updated = await prisma.doctors.update(
         where={"id": doctor_id},
         data={"is_active": req.is_active},
@@ -354,6 +483,23 @@ async def create_nurse(
         },
         include={"doctor": True, "hospital": True},
     )
+
+    # Staffing a hospital with a nurse for this doctor is what puts the doctor
+    # "at" that hospital — a freelance surgeon's hospitals follow from where
+    # they have nursing support, not a separate manual admin step.
+    if hospital_id:
+        existing_affiliation = await prisma.doctor_hospitals.find_first(
+            where={"doctor_id": req.doctor_id, "hospital_id": hospital_id}
+        )
+        if not existing_affiliation:
+            await prisma.doctor_hospitals.create(
+                data={"doctor_id": req.doctor_id, "hospital_id": hospital_id}
+            )
+            if not doctor.hospital_id:
+                await prisma.doctors.update(
+                    where={"id": req.doctor_id}, data={"hospital_id": hospital_id}
+                )
+
     return nurse
 
 
@@ -386,6 +532,18 @@ async def update_nurse(
         data=update_data,
         include={"doctor": True, "hospital": True},
     )
+
+    # Reassigning a nurse to a different doctor/hospital pairing affiliates that
+    # doctor with that hospital too, same as on nurse creation.
+    if updated.doctor_id and updated.hospital_id and ("doctor_id" in update_data or "hospital_id" in update_data):
+        existing_affiliation = await prisma.doctor_hospitals.find_first(
+            where={"doctor_id": updated.doctor_id, "hospital_id": updated.hospital_id}
+        )
+        if not existing_affiliation:
+            await prisma.doctor_hospitals.create(
+                data={"doctor_id": updated.doctor_id, "hospital_id": updated.hospital_id}
+            )
+
     return updated
 
 
@@ -532,7 +690,7 @@ async def bulk_import_patients(
         # Resolve hospital
         hospital_key = (row.get("hospital_id") or "") + "|" + (row.get("hospital_name") or "")
         if hospital_key not in hospital_cache:
-            hospital_cache[hospital_key] = await _resolve_or_create_hospital(
+            hospital_cache[hospital_key] = await resolve_or_create_hospital(
                 row.get("hospital_id"), row.get("hospital_name")
             )
         hospital_id = hospital_cache[hospital_key]
@@ -603,6 +761,26 @@ async def list_admins(user: CurrentUser = Depends(get_current_superadmin)):
     return admins
 
 
+# -------------------- Surgical Templates (read-only, cross-doctor) --------------------
+
+@router.get("/surgical-templates")
+async def list_all_surgical_templates(
+    doctor_id: Optional[str] = Query(None),
+    user: CurrentUser = Depends(get_current_staff),
+):
+    """Every doctor's own surgical templates, for admin oversight. Doctor-owned
+    data stays doctor-editable — this is browse-only, no admin CRUD here."""
+    where: Dict[str, Any] = {}
+    if doctor_id:
+        where["doctor_id"] = doctor_id
+    templates = await prisma.surgical_templates.find_many(
+        where=where,
+        include={"doctor": True},
+        order={"created_at": "desc"},
+    )
+    return templates
+
+
 # -------------------- Hospitals --------------------
 
 @router.get("/hospitals")
@@ -620,20 +798,33 @@ async def list_hospitals(
     return hospitals
 
 
+class AdminHospitalCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    address: Optional[str] = None
+    contact: Optional[str] = None
+    registration_number: Optional[str] = None
+    logo_url: Optional[str] = None
+
+
 @router.post("/hospitals", status_code=status.HTTP_201_CREATED)
 async def create_hospital(
-    name: str,
-    address: Optional[str] = None,
-    contact: Optional[str] = None,
-    registration_number: Optional[str] = None,
+    req: AdminHospitalCreate,
     user: CurrentUser = Depends(get_current_staff),
 ):
+    name = req.name.strip()
+    existing = await prisma.hospitals.find_first(
+        where={"name": {"equals": name, "mode": "insensitive"}}
+    )
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A hospital with this name already exists")
+
     hospital = await prisma.hospitals.create(
         data={
             "name": name,
-            "address": address,
-            "contact": contact,
-            "registration_number": registration_number,
+            "address": req.address,
+            "contact": req.contact,
+            "registration_number": req.registration_number,
+            "logo_url": req.logo_url,
         }
     )
     return hospital
