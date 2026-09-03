@@ -2,82 +2,44 @@ package com.nonituracare.presentation.parent
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.nonituracare.data.UploadedMedia
-import com.nonituracare.data.dto.ConsentFormDto
-import com.nonituracare.data.dto.DocumentCreateRequest
-import com.nonituracare.data.dto.DocumentDto
-import com.nonituracare.data.dto.DoctorDto
-import com.nonituracare.data.dto.PatientDto
-import com.nonituracare.presentation.components.Avatar
 import com.nonituracare.presentation.components.BrandTopBar
-import com.nonituracare.presentation.components.EmptyState
 import com.nonituracare.presentation.components.ErrorState
-import com.nonituracare.presentation.components.ImageAttachmentPicker
 import com.nonituracare.presentation.components.LoadingState
-import com.nonituracare.presentation.components.LongPressCardPreview
-import com.nonituracare.presentation.components.MediaUrlChip
 import com.nonituracare.presentation.components.NorituraScaffold
-import com.nonituracare.presentation.components.PdfAttachmentPicker
 import com.nonituracare.ui.theme.NorituraColors
-import com.nonituracare.util.openUrl
 
 @Composable
 fun ParentProfileScreen(
     viewModel: ParentProfileViewModel = viewModel { ParentProfileViewModel() },
     onBack: () -> Unit,
-    onNavigateToConsentView: (String) -> Unit,
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.loadProfile()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
 
     NorituraScaffold(
         topBar = {
@@ -103,14 +65,7 @@ fun ParentProfileScreen(
             }
 
             is ParentProfileViewModel.UiState.Success -> {
-                ProfileContent(
-                    profile = state.profile,
-                    onNavigateToConsentView = onNavigateToConsentView,
-                    onLogout = onLogout,
-                    onCreateDocument = { request -> viewModel.createDocument(request) },
-                    onDeleteDocument = { id -> viewModel.deleteDocument(id) },
-                    modifier = Modifier
-                )
+                ProfileContent(profile = state.profile, onLogout = onLogout)
             }
         }
     }
@@ -119,410 +74,73 @@ fun ParentProfileScreen(
 @Composable
 private fun ProfileContent(
     profile: ParentProfileViewModel.Profile,
-    onNavigateToConsentView: (String) -> Unit,
-    onLogout: () -> Unit,
-    onCreateDocument: (DocumentCreateRequest) -> Unit,
-    onDeleteDocument: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onLogout: () -> Unit
 ) {
-    val child = profile.child
-    val doctor = profile.doctor
+    val name = profile.parentName ?: "Parent"
+    val initials = name.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("")
 
-    LazyColumn(
-        modifier = modifier
+    Column(
+        modifier = Modifier
             .fillMaxSize()
             .background(NorituraColors.Background)
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        Spacer(modifier = Modifier.height(8.dp))
 
-        if (child != null) {
-            item {
-                ChildCard(child = child)
-            }
-
-            item {
-                SurgeonCard(doctor = doctor, onCall = { phone ->
-                    openUrl("tel:$phone")
-                })
-            }
-        } else {
-            item {
-                EmptyState(
-                    title = "No child linked",
-                    subtitle = "Contact your surgeon to link your phone number to a patient record."
-                )
-            }
-        }
-
-        item {
-            Text(
-                text = "Consent Form History",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
-        }
-
-        if (profile.consentForms.isEmpty()) {
-            item {
-                InlineProfileMessage("No consent forms yet.")
-            }
-        } else {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    profile.consentForms.forEach { consent ->
-                        ConsentHistoryCard(
-                            consent = consent,
-                            onClick = {
-                                if (consent.status == "signed") {
-                                    openUrl(consent.signedPdfUrl ?: consent.pdfUrl ?: return@ConsentHistoryCard)
-                                } else {
-                                    consent.id?.let(onNavigateToConsentView)
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            var uploadedPdfs by remember { mutableStateOf(listOf<String>()) }
-            var uploadedImages by remember { mutableStateOf(listOf<UploadedMedia>()) }
-
-            Text(
-                text = "Previous Health Records",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ImageAttachmentPicker(
-                items = uploadedImages,
-                onItemsChange = { uploadedImages = it },
-                label = "Upload previous health record (image)",
-                maxItems = 5,
-                imageButtonLabel = "Add image"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            PdfAttachmentPicker(
-                pdfUrls = uploadedPdfs,
-                onPdfUrlsChange = { uploadedPdfs = it },
-                label = "Upload previous health record (PDF)",
-                maxPdfs = 3,
-                buttonLabel = "Add PDF"
-            )
-
-            if (uploadedImages.isNotEmpty() || uploadedPdfs.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        val childId = profile.child?.id ?: return@Button
-                        uploadedImages.forEach { media ->
-                            onCreateDocument(
-                                DocumentCreateRequest(
-                                    patientId = childId,
-                                    name = media.filename,
-                                    url = media.url,
-                                    type = "image",
-                                    category = "previous_health_record",
-                                    uploadedByRole = "parent"
-                                )
-                            )
-                        }
-                        uploadedPdfs.forEach { url ->
-                            val name = url.takeLastWhile { it != '/' }
-                                .takeIf { it.isNotBlank() } ?: "Health Record"
-                            onCreateDocument(
-                                DocumentCreateRequest(
-                                    patientId = childId,
-                                    name = name,
-                                    url = url,
-                                    type = "pdf",
-                                    category = "previous_health_record",
-                                    uploadedByRole = "parent"
-                                )
-                            )
-                        }
-                        uploadedImages = emptyList()
-                        uploadedPdfs = emptyList()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(NorituraColors.PrimaryBlueLight),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("Save Records")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (profile.documents.isEmpty()) {
-                InlineProfileMessage("No health records uploaded yet.")
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    profile.documents.forEach { document ->
-                        HealthRecordCard(
-                            document = document,
-                            onDelete = if (document.uploadedByRole == "parent") {
-                                { document.id?.let(onDeleteDocument) }
-                            } else null
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Button(
-                onClick = onLogout,
-                colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.Error),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Logout")
-            }
-            Spacer(modifier = Modifier.height(80.dp))
-        }
-    }
-}
-
-@Composable
-private fun ChildCard(child: PatientDto) {
-    val hasAllergies = !child.allergies.isNullOrBlank()
-
-    LongPressCardPreview(
-        modifier = Modifier.fillMaxWidth(),
-        previewTitle = "Child Preview"
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar(name = child.name ?: "?", size = 56.dp)
-                Spacer(modifier = Modifier.height(12.dp).padding(start = 12.dp))
-                Column {
                     Text(
-                        text = child.name ?: "Unknown",
-                        color = NorituraColors.TextPrimary,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = "${child.age ?: "-"} yrs • ${child.gender ?: "-"}${child.bloodGroup?.let { " • Blood: $it" } ?: ""}",
-                        color = NorituraColors.TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = initials.ifBlank { "PT" },
+                        color = NorituraColors.PrimaryBlue,
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = NorituraColors.Divider)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Allergies",
-                color = NorituraColors.TextTertiary,
-                style = MaterialTheme.typography.bodySmall
-            )
-            Card(
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (hasAllergies) NorituraColors.Error.copy(alpha = 0.12f)
-                    else NorituraColors.AccentGreen.copy(alpha = 0.12f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (hasAllergies) child.allergies!! else "No Known Allergies",
-                    color = if (hasAllergies) NorituraColors.Error else NorituraColors.AccentGreen,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    text = name,
+                    color = NorituraColors.TextPrimary,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
-            }
-        }
-    }
-    }
-}
-
-@Composable
-private fun SurgeonCard(
-    doctor: DoctorDto?,
-    onCall: (String) -> Unit
-) {
-    LongPressCardPreview(
-        modifier = Modifier.fillMaxWidth(),
-        previewTitle = "Surgeon Preview"
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Treating Surgeon",
+                    text = profile.parentPhone ?: "-",
+                    color = NorituraColors.TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "${profile.childrenCount} ${if (profile.childrenCount == 1) "child" else "children"} registered",
                     color = NorituraColors.TextTertiary,
                     style = MaterialTheme.typography.bodySmall
                 )
-                Text(
-                    text = doctor?.name ?: "-",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                if (!doctor?.hospitalName.isNullOrBlank()) {
-                    Text(
-                        text = doctor?.hospitalName ?: "",
-                        color = NorituraColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-            val surgeonPhone = doctor?.phone
-            IconButton(
-                onClick = { surgeonPhone?.let { onCall(it) } },
-                enabled = !surgeonPhone.isNullOrBlank()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Call,
-                    contentDescription = "Call surgeon",
-                    tint = if (surgeonPhone.isNullOrBlank()) NorituraColors.TextTertiary else NorituraColors.PrimaryBlue
-                )
             }
         }
-    }
-    }
-}
 
-@Composable
-private fun ConsentHistoryCard(
-    consent: ConsentFormDto,
-    onClick: () -> Unit
-) {
-    val isSigned = consent.status == "signed"
-    val statusColor = if (isSigned) NorituraColors.PostOp else NorituraColors.Warning
-    LongPressCardPreview(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        previewTitle = "Consent Preview"
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = onLogout,
+            colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.Error),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = consent.formType ?: "Consent Form",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = consent.status?.replaceFirstChar { it.uppercase() } ?: "Pending",
-                    color = statusColor,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Generated: ${consent.generatedAt?.take(10) ?: "-"}",
-                color = NorituraColors.TextTertiary,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Text("Logout")
         }
-    }
-    }
-}
-
-@Composable
-private fun HealthRecordCard(
-    document: DocumentDto,
-    onDelete: (() -> Unit)? = null
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Description,
-                contentDescription = "Health record",
-                tint = NorituraColors.PrimaryBlue,
-                modifier = Modifier.padding(end = 12.dp)
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = document.name,
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "${document.type.uppercase()}${document.category?.let { " • ${it.replace("_", " ").replaceFirstChar { c -> c.uppercase() }}" } ?: ""}",
-                    color = NorituraColors.TextTertiary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Text(
-                    text = "Uploaded: ${document.uploadedAt?.take(10) ?: document.recordedAt?.take(10) ?: "-"}",
-                    color = NorituraColors.TextTertiary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                MediaUrlChip(
-                    url = document.url,
-                    mimeType = if (document.type == "image") "image/*" else null
-                )
-            }
-            onDelete?.let { delete ->
-                IconButton(onClick = delete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete record",
-                        tint = NorituraColors.Error
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InlineProfileMessage(message: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = message,
-            color = NorituraColors.TextSecondary,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }

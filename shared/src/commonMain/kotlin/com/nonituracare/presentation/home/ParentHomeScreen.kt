@@ -47,6 +47,7 @@ import com.nonituracare.presentation.components.Avatar
 import com.nonituracare.presentation.components.BrandTopBar
 import com.nonituracare.presentation.components.EmptyState
 import com.nonituracare.presentation.components.ErrorState
+import com.nonituracare.presentation.components.HospitalSwitcher
 import com.nonituracare.presentation.components.KpiTile
 import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.LongPressCardPreview
@@ -65,6 +66,7 @@ fun ParentHomeScreen(
     onNavigateToConsentView: (String) -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToBookAppointment: (doctorId: String, doctorName: String) -> Unit = { _, _ -> },
+    onNavigateToChildDetail: (patientId: String) -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -132,6 +134,14 @@ fun ParentHomeScreen(
 
                 is ParentDashboardViewModel.UiState.Success -> {
                     val dashboard = state.dashboard
+
+                    if (dashboard.hospitals.isNotEmpty()) {
+                        HospitalSwitcher(
+                            hospitals = dashboard.hospitals,
+                            selectedHospitalId = dashboard.selectedHospitalId,
+                            onSelect = { viewModel.selectHospital(it.id) }
+                        )
+                    }
 
                     SectionTitle(title = "Summary")
                     Row(
@@ -228,7 +238,10 @@ fun ParentHomeScreen(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             dashboard.children.forEach { child ->
-                                ChildCard(child = child)
+                                ChildCard(
+                                    child = child,
+                                    onClick = { child.id?.let(onNavigateToChildDetail) }
+                                )
                             }
                         }
                     }
@@ -394,7 +407,7 @@ private fun String.timePart(): String? {
 }
 
 @Composable
-private fun ChildCard(child: PatientDto) {
+private fun ChildCard(child: PatientDto, onClick: () -> Unit = {}) {
     val status = child.ipdAdmissions?.lastOrNull()?.status ?: "Outpatient"
     val statusColor = when (status.lowercase()) {
         "pre-op" -> NorituraColors.PreOp
@@ -407,6 +420,7 @@ private fun ChildCard(child: PatientDto) {
 
     LongPressCardPreview(
         modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
         previewTitle = "Child Preview"
     ) {
         NorituraSurfaceCard {

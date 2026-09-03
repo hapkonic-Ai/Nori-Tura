@@ -7,6 +7,7 @@ import com.nonituracare.data.SurgeonRepository
 import com.nonituracare.data.dto.AdmissionDto
 import com.nonituracare.data.dto.AppointmentDto
 import com.nonituracare.data.dto.PatientDto
+import com.nonituracare.presentation.components.HospitalOption
 import com.nonituracare.util.getCurrentDateString
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,10 +20,34 @@ class ParentDashboardViewModel(
 ) : ViewModel() {
 
     data class Dashboard(
-        val children: List<PatientDto> = emptyList(),
-        val appointments: List<AppointmentDto> = emptyList(),
-        val admissions: List<AdmissionDto> = emptyList()
+        val allChildren: List<PatientDto> = emptyList(),
+        val allAppointments: List<AppointmentDto> = emptyList(),
+        val allAdmissions: List<AdmissionDto> = emptyList(),
+        val selectedHospitalId: String? = null
     ) {
+        // A child registered at more than one hospital shows up as one row per
+        // hospital (each a separate `patients` record) — group by hospital so the
+        // switcher lists each hospital once.
+        val hospitals: List<HospitalOption>
+            get() = allChildren
+                .mapNotNull { child -> child.hospitalId?.let { HospitalOption(it, child.hospitalName ?: "Hospital") } }
+                .distinctBy { it.id }
+
+        val children: List<PatientDto>
+            get() = if (selectedHospitalId == null) allChildren
+                    else allChildren.filter { it.hospitalId == selectedHospitalId }
+
+        val appointments: List<AppointmentDto>
+            get() {
+                if (selectedHospitalId == null) return allAppointments
+                val childIds = children.mapNotNull { it.id }.toSet()
+                return allAppointments.filter { it.patientId in childIds }
+            }
+
+        val admissions: List<AdmissionDto>
+            get() = if (selectedHospitalId == null) allAdmissions
+                    else allAdmissions.filter { it.hospitalId == selectedHospitalId }
+
         val upcomingAppointments: Int
             get() = appointments.count {
                 it.status == "scheduled" && (it.slotDatetime?.compareTo(getCurrentDateString()) ?: -1) >= 0
@@ -71,13 +96,26 @@ class ParentDashboardViewModel(
                 return@launch
             }
 
+            val children = patientsResult.getOrNull() ?: emptyList()
+            val hospitalIds = children.mapNotNull { it.hospitalId }.toSet()
+            val savedSelection = authRepository.getSelectedHospitalId()
+            val selectedHospitalId = savedSelection?.takeIf { it in hospitalIds }
+                ?: children.firstOrNull { it.hospitalId != null }?.hospitalId
+
             _uiState.value = UiState.Success(
                 Dashboard(
-                    children = patientsResult.getOrNull() ?: emptyList(),
-                    appointments = appointmentsResult.getOrNull() ?: emptyList(),
-                    admissions = admissionsResult.getOrNull() ?: emptyList()
+                    allChildren = children,
+                    allAppointments = appointmentsResult.getOrNull() ?: emptyList(),
+                    allAdmissions = admissionsResult.getOrNull() ?: emptyList(),
+                    selectedHospitalId = selectedHospitalId
                 )
             )
         }
+    }
+
+    fun selectHospital(hospitalId: String) {
+        authRepository.saveSelectedHospitalId(hospitalId)
+        val current = (_uiState.value as? UiState.Success)?.dashboard ?: return
+        _uiState.value = UiState.Success(current.copy(selectedHospitalId = hospitalId))
     }
 }

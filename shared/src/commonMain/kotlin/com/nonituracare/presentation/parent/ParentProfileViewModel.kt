@@ -3,13 +3,7 @@ package com.nonituracare.presentation.parent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nonituracare.data.AuthRepository
-import com.nonituracare.data.DocumentsRepository
 import com.nonituracare.data.SurgeonRepository
-import com.nonituracare.data.dto.ConsentFormDto
-import com.nonituracare.data.dto.DocumentCreateRequest
-import com.nonituracare.data.dto.DocumentDto
-import com.nonituracare.data.dto.DoctorDto
-import com.nonituracare.data.dto.PatientDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,15 +11,13 @@ import kotlinx.coroutines.launch
 
 class ParentProfileViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
-    private val surgeonRepository: SurgeonRepository = SurgeonRepository(),
-    private val documentsRepository: DocumentsRepository = DocumentsRepository()
+    private val surgeonRepository: SurgeonRepository = SurgeonRepository()
 ) : ViewModel() {
 
     data class Profile(
-        val child: PatientDto? = null,
-        val doctor: DoctorDto? = null,
-        val consentForms: List<ConsentFormDto> = emptyList(),
-        val documents: List<DocumentDto> = emptyList()
+        val parentName: String?,
+        val parentPhone: String?,
+        val childrenCount: Int
     )
 
     sealed class UiState {
@@ -49,52 +41,20 @@ class ParentProfileViewModel(
 
         _uiState.value = UiState.Loading
         viewModelScope.launch {
-            val patientsResult = surgeonRepository.getPatients(token)
-            val admissionsResult = surgeonRepository.getAdmissions(token)
-
-            if (patientsResult.isFailure || admissionsResult.isFailure) {
-                _uiState.value = UiState.Error("Failed to load profile")
-                return@launch
-            }
-
-            val child = patientsResult.getOrNull()?.firstOrNull()
-            val admissions = admissionsResult.getOrNull() ?: emptyList()
-            val consentForms = admissions
-                .flatMap { it.consentForms ?: emptyList() }
-                .sortedByDescending { it.generatedAt }
-
-            val doctorResult = child?.doctorId?.let {
-                surgeonRepository.getDoctor(token, it)
-            }
-
-            val documentsResult = child?.id?.let {
-                documentsRepository.getPatientDocuments(it)
-            }
-
-            _uiState.value = UiState.Success(
-                Profile(
-                    child = child,
-                    doctor = doctorResult?.getOrNull(),
-                    consentForms = consentForms,
-                    documents = documentsResult?.getOrNull() ?: emptyList()
-                )
-            )
-        }
-    }
-
-    fun createDocument(request: DocumentCreateRequest) {
-        viewModelScope.launch {
-            documentsRepository.createDocument(request).onSuccess {
-                loadProfile()
-            }
-        }
-    }
-
-    fun deleteDocument(documentId: String) {
-        viewModelScope.launch {
-            documentsRepository.deleteDocument(documentId).onSuccess {
-                loadProfile()
-            }
+            surgeonRepository.getPatients(token)
+                .onSuccess { patients ->
+                    val first = patients.firstOrNull()
+                    _uiState.value = UiState.Success(
+                        Profile(
+                            parentName = first?.parentName,
+                            parentPhone = first?.parentPhone,
+                            childrenCount = patients.size
+                        )
+                    )
+                }
+                .onFailure {
+                    _uiState.value = UiState.Error("Failed to load profile")
+                }
         }
     }
 }
