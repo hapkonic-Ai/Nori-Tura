@@ -3,6 +3,7 @@ package com.nonituracare.presentation.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nonituracare.data.AdminRepository
+import com.nonituracare.data.dto.AdminStatsDto
 import com.nonituracare.data.dto.DoctorDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +16,8 @@ class AdminViewModel(
 
     data class Dashboard(
         val pendingDoctors: List<DoctorDto> = emptyList(),
-        val allDoctors: List<DoctorDto> = emptyList()
+        val allDoctors: List<DoctorDto> = emptyList(),
+        val stats: AdminStatsDto = AdminStatsDto()
     ) {
         val pendingCount: Int get() = pendingDoctors.size
         val totalCount: Int get() = allDoctors.size
@@ -40,6 +42,7 @@ class AdminViewModel(
         viewModelScope.launch {
             val pendingResult = repository.listPendingDoctors()
             val allResult = repository.listDoctors()
+            val statsResult = repository.getStats()
 
             if (pendingResult.isFailure || allResult.isFailure) {
                 _uiState.value = UiState.Error(pendingResult.exceptionOrNull()?.message
@@ -51,12 +54,18 @@ class AdminViewModel(
             _uiState.value = UiState.Success(
                 Dashboard(
                     pendingDoctors = pendingResult.getOrNull() ?: emptyList(),
-                    allDoctors = allResult.getOrNull() ?: emptyList()
+                    allDoctors = allResult.getOrNull() ?: emptyList(),
+                    stats = statsResult.getOrNull() ?: AdminStatsDto()
                 )
             )
         }
     }
 
+    /**
+     * A doctor's hospitals come from where they have nursing support (assigning
+     * a nurse to a doctor at a hospital affiliates that doctor with it) or a
+     * direct admin assignment elsewhere — approval itself doesn't ask for one.
+     */
     fun approveDoctor(id: String) {
         val current = (_uiState.value as? UiState.Success)?.dashboard ?: return
         viewModelScope.launch {

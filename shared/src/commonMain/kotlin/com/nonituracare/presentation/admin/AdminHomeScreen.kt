@@ -14,14 +14,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -49,7 +53,11 @@ import com.nonituracare.ui.theme.NorituraColors
 fun AdminHomeScreen(
     isSuperAdmin: Boolean = false,
     viewModel: AdminViewModel = viewModel { AdminViewModel() },
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToNurses: () -> Unit = {},
+    onNavigateToHospitals: () -> Unit = {},
+    onNavigateToContentTemplates: () -> Unit = {},
+    onNavigateToSurgicalTemplates: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -132,6 +140,110 @@ fun AdminHomeScreen(
                         )
                     }
 
+                    SectionTitle(title = "Platform")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        KpiTile(
+                            label = "Hospitals",
+                            value = dashboard.stats.hospitals.toString(),
+                            icon = Icons.Default.LocalHospital,
+                            iconTint = NorituraColors.AccentGreen,
+                            accentColor = NorituraColors.AccentGreen,
+                            modifier = Modifier.weight(1f)
+                        )
+                        KpiTile(
+                            label = "Nurses",
+                            value = "${dashboard.stats.nurses.active}/${dashboard.stats.nurses.total}",
+                            icon = Icons.Default.Person,
+                            iconTint = NorituraColors.PrimaryBlue,
+                            accentColor = NorituraColors.PrimaryBlue,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        KpiTile(
+                            label = "Patients",
+                            value = dashboard.stats.patients.toString(),
+                            icon = Icons.Default.Person,
+                            iconTint = NorituraColors.AccentGreen,
+                            accentColor = NorituraColors.AccentGreen,
+                            modifier = Modifier.weight(1f)
+                        )
+                        KpiTile(
+                            label = "Active Admissions",
+                            value = dashboard.stats.admissions.active.toString(),
+                            icon = Icons.Default.MedicalServices,
+                            iconTint = NorituraColors.Warning,
+                            accentColor = NorituraColors.Warning,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToNurses,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PersonAdd,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("Nurses")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToHospitals,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalHospital,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("Hospitals")
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onNavigateToContentTemplates,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("Content Templates")
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToSurgicalTemplates,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MedicalServices,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
+                            Text("Doctors' Templates")
+                        }
+                    }
+
                     SectionTitle(
                         title = "Pending Registrations",
                         actionLabel = "Refresh",
@@ -205,7 +317,6 @@ private fun DoctorApprovalCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             InfoRow(label = "Phone", value = doctor.phone)
-            InfoRow(label = "Hospital", value = doctor.hospitalName ?: "-")
 
             Spacer(modifier = Modifier.height(16.dp))
             Button(
