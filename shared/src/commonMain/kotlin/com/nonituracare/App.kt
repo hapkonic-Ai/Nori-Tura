@@ -19,6 +19,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.nonituracare.presentation.admin.AdminHomeScreen
+import com.nonituracare.presentation.admin.AdminContentTemplatesScreen
+import com.nonituracare.presentation.admin.AdminSurgicalTemplatesScreen
+import com.nonituracare.presentation.admin.AdminHospitalsScreen
+import com.nonituracare.presentation.admin.AdminNursesScreen
 import com.nonituracare.presentation.auth.AuthUiState
 import com.nonituracare.presentation.auth.AuthViewModel
 import com.nonituracare.presentation.auth.LoginScreen
@@ -28,9 +32,9 @@ import com.nonituracare.presentation.home.NurseHomeScreen
 import com.nonituracare.presentation.home.ParentHomeScreen
 import com.nonituracare.presentation.parent.ParentConsultDetailScreen
 import com.nonituracare.presentation.parent.ParentOpdRecordsScreen
+import com.nonituracare.presentation.parent.ParentChildDetailScreen
 import com.nonituracare.presentation.parent.ParentProfileScreen
 import com.nonituracare.presentation.parent.SurgeryStatusScreen
-import com.nonituracare.presentation.ipd.AdmissionsListScreen
 import com.nonituracare.presentation.ipd.AdmissionDetailScreen
 import com.nonituracare.presentation.ipd.ConsentFormScreen
 import com.nonituracare.presentation.ipd.ConsentViewScreen
@@ -129,6 +133,10 @@ fun App(
                     onResendOtp = { phoneNumber ->
                         authViewModel.resetError()
                         authViewModel.sendOtp(phoneNumber)
+                    },
+                    onBack = {
+                        authViewModel.resetError()
+                        navController.popBackStack()
                     }
                 )
             }
@@ -141,7 +149,6 @@ fun App(
                     onNavigateToAddPatient = { navController.navigate("add_patient") },
                     onNavigateToAppointments = { navController.navigate("appointments") },
                     onNavigateToSurgicalTemplates = { navController.navigate("surgical_templates") },
-                    onNavigateToAdmissions = { navController.navigate("admissions") },
                     onNavigateToFollowUpPreview = { recordId ->
                         navController.navigate("follow_up_preview/$recordId")
                     },
@@ -236,15 +243,6 @@ fun App(
                 )
             }
 
-            composable("admissions") {
-                AdmissionsListScreen(
-                    onBack = { navController.popBackStack() },
-                    onAdmissionClick = { admissionId ->
-                        navController.navigate("admission_detail/$admissionId")
-                    }
-                )
-            }
-
             composable("admission_detail/{admissionId}") { backStackEntry ->
                 val admissionId = backStackEntry.arguments?.getString("admissionId") ?: ""
                 AdmissionDetailScreen(
@@ -310,7 +308,11 @@ fun App(
                         navController.navigate("login") {
                             popUpTo("admin_home") { inclusive = true }
                         }
-                    }
+                    },
+                    onNavigateToNurses = { navController.navigate("admin_nurses") },
+                    onNavigateToHospitals = { navController.navigate("admin_hospitals") },
+                    onNavigateToContentTemplates = { navController.navigate("admin_content_templates") },
+                    onNavigateToSurgicalTemplates = { navController.navigate("admin_surgical_templates") }
                 )
             }
 
@@ -322,7 +324,35 @@ fun App(
                         navController.navigate("login") {
                             popUpTo("superadmin_home") { inclusive = true }
                         }
-                    }
+                    },
+                    onNavigateToNurses = { navController.navigate("admin_nurses") },
+                    onNavigateToHospitals = { navController.navigate("admin_hospitals") },
+                    onNavigateToContentTemplates = { navController.navigate("admin_content_templates") },
+                    onNavigateToSurgicalTemplates = { navController.navigate("admin_surgical_templates") }
+                )
+            }
+
+            composable("admin_nurses") {
+                AdminNursesScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("admin_hospitals") {
+                AdminHospitalsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("admin_content_templates") {
+                AdminContentTemplatesScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("admin_surgical_templates") {
+                AdminSurgicalTemplatesScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
 
@@ -343,6 +373,9 @@ fun App(
                         pendingDoctorName = doctorName
                         navController.navigate("appointment_request")
                     },
+                    onNavigateToChildDetail = { patientId ->
+                        navController.navigate("parent_child_detail/$patientId")
+                    },
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate("login") {
@@ -355,14 +388,22 @@ fun App(
             composable("parent_profile") {
                 ParentProfileScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToConsentView = { consentId ->
-                        navController.navigate("parent_consent_view/$consentId")
-                    },
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate("login") {
                             popUpTo("parent_profile") { inclusive = true }
                         }
+                    }
+                )
+            }
+
+            composable("parent_child_detail/{patientId}") { backStackEntry ->
+                val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
+                ParentChildDetailScreen(
+                    patientId = patientId,
+                    onBack = { navController.popBackStack() },
+                    onNavigateToConsentView = { consentId ->
+                        navController.navigate("parent_consent_view/$consentId")
                     }
                 )
             }

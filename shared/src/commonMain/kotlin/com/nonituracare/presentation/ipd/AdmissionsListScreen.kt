@@ -61,7 +61,7 @@ import com.nonituracare.ui.theme.NorituraColors
 @Composable
 fun AdmissionsListScreen(
     viewModel: AdmissionsListViewModel = viewModel { AdmissionsListViewModel() },
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
     onAdmissionClick: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()

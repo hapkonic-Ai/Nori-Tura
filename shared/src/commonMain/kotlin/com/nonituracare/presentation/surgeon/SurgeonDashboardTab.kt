@@ -16,13 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -46,18 +44,14 @@ import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.SectionTitle
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.ui.theme.NorituraColors
-import com.nonituracare.util.getCurrentDateString
 
 @Composable
 fun SurgeonDashboardTab(
     modifier: Modifier = Modifier,
     viewModel: SurgeonDashboardViewModel = viewModel { SurgeonDashboardViewModel() },
-    onNavigateToPatientList: () -> Unit,
     onNavigateToAddPatient: () -> Unit,
-    onNavigateToAppointments: () -> Unit,
     onNavigateToSurgicalTemplates: () -> Unit,
-    onNavigateToAdmissions: () -> Unit,
-    onNavigateToPatientProfile: (String) -> Unit
+    onNavigateToAdmissions: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -73,7 +67,7 @@ fun SurgeonDashboardTab(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                
+
                 .background(NorituraColors.Background)
         ) {
             when (val state = uiState) {
@@ -90,12 +84,9 @@ fun SurgeonDashboardTab(
             is SurgeonDashboardViewModel.UiState.Success -> {
                 DashboardContent(
                     data = state.data,
-                    onNavigateToPatientList = onNavigateToPatientList,
                     onNavigateToAddPatient = onNavigateToAddPatient,
-                    onNavigateToAppointments = onNavigateToAppointments,
                     onNavigateToSurgicalTemplates = onNavigateToSurgicalTemplates,
-                    onNavigateToAdmissions = onNavigateToAdmissions,
-                    onNavigateToPatientProfile = onNavigateToPatientProfile
+                    onNavigateToAdmissions = onNavigateToAdmissions
                 )
             }
         }
@@ -106,21 +97,12 @@ fun SurgeonDashboardTab(
 @Composable
 private fun DashboardContent(
     data: SurgeonDashboardViewModel.DashboardData,
-    onNavigateToPatientList: () -> Unit,
     onNavigateToAddPatient: () -> Unit,
-    onNavigateToAppointments: () -> Unit,
     onNavigateToSurgicalTemplates: () -> Unit,
-    onNavigateToAdmissions: () -> Unit,
-    onNavigateToPatientProfile: (String) -> Unit
+    onNavigateToAdmissions: () -> Unit
 ) {
-    val today = getCurrentDateString()
-    val todaysAppointments = data.appointments.filter {
-        it.slotDatetime?.startsWith(today) == true
-    }
-    val surgeriesScheduled = data.appointments.count {
-        it.visitType?.lowercase()?.contains("surgery") == true ||
-                it.status?.lowercase()?.contains("scheduled") == true
-    }
+    val activeAdmissionStatuses = setOf("admitted", "pre-op", "in-surgery", "recovery")
+    val activeAdmissionsCount = data.admissions.count { it.status?.lowercase() in activeAdmissionStatuses }
     val preOpCount = data.admissions.count { it.status?.lowercase() == "pre-op" }
     val inOtCount = data.admissions.count { it.status?.lowercase() == "in-surgery" }
     val postOpCount = data.admissions.count { it.status?.lowercase() == "recovery" }
@@ -142,28 +124,28 @@ private fun DashboardContent(
         }
 
         item {
-            SectionTitle(title = "Today's Summary")
+            SectionTitle(title = "Overview")
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 SummaryCard(
-                    icon = Icons.Default.CalendarToday,
+                    icon = Icons.Default.People,
                     iconTint = NorituraColors.PrimaryBlue,
                     iconBackground = NorituraColors.PrimaryBlueLight,
-                    label = "Today",
-                    value = todaysAppointments.size.toString(),
-                    unit = "APPOINTMENTS",
+                    label = "Total",
+                    value = data.patients.size.toString(),
+                    unit = "PATIENTS",
                     modifier = Modifier.weight(1f)
                 )
                 SummaryCard(
-                    icon = Icons.Default.MedicalServices,
+                    icon = Icons.Default.LocalHospital,
                     iconTint = NorituraColors.AccentGreen,
                     iconBackground = NorituraColors.AccentGreenLight,
-                    label = "Scheduled",
-                    value = surgeriesScheduled.toString(),
-                    unit = "SURGERIES",
+                    label = "Active",
+                    value = activeAdmissionsCount.toString(),
+                    unit = "ADMISSIONS",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -225,32 +207,11 @@ private fun DashboardContent(
                 )
                 ActionCard(
                     label = "Admissions",
-                    icon = Icons.Default.MedicalServices,
+                    icon = Icons.Default.LocalHospital,
                     onClick = onNavigateToAdmissions,
                     modifier = Modifier.weight(1f),
                     iconTint = NorituraColors.Warning,
                     iconBackground = NorituraColors.WarningLight
-                )
-            }
-        }
-
-        item {
-            SectionTitle(title = "Today's Appointments", actionLabel = "View all", onAction = onNavigateToAppointments)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        if (todaysAppointments.isEmpty()) {
-            item {
-                InlineEmpty(title = "No appointments for today")
-            }
-        } else {
-            items(todaysAppointments.size, key = { todaysAppointments[it].id ?: it }) { index ->
-                val appointment = todaysAppointments[index]
-                AppointmentRow(
-                    appointment = appointment,
-                    onClick = {
-                        appointment.patientId?.let(onNavigateToPatientProfile)
-                    }
                 )
             }
         }
@@ -411,74 +372,3 @@ private fun RecoveryCard(
     }
 }
 
-@Composable
-private fun AppointmentRow(
-    appointment: com.nonituracare.data.dto.AppointmentDto,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(NorituraColors.PrimaryBlueLight),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = appointment.patient?.name?.take(1)?.uppercase() ?: "P",
-                    color = NorituraColors.PrimaryBlue,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = appointment.patient?.name ?: "Patient",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "${appointment.slotDatetime ?: "-"} • ${appointment.visitType ?: "-"}",
-                    color = NorituraColors.TextSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Open",
-                tint = NorituraColors.TextTertiary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun InlineEmpty(title: String) {
-    androidx.compose.foundation.layout.Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = title,
-            color = NorituraColors.TextSecondary,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
