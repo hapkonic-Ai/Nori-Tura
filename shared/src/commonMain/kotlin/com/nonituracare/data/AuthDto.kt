@@ -1,5 +1,6 @@
 package com.nonituracare.data
 
+import com.nonituracare.data.dto.HospitalAffiliationDto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,7 +19,6 @@ data class VerifyOtpRequest(
 data class RegisterDoctorRequest(
     val name: String,
     val phone: String,
-    val hospital: String,
     val specialty: String
 )
 
@@ -56,7 +56,8 @@ data class MeResponse(
     val name: String? = null,
     val profile: ProfileDto? = null,
     val patient: ProfileDto? = null,
-    val doctor: ProfileDto? = null
+    val doctor: ProfileDto? = null,
+    val hospitals: List<HospitalAffiliationDto>? = null
 )
 
 @Serializable

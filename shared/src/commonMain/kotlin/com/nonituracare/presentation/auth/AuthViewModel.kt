@@ -58,13 +58,13 @@ class AuthViewModel(
         }
     }
 
-    fun registerDoctor(name: String, phone: String, hospital: String, specialty: String) {
+    fun registerDoctor(name: String, phone: String, specialty: String) {
         val normalized = normalizePhone(phone)
         if (normalized == null) {
             _uiState.value = AuthUiState.Error("Please enter a valid Indian phone number (+91 followed by 10 digits).")
             return
         }
-        if (name.isBlank() || hospital.isBlank() || specialty.isBlank()) {
+        if (name.isBlank() || specialty.isBlank()) {
             _uiState.value = AuthUiState.Error("Please fill in all fields.")
             return
         }
@@ -75,7 +75,6 @@ class AuthViewModel(
                 RegisterDoctorRequest(
                     name = name,
                     phone = normalized,
-                    hospital = hospital,
                     specialty = specialty
                 )
             )

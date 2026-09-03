@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nonituracare.presentation.components.BrandTopBar
 import com.nonituracare.presentation.components.NorituraScaffold
+import com.nonituracare.presentation.components.StatusChip
 import com.nonituracare.ui.theme.NorituraColors
 
 @Composable
@@ -93,6 +96,8 @@ fun DoctorProfileTab(
                     val phone = profile?.phone ?: state.me.phone ?: "—"
                     val specialty = profile?.specialty ?: "Surgeon"
                     val initials = name.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("")
+
+                    val hospitalNames = state.me.hospitals.orEmpty().mapNotNull { it.hospitalName }
 
                     // Avatar + name card
                     Card(
@@ -166,11 +171,37 @@ fun DoctorProfileTab(
                                 value = specialty
                             )
                             HorizontalDivider(color = NorituraColors.Divider)
-                            ProfileRow(
-                                icon = Icons.Default.Badge,
-                                label = "Practice Type",
-                                value = "Multi-hospital · Freelancing"
-                            )
+                            if (hospitalNames.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.Top,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Badge,
+                                        contentDescription = null,
+                                        tint = NorituraColors.PrimaryBlue,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Works At",
+                                            color = NorituraColors.TextTertiary,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        FlowRowCompat(hospitalNames)
+                                    }
+                                }
+                            } else {
+                                ProfileRow(
+                                    icon = Icons.Default.Badge,
+                                    label = "Practice Type",
+                                    value = "Multi-hospital · Freelancing"
+                                )
+                            }
                         }
                     }
                 }
@@ -192,6 +223,16 @@ fun DoctorProfileTab(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Logout", style = MaterialTheme.typography.labelLarge)
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FlowRowCompat(hospitalNames: List<String>) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        hospitalNames.forEach { name ->
+            StatusChip(label = name, color = NorituraColors.PrimaryBlue, showDot = false)
         }
     }
 }

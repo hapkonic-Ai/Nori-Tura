@@ -21,6 +21,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nonituracare.data.dto.PatientCreateRequest
 import com.nonituracare.presentation.components.BrandTopBar
+import com.nonituracare.presentation.components.HospitalOption
+import com.nonituracare.presentation.components.HospitalPickerField
 import com.nonituracare.presentation.components.NorituraScaffold
 
 @Composable
@@ -44,6 +47,8 @@ fun AddPatientScreen(
     onPatientAdded: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val hospitals by viewModel.hospitals.collectAsState()
+    val hospitalOptions = hospitals.map { HospitalOption(it.hospitalId, it.hospitalName ?: "Hospital") }
 
     var name by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -52,6 +57,19 @@ fun AddPatientScreen(
     var allergies by remember { mutableStateOf("") }
     var parentName by remember { mutableStateOf("") }
     var parentPhone by remember { mutableStateOf("") }
+    var selectedHospitalId by remember { mutableStateOf<String?>(null) }
+    var hospitalNameText by remember { mutableStateOf("") }
+    var enteringNewHospital by remember { mutableStateOf(false) }
+
+    LaunchedEffect(hospitals) {
+        if (selectedHospitalId == null && hospitals.isNotEmpty()) {
+            selectedHospitalId = hospitals.firstOrNull { it.isPrimary }?.hospitalId
+                ?: hospitals.firstOrNull()?.hospitalId
+        }
+        if (hospitals.isEmpty()) {
+            enteringNewHospital = true
+        }
+    }
 
     LaunchedEffect(uiState) {
         (uiState as? AddPatientViewModel.UiState.Success)?.let { success ->
@@ -140,6 +158,42 @@ fun AddPatientScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
+        if (viewModel.isSurgeon) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (enteringNewHospital) {
+                OutlinedTextField(
+                    value = hospitalNameText,
+                    onValueChange = { hospitalNameText = it },
+                    label = { Text("Hospital *") },
+                    placeholder = { Text("Which hospital is this patient at?") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (hospitalOptions.isNotEmpty()) {
+                    TextButton(onClick = {
+                        enteringNewHospital = false
+                        hospitalNameText = ""
+                    }) {
+                        Text("Choose from existing hospitals instead")
+                    }
+                }
+            } else {
+                HospitalPickerField(
+                    hospitals = hospitalOptions,
+                    selectedHospitalId = selectedHospitalId,
+                    onSelectedChange = { selectedHospitalId = it.id },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(onClick = {
+                    enteringNewHospital = true
+                    selectedHospitalId = null
+                }) {
+                    Text("+ Add a different hospital")
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
@@ -173,7 +227,9 @@ fun AddPatientScreen(
                     bloodGroup = bloodGroup.trim().takeIf { it.isNotBlank() },
                     allergies = allergies.trim().takeIf { it.isNotBlank() },
                     parentName = parentName.trim(),
-                    parentPhone = parentPhone.trim()
+                    parentPhone = parentPhone.trim(),
+                    hospitalId = if (enteringNewHospital) null else selectedHospitalId,
+                    hospitalName = if (enteringNewHospital) hospitalNameText.trim().takeIf { it.isNotBlank() } else null
                 )
                 viewModel.createPatient(request)
             },

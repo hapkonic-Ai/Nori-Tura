@@ -5,6 +5,7 @@ import com.nonituracare.data.dto.AiDiagnosisRequest
 import com.nonituracare.data.dto.AiDiagnosisResponse
 import com.nonituracare.data.dto.AppointmentDto
 import com.nonituracare.data.dto.DoctorDto
+import com.nonituracare.data.dto.HospitalAffiliationDto
 import com.nonituracare.data.dto.OpdRecordCreateRequest
 import com.nonituracare.data.dto.OpdRecordDto
 import com.nonituracare.data.dto.PatientCreateRequest
@@ -68,6 +69,11 @@ class SurgeonRepository(
 
     suspend fun getDoctor(token: String, doctorId: String): Result<DoctorDto> = safeApiCall {
         client.get("/doctors/$doctorId").body()
+    }
+
+    /** Hospitals the surgeon is affiliated with — for the per-record hospital picker. */
+    suspend fun getMyHospitals(): Result<List<HospitalAffiliationDto>> = safeApiCall {
+        client.get("/doctors/me/hospitals").body()
     }
 
     suspend fun createOpdRecord(

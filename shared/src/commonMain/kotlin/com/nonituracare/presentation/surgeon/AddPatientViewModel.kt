@@ -2,7 +2,9 @@ package com.nonituracare.presentation.surgeon
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nonituracare.data.AuthRepository
 import com.nonituracare.data.SurgeonRepository
+import com.nonituracare.data.dto.HospitalAffiliationDto
 import com.nonituracare.data.dto.PatientCreateRequest
 import com.nonituracare.data.dto.PatientDto
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,7 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AddPatientViewModel(
-    private val surgeonRepository: SurgeonRepository = SurgeonRepository()
+    private val surgeonRepository: SurgeonRepository = SurgeonRepository(),
+    private val authRepository: AuthRepository = AuthRepository()
 ) : ViewModel() {
 
     sealed class UiState {
@@ -23,6 +26,27 @@ class AddPatientViewModel(
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    // A nurse's hospital is resolved automatically server-side — this is
+    // surgeon-only. A surgeon with exactly one hospital never needs to pick
+    // either; the field only matters with zero (bootstrap) or 2+ affiliations.
+    private val _hospitals = MutableStateFlow<List<HospitalAffiliationDto>>(emptyList())
+    val hospitals: StateFlow<List<HospitalAffiliationDto>> = _hospitals.asStateFlow()
+
+    val isSurgeon: Boolean get() = authRepository.getRole()?.lowercase() == "surgeon"
+
+    init {
+        if (isSurgeon) {
+            loadHospitals()
+        }
+    }
+
+    fun loadHospitals() {
+        viewModelScope.launch {
+            surgeonRepository.getMyHospitals()
+                .onSuccess { _hospitals.value = it }
+        }
+    }
 
     fun createPatient(request: PatientCreateRequest) {
         val validationError = validate(request)
@@ -56,6 +80,11 @@ class AddPatientViewModel(
             request.parentPhone.drop(3).any { !it.isDigit() }
         ) {
             return "Parent phone must be +91 followed by 10 digits"
+        }
+        if (isSurgeon && _hospitals.value.size != 1 &&
+            request.hospitalId == null && request.hospitalName.isNullOrBlank()
+        ) {
+            return "Please specify which hospital this patient belongs to"
         }
         return null
     }

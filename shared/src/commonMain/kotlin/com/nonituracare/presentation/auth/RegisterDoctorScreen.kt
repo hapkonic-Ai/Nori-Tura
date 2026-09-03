@@ -39,7 +39,6 @@ fun RegisterDoctorScreen(
 
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    var hospital by remember { mutableStateOf("") }
     var specialty by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState) {
@@ -93,16 +92,6 @@ fun RegisterDoctorScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
-            value = hospital,
-            onValueChange = { hospital = it },
-            label = { Text("Hospital / Clinic") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
             value = specialty,
             onValueChange = { specialty = it },
             label = { Text("Specialty") },
@@ -113,7 +102,7 @@ fun RegisterDoctorScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = { viewModel.registerDoctor(name, phone, hospital, specialty) },
+            onClick = { viewModel.registerDoctor(name, phone, specialty) },
             enabled = uiState !is AuthUiState.Loading,
             modifier = Modifier.fillMaxWidth()
         ) {

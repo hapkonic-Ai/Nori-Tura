@@ -18,6 +18,7 @@ class AuthRepository(
     companion object {
         private const val KEY_TOKEN = "auth_token"
         private const val KEY_ROLE = "auth_role"
+        private const val KEY_SELECTED_HOSPITAL = "selected_hospital_id"
     }
 
     suspend fun sendOtp(phone: String): Result<OtpResponse> = safeApiCall {
@@ -72,8 +73,19 @@ class AuthRepository(
         settings.remove(KEY_ROLE)
     }
 
+    fun saveSelectedHospitalId(hospitalId: String) {
+        settings[KEY_SELECTED_HOSPITAL] = hospitalId
+    }
+
+    fun getSelectedHospitalId(): String? = settings[KEY_SELECTED_HOSPITAL]
+
+    fun clearSelectedHospitalId() {
+        settings.remove(KEY_SELECTED_HOSPITAL)
+    }
+
     fun clearAll() {
         clearToken()
         clearRole()
+        clearSelectedHospitalId()
     }
 }
