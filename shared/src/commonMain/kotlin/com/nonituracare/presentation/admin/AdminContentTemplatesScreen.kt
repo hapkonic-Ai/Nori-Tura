@@ -63,6 +63,7 @@ fun AdminContentTemplatesScreen(
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val saveState by viewModel.saveState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var editingTemplate by remember { mutableStateOf<ContentTemplateDto?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,6 +71,14 @@ fun AdminContentTemplatesScreen(
     LaunchedEffect(uiState) {
         if (uiState is AdminContentTemplatesViewModel.UiState.Error) {
             snackbarHostState.showSnackbar((uiState as AdminContentTemplatesViewModel.UiState.Error).message)
+        }
+    }
+
+    LaunchedEffect(saveState) {
+        if (saveState is AdminContentTemplatesViewModel.SaveState.Success) {
+            showCreateDialog = false
+            editingTemplate = null
+            viewModel.resetSaveState()
         }
     }
 
@@ -149,34 +158,42 @@ fun AdminContentTemplatesScreen(
 
     if (showCreateDialog) {
         Dialog(
-            onDismissRequest = { showCreateDialog = false },
+            onDismissRequest = {
+                showCreateDialog = false
+                viewModel.resetSaveState()
+            },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             ContentTemplateFormDialog(
                 title = "New Content Template",
                 initial = null,
-                onDismiss = { showCreateDialog = false },
-                onSave = { request ->
-                    viewModel.createTemplate(request)
+                saveState = saveState,
+                onDismiss = {
                     showCreateDialog = false
-                }
+                    viewModel.resetSaveState()
+                },
+                onSave = { request -> viewModel.createTemplate(request) }
             )
         }
     }
 
     editingTemplate?.let { template ->
         Dialog(
-            onDismissRequest = { editingTemplate = null },
+            onDismissRequest = {
+                editingTemplate = null
+                viewModel.resetSaveState()
+            },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             ContentTemplateFormDialog(
                 title = "Edit Content Template",
                 initial = template,
-                onDismiss = { editingTemplate = null },
-                onSave = { request ->
-                    viewModel.updateTemplate(template.id, request.toUpdateRequest())
+                saveState = saveState,
+                onDismiss = {
                     editingTemplate = null
-                }
+                    viewModel.resetSaveState()
+                },
+                onSave = { request -> viewModel.updateTemplate(template.id, request.toUpdateRequest()) }
             )
         }
     }
@@ -260,6 +277,7 @@ private fun ContentTemplateFormCard(
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     saveEnabled: Boolean,
+    saveState: AdminContentTemplatesViewModel.SaveState,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -283,6 +301,13 @@ private fun ContentTemplateFormCard(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
                 content()
+                if (saveState is AdminContentTemplatesViewModel.SaveState.Error) {
+                    Text(
+                        text = saveState.message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
             Row(
                 modifier = Modifier
@@ -291,7 +316,10 @@ private fun ContentTemplateFormCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
             ) {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
-                Button(onClick = onSave, enabled = saveEnabled) { Text("Save") }
+                Button(
+                    onClick = onSave,
+                    enabled = saveEnabled && saveState !is AdminContentTemplatesViewModel.SaveState.Loading
+                ) { Text(if (saveState is AdminContentTemplatesViewModel.SaveState.Loading) "Saving…" else "Save") }
             }
         }
     }
@@ -301,6 +329,7 @@ private fun ContentTemplateFormCard(
 private fun ContentTemplateFormDialog(
     title: String,
     initial: ContentTemplateDto?,
+    saveState: AdminContentTemplatesViewModel.SaveState,
     onDismiss: () -> Unit,
     onSave: (ContentTemplateCreateRequest) -> Unit
 ) {
@@ -326,6 +355,7 @@ private fun ContentTemplateFormDialog(
     ContentTemplateFormCard(
         title = title,
         onDismiss = onDismiss,
+        saveState = saveState,
         onSave = {
             onSave(
                 ContentTemplateCreateRequest(
