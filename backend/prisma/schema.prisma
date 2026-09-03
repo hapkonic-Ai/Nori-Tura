@@ -32,6 +32,7 @@ model doctors {
   ai_diagnosis_logs ai_diagnosis_logs[]
   surgical_templates surgical_templates[]
   medical_records medical_records[]
+  doctor_hospitals doctor_hospitals[]
 
   @@index([hospital_id])
 }
@@ -72,15 +73,30 @@ model hospitals {
   registration_number String?
   created_at          DateTime @default(now())
 
-  doctors        doctors[]
-  nurses         nurses[]
-  patients       patients[]
-  opd_records    opd_records[]
-  ipd_admissions ipd_admissions[]
-  documents      documents[]
-  consent_forms  consent_forms[]
+  doctors          doctors[]
+  nurses           nurses[]
+  patients         patients[]
+  opd_records      opd_records[]
+  ipd_admissions   ipd_admissions[]
+  documents        documents[]
+  consent_forms    consent_forms[]
+  doctor_hospitals doctor_hospitals[]
 
   @@index([name])
+}
+
+model doctor_hospitals {
+  id          String   @id @default(uuid())
+  doctor_id   String
+  hospital_id String
+  created_at  DateTime @default(now())
+
+  doctor      doctors   @relation(fields: [doctor_id], references: [id])
+  hospital    hospitals @relation(fields: [hospital_id], references: [id])
+
+  @@unique([doctor_id, hospital_id])
+  @@index([doctor_id])
+  @@index([hospital_id])
 }
 
 model patients {
@@ -497,23 +513,25 @@ model ai_diagnosis_logs {
 }
 
 model surgical_templates {
-  id                   String   @id @default(uuid())
-  doctor_id            String
-  name                 String
-  procedure            String
-  approach             String?
-  anaesthesia          String[]
-  investigations       String[]
-  risk_level           String?
-  technique            String?
-  special_instructions String?
-  risks                String[]
-  benefits             String[]
-  alternatives         String[]
-  complications        String[]
-  post_op_care         String?
-  expected_recovery    String?
-  created_at           DateTime @default(now())
+  id                    String   @id @default(uuid())
+  doctor_id             String
+  name                  String
+  procedure             String
+  approach              String?
+  anaesthesia           String[]
+  investigations        String[]
+  risk_level            String?
+  technique             String?
+  special_instructions  String?
+  procedure_description String?
+  risks                 String[]
+  benefits              String[]
+  alternatives          String[]
+  complications         String[]
+  material_risks        String?
+  post_op_care          String?
+  expected_recovery     String?
+  created_at            DateTime @default(now())
 
   doctor doctors @relation(fields: [doctor_id], references: [id])
 
@@ -579,6 +597,11 @@ model consent_content_templates {
   id                      String   @id @default(uuid())
   name                    String
   procedure               String
+  approach                String?
+  technique               String?
+  risk_level              String?
+  special_instructions    String?
+  investigations          String[]
   procedure_description   String?
   anesthesia              String[]
   risks                   String[]
