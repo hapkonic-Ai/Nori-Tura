@@ -88,6 +88,43 @@ async def list_doctors(
     ]
 
 
+class HospitalAffiliation(BaseModel):
+    hospital_id: str
+    hospital_name: Optional[str] = None
+    hospital_logo_url: Optional[str] = None
+    # Primary hospital (doctors.hospital_id) — used only as a sane default to
+    # pre-select in per-record hospital pickers. A doctor works at all of their
+    # affiliated hospitals simultaneously; there is no "current" one to switch to.
+    is_primary: bool = False
+
+
+@router.get("/me/hospitals", response_model=List[HospitalAffiliation])
+async def get_my_hospitals(user: CurrentUser = Depends(get_current_user)):
+    """List the authenticated surgeon's hospital affiliations, for the hospital picker
+    shown when creating a patient/OPD record/admission."""
+    if not user.is_surgeon():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Surgeon access required")
+
+    doctor = await prisma.doctors.find_first(where={"id": user.doctor_id})
+    if not doctor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
+
+    affiliations = await prisma.doctor_hospitals.find_many(
+        where={"doctor_id": user.doctor_id},
+        include={"hospital": True},
+        order={"created_at": "asc"},
+    )
+    return [
+        HospitalAffiliation(
+            hospital_id=a.hospital_id,
+            hospital_name=a.hospital.name if a.hospital else None,
+            hospital_logo_url=a.hospital.logo_url if a.hospital else None,
+            is_primary=a.hospital_id == doctor.hospital_id,
+        )
+        for a in affiliations
+    ]
+
+
 @router.get("/me/stats")
 async def get_doctor_stats(user: CurrentUser = Depends(get_current_user)):
     """Return practice stats for the authenticated doctor."""

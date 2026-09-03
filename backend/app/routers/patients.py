@@ -8,6 +8,7 @@ from app.core.auth_deps import (
     get_current_nurse_or_surgeon,
     CurrentUser,
     resolve_doctor_id,
+    resolve_patient_hospital,
 )
 
 router = APIRouter(prefix="/patients", tags=["Patients"])
@@ -21,6 +22,8 @@ class PatientCreate(BaseModel):
     allergies: Optional[str] = None
     parent_name: str
     parent_phone: str = Field(..., pattern=r"^\+91[0-9]{10}$")
+    hospital_id: Optional[str] = None
+    hospital_name: Optional[str] = None
 
 
 class PatientUpdate(BaseModel):
@@ -168,8 +171,7 @@ async def create_patient(
             detail=f"A patient with the same name, age, gender and parent phone already exists (ID: {existing.id}).",
         )
 
-    doctor = await prisma.doctors.find_unique(where={"id": doctor_id})
-    hospital_id = doctor.hospital_id if doctor else None
+    hospital_id = await resolve_patient_hospital(user, req.hospital_id, req.hospital_name)
 
     patient = await prisma.patients.create(
         data={

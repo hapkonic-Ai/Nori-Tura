@@ -22,7 +22,6 @@ class VerifyOtpRequest(BaseModel):
 class RegisterDoctorRequest(BaseModel):
     name: str = Field(..., min_length=2)
     phone: str = Field(..., pattern=r"^\+91[0-9]{10}$")
-    hospital: str = Field(..., min_length=1)
     specialty: str = Field(..., min_length=1)
 
 
@@ -88,18 +87,14 @@ async def register_doctor(req: RegisterDoctorRequest):
     if existing_nurse:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phone already registered as nurse")
 
-    hospital_name = req.hospital.strip() if req.hospital else "Unnamed Hospital"
-    hospital = await prisma.hospitals.find_first(
-        where={"name": {"equals": hospital_name, "mode": "insensitive"}}
-    )
-    if not hospital:
-        hospital = await prisma.hospitals.create(data={"name": hospital_name})
-
+    # Hospital affiliation is assigned by admin at approval time, not here — a
+    # freelance surgeon isn't declaring "my one hospital" during signup, and the
+    # admin reviewing the application is the one who actually knows which
+    # hospital they're vouching for.
     doctor = await prisma.doctors.create(
         data={
             "name": req.name,
             "phone": req.phone,
-            "hospital_id": hospital.id,
             "specialty": req.specialty,
             "is_active": False,
         }
@@ -175,23 +170,31 @@ async def get_me(user: CurrentUser = Depends(get_current_user)):
 
     if user.is_surgeon():
         profile = await prisma.doctors.find_first(where={"id": user.doctor_id})
-        return {"role": "surgeon", "profile": profile}
+        affiliations = await prisma.doctor_hospitals.find_many(
+            where={"doctor_id": user.doctor_id},
+            include={"hospital": True},
+            order={"created_at": "asc"},
+        )
+        hospitals = [
+            {
+                "hospital_id": a.hospital_id,
+                "hospital_name": a.hospital.name if a.hospital else None,
+                "hospital_logo_url": a.hospital.logo_url if a.hospital else None,
+                "is_primary": profile is not None and a.hospital_id == profile.hospital_id,
+            }
+            for a in affiliations
+        ]
+        return {"role": "surgeon", "profile": profile, "hospitals": hospitals}
 
     if user.is_nurse():
         profile = await prisma.nurses.find_first(where={"id": user.nurse_id})
         doctor = await prisma.doctors.find_first(where={"id": profile.doctor_id}) if profile else None
         return {"role": "nurse", "profile": profile, "doctor": doctor}
 
-    patient_id = user.patient_id
-    if patient_id and isinstance(patient_id, str) and patient_id.strip():
-        patient = await prisma.patients.find_first(where={"id": patient_id})
-        doctor = await prisma.doctors.find_first(where={"id": patient.doctor_id}) if patient else None
-        return {
-            "role": "patient_parent",
-            "patient": patient,
-            "doctor": doctor
-        }
-
+    # A parent's children may be registered at more than one hospital, each as
+    # its own `patients` row sharing this phone number — there is no single
+    # "the" patient to reveal here. The client sources the full list (and any
+    # hospital grouping/switching) from GET /patients instead.
     return {"role": "patient_parent"}
 
 

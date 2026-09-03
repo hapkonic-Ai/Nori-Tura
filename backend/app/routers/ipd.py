@@ -201,13 +201,12 @@ async def create_admission(
 ):
     patient, doctor_id = await _require_patient_access(user, req.patient_id)
 
-    doctor = await prisma.doctors.find_unique(
-        where={"id": doctor_id},
-        include={"hospital": True},
-    )
-    hospital_id = doctor.hospital_id if doctor else None
-    hospital_name = doctor.hospital.name if doctor and doctor.hospital else None
-    hospital_logo_url = doctor.hospital.logo_url if doctor and doctor.hospital else None
+    # Hospital is decided once, at patient creation — every admission for this
+    # patient just inherits it rather than asking again.
+    hospital_id = patient.hospital_id
+    hospital = await prisma.hospitals.find_first(where={"id": hospital_id}) if hospital_id else None
+    hospital_name = hospital.name if hospital else None
+    hospital_logo_url = hospital.logo_url if hospital else None
 
     data = {
         "patient_id": req.patient_id,
