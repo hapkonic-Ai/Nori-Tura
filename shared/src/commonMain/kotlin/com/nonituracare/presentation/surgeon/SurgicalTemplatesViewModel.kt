@@ -3,6 +3,7 @@ package com.nonituracare.presentation.surgeon
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nonituracare.data.SurgicalTemplateRepository
+import com.nonituracare.data.dto.ContentTemplateDto
 import com.nonituracare.data.dto.SurgicalTemplateCreateRequest
 import com.nonituracare.data.dto.SurgicalTemplateDto
 import com.nonituracare.data.dto.SurgicalTemplateUpdateRequest
@@ -18,8 +19,13 @@ class SurgicalTemplatesViewModel(
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    // Global, admin-curated templates a doctor can start a new personal template from.
+    private val _contentTemplates = MutableStateFlow<List<ContentTemplateDto>>(emptyList())
+    val contentTemplates: StateFlow<List<ContentTemplateDto>> = _contentTemplates.asStateFlow()
+
     init {
         loadTemplates()
+        loadContentTemplates()
     }
 
     fun loadTemplates() {
@@ -32,6 +38,14 @@ class SurgicalTemplatesViewModel(
                 .onFailure { error ->
                     _uiState.value = UiState.Error(error.message ?: "Failed to load templates")
                 }
+        }
+    }
+
+    private fun loadContentTemplates() {
+        viewModelScope.launch {
+            repository.getContentTemplates()
+                .onSuccess { _contentTemplates.value = it }
+                .onFailure { /* optional — picker just won't offer a global option */ }
         }
     }
 

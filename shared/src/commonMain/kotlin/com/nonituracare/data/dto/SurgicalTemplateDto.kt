@@ -14,10 +14,12 @@ data class SurgicalTemplateDto(
     @SerialName("risk_level") val riskLevel: String? = null,
     val technique: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null,
+    @SerialName("procedure_description") val procedureDescription: String? = null,
     val risks: List<String> = emptyList(),
     val benefits: List<String> = emptyList(),
     val alternatives: List<String> = emptyList(),
     val complications: List<String> = emptyList(),
+    @SerialName("material_risks") val materialRisks: String? = null,
     @SerialName("post_op_care") val postOpCare: String? = null,
     @SerialName("expected_recovery") val expectedRecovery: String? = null,
     @SerialName("created_at") val createdAt: String? = null
@@ -33,10 +35,12 @@ data class SurgicalTemplateCreateRequest(
     @SerialName("risk_level") val riskLevel: String? = null,
     val technique: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null,
+    @SerialName("procedure_description") val procedureDescription: String? = null,
     val risks: List<String> = emptyList(),
     val benefits: List<String> = emptyList(),
     val alternatives: List<String> = emptyList(),
     val complications: List<String> = emptyList(),
+    @SerialName("material_risks") val materialRisks: String? = null,
     @SerialName("post_op_care") val postOpCare: String? = null,
     @SerialName("expected_recovery") val expectedRecovery: String? = null
 )
@@ -51,10 +55,12 @@ data class SurgicalTemplateUpdateRequest(
     @SerialName("risk_level") val riskLevel: String? = null,
     val technique: String? = null,
     @SerialName("special_instructions") val specialInstructions: String? = null,
+    @SerialName("procedure_description") val procedureDescription: String? = null,
     val risks: List<String>? = null,
     val benefits: List<String>? = null,
     val alternatives: List<String>? = null,
     val complications: List<String>? = null,
+    @SerialName("material_risks") val materialRisks: String? = null,
     @SerialName("post_op_care") val postOpCare: String? = null,
     @SerialName("expected_recovery") val expectedRecovery: String? = null
 )

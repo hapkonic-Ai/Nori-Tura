@@ -51,10 +51,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nonituracare.data.dto.ContentTemplateDto
 import com.nonituracare.data.dto.SurgicalTemplateCreateRequest
 import com.nonituracare.data.dto.SurgicalTemplateDto
 import com.nonituracare.data.dto.SurgicalTemplateUpdateRequest
 import com.nonituracare.presentation.components.MedicalAutoCompleteTextField
+import com.nonituracare.presentation.components.TemplatePickerDialog
+import com.nonituracare.presentation.components.TemplatePickerResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +66,10 @@ fun SurgicalTemplatesScreen(
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val contentTemplates by viewModel.contentTemplates.collectAsState()
+    var showSourcePicker by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
+    var createSeed by remember { mutableStateOf<SurgicalTemplateDto?>(null) }
     var editingTemplate by remember { mutableStateOf<SurgicalTemplateDto?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -89,7 +95,7 @@ fun SurgicalTemplatesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateDialog = true }) {
+            FloatingActionButton(onClick = { showSourcePicker = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add template")
             }
         },
@@ -135,18 +141,36 @@ fun SurgicalTemplatesScreen(
         }
     }
 
+    if (showSourcePicker) {
+        TemplatePickerDialog(
+            mine = null,
+            global = contentTemplates,
+            onDismiss = { showSourcePicker = false },
+            onSelect = { result ->
+                createSeed = when (result) {
+                    is TemplatePickerResult.Blank -> null
+                    is TemplatePickerResult.Content -> result.template.toSurgicalTemplateSeed()
+                    is TemplatePickerResult.Surgical -> null // not offered here
+                }
+                showSourcePicker = false
+                showCreateDialog = true
+            }
+        )
+    }
+
     if (showCreateDialog) {
         Dialog(
-            onDismissRequest = { showCreateDialog = false },
+            onDismissRequest = { showCreateDialog = false; createSeed = null },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             TemplateFormDialog(
                 title = "New Surgical Template",
-                initial = null,
-                onDismiss = { showCreateDialog = false },
+                initial = createSeed,
+                onDismiss = { showCreateDialog = false; createSeed = null },
                 onSave = { request ->
                     viewModel.createTemplate(request)
                     showCreateDialog = false
+                    createSeed = null
                 }
             )
         }
@@ -265,6 +289,12 @@ private fun TemplateCard(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+            template.materialRisks?.let {
+                Text(
+                    text = "Material risks: $it",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             template.postOpCare?.let {
                 Text(
                     text = "Post-op care: $it",
@@ -281,6 +311,29 @@ private fun TemplateCard(
     }
 }
 
+/** Seeds the create form from a global content template — the doctor edits and
+ * saves it as their own new surgical template; nothing is written until Save. */
+private fun ContentTemplateDto.toSurgicalTemplateSeed(): SurgicalTemplateDto =
+    SurgicalTemplateDto(
+        id = "",
+        name = name,
+        procedure = procedure,
+        approach = approach,
+        anaesthesia = anesthesia,
+        investigations = investigations,
+        riskLevel = riskLevel,
+        technique = technique,
+        specialInstructions = specialInstructions,
+        procedureDescription = procedureDescription,
+        risks = risks,
+        benefits = benefits,
+        alternatives = alternatives,
+        complications = possibleComplications,
+        materialRisks = materialRisks,
+        postOpCare = postOpCare,
+        expectedRecovery = expectedRecovery
+    )
+
 private fun SurgicalTemplateCreateRequest.toUpdateRequest(): SurgicalTemplateUpdateRequest =
     SurgicalTemplateUpdateRequest(
         name = name,
@@ -291,10 +344,12 @@ private fun SurgicalTemplateCreateRequest.toUpdateRequest(): SurgicalTemplateUpd
         riskLevel = riskLevel,
         technique = technique,
         specialInstructions = specialInstructions,
+        procedureDescription = procedureDescription,
         risks = risks,
         benefits = benefits,
         alternatives = alternatives,
         complications = complications,
+        materialRisks = materialRisks,
         postOpCare = postOpCare,
         expectedRecovery = expectedRecovery
     )
@@ -357,10 +412,12 @@ private fun TemplateFormDialog(
     var riskLevel by remember { mutableStateOf(initial?.riskLevel ?: "") }
     var technique by remember { mutableStateOf(initial?.technique ?: "") }
     var instructions by remember { mutableStateOf(initial?.specialInstructions ?: "") }
+    var procedureDescription by remember { mutableStateOf(initial?.procedureDescription ?: "") }
     var risks by remember { mutableStateOf(initial?.risks?.joinToString(", ") ?: "") }
     var benefits by remember { mutableStateOf(initial?.benefits?.joinToString(", ") ?: "") }
     var alternatives by remember { mutableStateOf(initial?.alternatives?.joinToString(", ") ?: "") }
     var complications by remember { mutableStateOf(initial?.complications?.joinToString(", ") ?: "") }
+    var materialRisks by remember { mutableStateOf(initial?.materialRisks ?: "") }
     var postOpCare by remember { mutableStateOf(initial?.postOpCare ?: "") }
     var expectedRecovery by remember { mutableStateOf(initial?.expectedRecovery ?: "") }
 
@@ -378,10 +435,12 @@ private fun TemplateFormDialog(
                     riskLevel = riskLevel.takeIf { it.isNotBlank() },
                     technique = technique.takeIf { it.isNotBlank() },
                     specialInstructions = instructions.takeIf { it.isNotBlank() },
+                    procedureDescription = procedureDescription.takeIf { it.isNotBlank() },
                     risks = risks.split(",").map { it.trim() }.filter { it.isNotBlank() },
                     benefits = benefits.split(",").map { it.trim() }.filter { it.isNotBlank() },
                     alternatives = alternatives.split(",").map { it.trim() }.filter { it.isNotBlank() },
                     complications = complications.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                    materialRisks = materialRisks.takeIf { it.isNotBlank() },
                     postOpCare = postOpCare.takeIf { it.isNotBlank() },
                     expectedRecovery = expectedRecovery.takeIf { it.isNotBlank() }
                 )
@@ -443,6 +502,14 @@ private fun TemplateFormDialog(
             singleLine = true
         )
         MedicalAutoCompleteTextField(
+            value = procedureDescription,
+            onValueChange = { procedureDescription = it },
+            label = { Text("Procedure Description (optional — overrides the auto-composed one)") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 5
+        )
+        MedicalAutoCompleteTextField(
             value = risks,
             onValueChange = { risks = it },
             label = { Text("Risks (comma-separated)") },
@@ -470,6 +537,14 @@ private fun TemplateFormDialog(
             value = complications,
             onValueChange = { complications = it },
             label = { Text("Complications (comma-separated)") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 4
+        )
+        MedicalAutoCompleteTextField(
+            value = materialRisks,
+            onValueChange = { materialRisks = it },
+            label = { Text("Material Risks (optional — falls back to Complications if left blank)") },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 4

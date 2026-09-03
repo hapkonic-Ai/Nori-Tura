@@ -63,6 +63,7 @@ import com.nonituracare.presentation.components.ImageAttachmentPicker
 import com.nonituracare.presentation.components.MediaUrlChipGrid
 import com.nonituracare.presentation.components.MedicalAutoCompleteTextField
 import com.nonituracare.presentation.components.TemplatePickerDialog
+import com.nonituracare.presentation.components.TemplatePickerResult
 import com.nonituracare.ui.theme.NorituraColors
 import com.nonituracare.util.openUrl
 import androidx.compose.foundation.background
@@ -498,10 +499,10 @@ private fun PreOpForm(
 
     if (showTemplatePicker) {
         TemplatePickerDialog(
-            templates = templates,
+            mine = templates,
             onDismiss = { showTemplatePicker = false },
-            onSelect = { template ->
-                template?.let {
+            onSelect = { result ->
+                (result as? TemplatePickerResult.Surgical)?.template?.let {
                     procedure = it.procedure
                     approach = it.approach ?: approach
                     anaesthesia = it.anaesthesia.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: anaesthesia
@@ -576,10 +577,10 @@ private fun IntraOpForm(
 
     if (showTemplatePicker) {
         TemplatePickerDialog(
-            templates = templates,
+            mine = templates,
             onDismiss = { showTemplatePicker = false },
-            onSelect = { template ->
-                template?.let {
+            onSelect = { result ->
+                (result as? TemplatePickerResult.Surgical)?.template?.let {
                     procedure = it.procedure
                     technique = it.technique ?: technique
                 }

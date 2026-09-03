@@ -37,11 +37,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nonituracare.data.dto.ConsentFormCreateRequest
-import com.nonituracare.data.dto.SurgicalTemplateDto
 import com.nonituracare.presentation.components.BrandTopBar
 import com.nonituracare.presentation.components.MedicalAutoCompleteTextField
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.presentation.components.TemplatePickerDialog
+import com.nonituracare.presentation.components.TemplatePickerResult
 import com.nonituracare.ui.theme.NorituraColors
 
 @Composable
@@ -53,8 +53,9 @@ fun ConsentFormScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val templates by viewModel.templates.collectAsState()
+    val contentTemplates by viewModel.contentTemplates.collectAsState()
 
-    var selectedTemplate by remember { mutableStateOf<SurgicalTemplateDto?>(null) }
+    var selectedTemplateName by remember { mutableStateOf<String?>(null) }
     var showTemplatePicker by remember { mutableStateOf(false) }
 
     // Core clinical fields
@@ -101,11 +102,16 @@ fun ConsentFormScreen(
 
     if (showTemplatePicker) {
         TemplatePickerDialog(
-            templates = templates,
+            mine = templates,
+            global = contentTemplates,
             onDismiss = { showTemplatePicker = false },
-            onSelect = { template ->
-                selectedTemplate = template
-                val fields = viewModel.applyTemplate(template)
+            onSelect = { result ->
+                selectedTemplateName = when (result) {
+                    is TemplatePickerResult.Blank -> null
+                    is TemplatePickerResult.Surgical -> result.template.name
+                    is TemplatePickerResult.Content -> result.template.name
+                }
+                val fields = viewModel.applyPickerResult(result)
                 formType = fields.formType
                 procedure = fields.procedure
                 anesthesia = fields.anesthesia
@@ -151,7 +157,7 @@ fun ConsentFormScreen(
 
             // ── Template Selector ───────────────────────────────────────
             ConsentTemplateSelectorCard(
-                selectedTemplateName = selectedTemplate?.name,
+                selectedTemplateName = selectedTemplateName,
                 onClick = { showTemplatePicker = true }
             )
 

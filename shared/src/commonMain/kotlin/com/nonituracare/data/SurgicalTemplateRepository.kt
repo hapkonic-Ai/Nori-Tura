@@ -1,5 +1,6 @@
 package com.nonituracare.data
 
+import com.nonituracare.data.dto.ContentTemplateDto
 import com.nonituracare.data.dto.SurgicalTemplateCreateRequest
 import com.nonituracare.data.dto.SurgicalTemplateDto
 import com.nonituracare.data.dto.SurgicalTemplateUpdateRequest
@@ -39,5 +40,11 @@ class SurgicalTemplateRepository(
 
     suspend fun deleteTemplate(id: String): Result<Unit> = safeApiCall {
         client.delete("/surgical-templates/$id")
+    }
+
+    /** Admin-curated, global procedure templates — usable as a starting point for a
+     * new personal template, or directly when generating a consent form. */
+    suspend fun getContentTemplates(): Result<List<ContentTemplateDto>> = safeApiCall {
+        client.get("/surgical-templates/content-templates").body()
     }
 }
