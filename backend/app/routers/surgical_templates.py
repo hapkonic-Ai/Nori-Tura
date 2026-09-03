@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.core.database import prisma
-from app.core.auth_deps import CurrentUser, get_current_surgeon, get_current_nurse_or_surgeon, resolve_doctor_id, resolve_hospital_id
+from app.core.auth_deps import CurrentUser, get_current_surgeon, get_current_nurse_or_surgeon, resolve_doctor_id
 
 router = APIRouter(prefix="/surgical-templates", tags=["Surgical Templates"])
 
@@ -18,10 +18,12 @@ class SurgicalTemplateCreate(BaseModel):
     risk_level: Optional[str] = None
     technique: Optional[str] = None
     special_instructions: Optional[str] = None
+    procedure_description: Optional[str] = None
     risks: List[str] = []
     benefits: List[str] = []
     alternatives: List[str] = []
     complications: List[str] = []
+    material_risks: Optional[str] = None
     post_op_care: Optional[str] = None
     expected_recovery: Optional[str] = None
 
@@ -35,19 +37,37 @@ class SurgicalTemplateUpdate(BaseModel):
     risk_level: Optional[str] = None
     technique: Optional[str] = None
     special_instructions: Optional[str] = None
+    procedure_description: Optional[str] = None
     risks: Optional[List[str]] = None
     benefits: Optional[List[str]] = None
     alternatives: Optional[List[str]] = None
     complications: Optional[List[str]] = None
+    material_risks: Optional[str] = None
     post_op_care: Optional[str] = None
     expected_recovery: Optional[str] = None
 
 
 @router.get("")
 async def list_templates(user: CurrentUser = Depends(get_current_nurse_or_surgeon)):
-    hospital_id = await resolve_hospital_id(user)
+    # A nurse belongs to exactly one hospital; a surgeon may be affiliated with
+    # several at once, so show templates shared by any doctor at any of them.
+    if user.is_nurse():
+        nurse = await prisma.nurses.find_first(where={"id": user.nurse_id})
+        hospital_ids = [nurse.hospital_id] if nurse and nurse.hospital_id else []
+    else:
+        affiliations = await prisma.doctor_hospitals.find_many(where={"doctor_id": user.doctor_id})
+        hospital_ids = [a.hospital_id for a in affiliations]
+
+    if not hospital_ids:
+        doctor_id = await resolve_doctor_id(user)
+        templates = await prisma.surgical_templates.find_many(
+            where={"doctor_id": doctor_id},
+            order={"created_at": "desc"},
+        )
+        return templates
+
     templates = await prisma.surgical_templates.find_many(
-        where={"doctor": {"hospital_id": hospital_id}},
+        where={"doctor": {"doctor_hospitals": {"some": {"hospital_id": {"in": hospital_ids}}}}},
         order={"created_at": "desc"},
     )
     return templates
@@ -70,15 +90,29 @@ async def create_template(
             "risk_level": req.risk_level,
             "technique": req.technique,
             "special_instructions": req.special_instructions,
+            "procedure_description": req.procedure_description,
             "risks": req.risks,
             "benefits": req.benefits,
             "alternatives": req.alternatives,
             "complications": req.complications,
+            "material_risks": req.material_risks,
             "post_op_care": req.post_op_care,
             "expected_recovery": req.expected_recovery,
         }
     )
     return template
+
+
+@router.get("/content-templates")
+async def list_content_templates(user: CurrentUser = Depends(get_current_nurse_or_surgeon)):
+    """Admin-curated procedure templates, global across hospitals — any doctor or
+    nurse can browse these as a starting point (for a new surgical template) or a
+    direct source (when generating a consent form)."""
+    templates = await prisma.consent_content_templates.find_many(
+        where={"is_active": True},
+        order={"name": "asc"},
+    )
+    return templates
 
 
 @router.get("/{template_id}")

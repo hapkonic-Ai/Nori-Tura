@@ -37,23 +37,31 @@ def _apply_surgical_template(template) -> dict:
     if template.anaesthesia:
         defaults["anesthesia"] = ", ".join(template.anaesthesia)
 
-    # Build procedureDescription from approach, technique, specialInstructions
-    procedure_description_parts = []
-    if template.approach:
-        procedure_description_parts.append(f"Approach: {template.approach}")
-    if template.technique:
-        procedure_description_parts.append(f"Technique: {template.technique}")
-    if template.special_instructions:
-        procedure_description_parts.append(template.special_instructions)
-    if procedure_description_parts:
-        defaults["procedure_description"] = "\n\n".join(procedure_description_parts)
+    # Prefer an explicit procedure_description; otherwise compose one from
+    # approach, technique, specialInstructions.
+    if template.procedure_description:
+        defaults["procedure_description"] = template.procedure_description
+    else:
+        procedure_description_parts = []
+        if template.approach:
+            procedure_description_parts.append(f"Approach: {template.approach}")
+        if template.technique:
+            procedure_description_parts.append(f"Technique: {template.technique}")
+        if template.special_instructions:
+            procedure_description_parts.append(template.special_instructions)
+        if procedure_description_parts:
+            defaults["procedure_description"] = "\n\n".join(procedure_description_parts)
 
     if template.risks:
         defaults["risks"] = "\n".join(template.risks)
     if template.complications:
-        complications_text = "\n".join(template.complications)
-        defaults["material_risks"] = complications_text
-        defaults["possible_complications"] = complications_text
+        defaults["possible_complications"] = "\n".join(template.complications)
+    # Prefer an explicit material_risks; otherwise fall back to complications,
+    # same as before this field existed.
+    if template.material_risks:
+        defaults["material_risks"] = template.material_risks
+    elif template.complications:
+        defaults["material_risks"] = "\n".join(template.complications)
     if template.benefits:
         defaults["benefits"] = "\n".join(template.benefits)
     if template.alternatives:
@@ -249,7 +257,9 @@ async def create_consent_form(
     # Merge consent content template defaults after surgical template so either can be used
     if content_template:
         for field in [
+            "procedure",
             "procedure_description",
+            "anesthesia",
             "risks",
             "benefits",
             "alternatives",
@@ -267,6 +277,19 @@ async def create_consent_form(
                     template_defaults[field] = ", ".join(value) if isinstance(value, list) else value
                 else:
                     template_defaults[field] = value
+
+        # A content template can now carry approach/technique/special_instructions
+        # too, same as a surgical template — fold them into procedure_description
+        # the same way, unless an explicit procedure_description already won.
+        content_description_parts = []
+        if content_template.approach:
+            content_description_parts.append(f"Approach: {content_template.approach}")
+        if content_template.technique:
+            content_description_parts.append(f"Technique: {content_template.technique}")
+        if content_template.special_instructions:
+            content_description_parts.append(content_template.special_instructions)
+        if content_description_parts and not content_template.procedure_description:
+            template_defaults["procedure_description"] = "\n\n".join(content_description_parts)
 
     # Query consent RAG for procedure-specific clinical content (risks, complications,
     # alternatives, recovery). RAG output acts as the final default; request fields,
@@ -354,7 +377,7 @@ async def create_consent_form(
         "anesthesia": req.anesthesia or template_defaults.get("anesthesia", ""),
         "benefits": req.benefits or template_defaults.get("benefits") or rag_content.get("benefits", ""),
         "risks": req.risks or template_defaults.get("risks") or rag_content.get("risks", ""),
-        "material_risks": req.material_risks or req.risks or template_defaults.get("material_risks") or rag_content.get("material_risks", ""),
+        "material_risks": req.material_risks or template_defaults.get("material_risks") or rag_content.get("material_risks", "") or req.risks,
         "possible_complications": req.possible_complications or template_defaults.get("possible_complications") or rag_content.get("possible_complications", ""),
         "alternatives": req.alternatives or template_defaults.get("alternatives") or rag_content.get("alternatives", ""),
         "post_op_care": req.post_op_care or template_defaults.get("post_op_care") or rag_content.get("post_op_care", ""),
