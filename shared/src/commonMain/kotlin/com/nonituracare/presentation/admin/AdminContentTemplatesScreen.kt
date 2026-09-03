@@ -395,14 +395,14 @@ private fun ContentTemplateFormDialog(
         OutlinedTextField(
             value = anesthesia,
             onValueChange = { anesthesia = it },
-            label = { Text("Anesthesia (comma-separated)") },
+            label = { Text("Anaesthesia (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
         OutlinedTextField(
             value = procedureDescription,
             onValueChange = { procedureDescription = it },
-            label = { Text("Procedure Description") },
+            label = { Text("Procedure Description (optional — overrides the auto-composed one)") },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(

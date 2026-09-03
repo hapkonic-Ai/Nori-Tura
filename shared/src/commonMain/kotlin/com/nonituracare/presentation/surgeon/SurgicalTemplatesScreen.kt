@@ -285,7 +285,7 @@ private fun TemplateCard(
             }
             if (template.complications.isNotEmpty()) {
                 Text(
-                    text = "Complications: ${template.complications.joinToString()}",
+                    text = "Possible complications: ${template.complications.joinToString()}",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -478,11 +478,12 @@ private fun TemplateFormDialog(
             minLines = 2,
             maxLines = 4
         )
-        MedicalAutoCompleteTextField(
-            value = anaesthesia,
-            onValueChange = { anaesthesia = it },
-            label = { Text("Anaesthesia (comma-separated)") },
+        OutlinedTextField(
+            value = riskLevel,
+            onValueChange = { riskLevel = it },
+            label = { Text("Risk Level") },
             modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Low / Moderate / High") },
             singleLine = true
         )
         MedicalAutoCompleteTextField(
@@ -493,12 +494,11 @@ private fun TemplateFormDialog(
             minLines = 2,
             maxLines = 3
         )
-        OutlinedTextField(
-            value = riskLevel,
-            onValueChange = { riskLevel = it },
-            label = { Text("Risk Level") },
+        MedicalAutoCompleteTextField(
+            value = anaesthesia,
+            onValueChange = { anaesthesia = it },
+            label = { Text("Anaesthesia (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Low / Moderate / High") },
             singleLine = true
         )
         MedicalAutoCompleteTextField(
@@ -536,7 +536,7 @@ private fun TemplateFormDialog(
         MedicalAutoCompleteTextField(
             value = complications,
             onValueChange = { complications = it },
-            label = { Text("Complications (comma-separated)") },
+            label = { Text("Possible Complications (comma-separated)") },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 4
@@ -544,7 +544,7 @@ private fun TemplateFormDialog(
         MedicalAutoCompleteTextField(
             value = materialRisks,
             onValueChange = { materialRisks = it },
-            label = { Text("Material Risks (optional — falls back to Complications if left blank)") },
+            label = { Text("Material Risks (optional — falls back to Possible Complications if left blank)") },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 4
