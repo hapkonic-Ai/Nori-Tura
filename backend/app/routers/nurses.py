@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.core.database import prisma
 from app.core.auth_deps import get_current_surgeon, CurrentUser, resolve_doctor_id
+from app.services.hospital_service import resolve_or_create_hospital
 
 router = APIRouter(prefix="/nurses", tags=["Nurses"])
 
@@ -41,7 +42,9 @@ async def create_nurse(
         where={"id": doctor_id},
         include={"hospital": True},
     )
-    hospital_id = doctor.hospital_id if doctor else None
+    hospital_id = await resolve_or_create_hospital(None, req.hospital)
+    if not hospital_id:
+        hospital_id = doctor.hospital_id if doctor else None
 
     nurse = await prisma.nurses.create(
         data={
@@ -52,6 +55,22 @@ async def create_nurse(
         },
         include={"hospital": True},
     )
+
+    # Staffing a hospital with a nurse for this doctor is what puts the doctor
+    # "at" that hospital — mirrors the admin-side create_nurse affiliation logic.
+    if hospital_id:
+        existing_affiliation = await prisma.doctor_hospitals.find_first(
+            where={"doctor_id": doctor_id, "hospital_id": hospital_id}
+        )
+        if not existing_affiliation:
+            await prisma.doctor_hospitals.create(
+                data={"doctor_id": doctor_id, "hospital_id": hospital_id}
+            )
+            if doctor and not doctor.hospital_id:
+                await prisma.doctors.update(
+                    where={"id": doctor_id}, data={"hospital_id": hospital_id}
+                )
+
     return nurse
 
 
