@@ -33,6 +33,8 @@ model doctors {
   surgical_templates surgical_templates[]
   medical_records medical_records[]
   doctor_hospitals doctor_hospitals[]
+  ot_note_templates ot_note_templates[]
+  ot_notes        ot_notes[]
 
   @@index([hospital_id])
 }
@@ -146,6 +148,8 @@ model opd_records {
   planned_procedure        String?
   advice                   String?
   follow_up_date           DateTime?
+  follow_up_status         String     @default("pending") // pending | attended
+  follow_up_attended_at    DateTime?
   reminder_sent            Boolean    @default(false)
   prescription_image_urls  String[]
   visit_sequence           Int        @default(0)
@@ -208,6 +212,8 @@ model ipd_admissions {
   patient             patients           @relation(fields: [patient_id], references: [id])
   doctor              doctors            @relation(fields: [doctor_id], references: [id])
   hospital            hospitals?         @relation(fields: [hospital_id], references: [id])
+  // Legacy note types — kept for historical admissions only. New admissions
+  // use ot_notes, which replaces all three with one unified operative note.
   pre_op_notes        pre_op_notes[]
   intra_op_notes      intra_op_notes[]
   post_op_notes       post_op_notes[]
@@ -215,6 +221,7 @@ model ipd_admissions {
   discharge_summaries discharge_summaries[]
   consent_forms       consent_forms[]
   medical_records     medical_records[]
+  ot_notes            ot_notes[]
 
   @@index([doctor_id])
   @@index([patient_id])
@@ -276,6 +283,87 @@ model post_op_notes {
   admission ipd_admissions @relation(fields: [admission_id], references: [id])
 
   @@index([admission_id])
+}
+
+model ot_note_templates {
+  id                     String   @id @default(uuid())
+  name                   String
+  procedure              String
+  approach               String?
+  is_global              Boolean  @default(false) // true = admin/corpus-seeded, doctor_id null
+  doctor_id              String?
+  source_reference       String? // corpus citation, global templates only
+
+  anaesthesia            String?
+  preop_diagnosis        String?
+  postop_diagnosis       String?
+  operation_performed    String?
+  position_preparation   String?
+  incision_approach      String?
+  procedure_steps        String[] // ordered, freeform text — may include [EDIT]/[VAR] markers from the source corpus
+  closure                String?
+  specimen               String?
+  implants               String?
+  drains                 String?
+  estimated_blood_loss   String?
+  counts                 String?
+  standard_complications String?
+  postop_plan            String?
+
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  doctor   doctors?   @relation(fields: [doctor_id], references: [id])
+  ot_notes ot_notes[]
+
+  @@index([procedure])
+  @@index([doctor_id])
+}
+
+model ot_notes {
+  id           String  @id @default(uuid())
+  admission_id String
+  doctor_id    String
+  template_id  String?
+
+  procedure             String
+  approach              String?
+  anaesthesia           String?
+  preop_diagnosis       String?
+  postop_diagnosis      String?
+  operation_performed   String?
+  position_preparation  String?
+  incision_approach     String?
+  findings              String?
+  procedure_steps       String[]
+  closure               String?
+  specimen              String?
+  implants              String?
+  drains                String?
+  estimated_blood_loss  String?
+  counts                String?
+  complications         String?
+  postop_plan           String?
+
+  team_members Json? // [{role, name}]
+  ot_start     DateTime?
+  ot_end       DateTime?
+
+  media_items Json? // [{url, media_type, label, description, uploaded_at}]
+  image_urls  String[]
+  video_urls  String[]
+
+  status     String   @default("draft") // draft | submitted
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  admission ipd_admissions    @relation(fields: [admission_id], references: [id])
+  doctor    doctors           @relation(fields: [doctor_id], references: [id])
+  template  ot_note_templates? @relation(fields: [template_id], references: [id])
+
+  @@index([admission_id])
+  @@index([doctor_id])
 }
 
 model ward_round_notes {
@@ -412,6 +500,8 @@ model otp_sessions {
 }
 
 model consent_audit_events {
+  // event_type includes: parent_otp_requested, witness_otp_requested, sign_rejected_*,
+  // signed (legacy e-sign flow, historical rows only), pdf_downloaded (current flow)
   id             String   @id @default(uuid())
   consent_id     String
   consent_number String?
@@ -434,6 +524,8 @@ model consent_forms {
   form_type                  String
   content_json               Json
   pdf_url                    String?
+
+  // legacy e-sign fields — retained for historical rows only, no longer written by new code
   signed_pdf_url             String?
   parent_signature_url       String?
   witness_name               String?
@@ -443,20 +535,32 @@ model consent_forms {
   otp_verified_at            DateTime?
   witness_verified_at        DateTime?
   signer_attested_at         DateTime?
-  generated_at               DateTime  @default(now())
   signed_at                  DateTime?
+  signed_pdf_hash            String?
+  witness_relationship       String?
+  witness_mobile             String?
+
+  generated_at               DateTime  @default(now())
   generated_by               String    @default("surgeon")
   status                     String    @default("pending")
 
   // Enhanced consent metadata and compliance fields
   consent_number             String?   @unique
   version                    String    @default("v2.1")
-  language                   String    @default("English")
+  language                   String    @default("English") // language the PDF was rendered in: "English" | "Hindi"
   guardian_relationship      String?
-  witness_relationship       String?
-  witness_mobile             String?
   pdf_hash                   String?
-  signed_pdf_hash            String?
+
+  // Per-generation capture fields (nurse-supplied at download time, not template content)
+  blood_transfusion_consent           String?   // "consented" | "refused" | null
+  photo_consent_medical_record        Boolean   @default(false)
+  photo_consent_deidentified_teaching Boolean   @default(false)
+  photo_consent_publication           Boolean   @default(false)
+  specimen_handling_consented         Boolean?
+  interpreter_used                    Boolean   @default(false)
+  downloaded_at                       DateTime?
+  downloaded_by_user_id               String?
+  download_count                      Int       @default(0)
 
   // Hospital information
   hospital_id                String?
@@ -602,6 +706,8 @@ model consent_content_templates {
   risk_level              String?
   special_instructions    String?
   investigations          String[]
+
+  // legacy single-language fields — retained for backward compatibility, no longer written by new code
   procedure_description   String?
   anesthesia              String[]
   risks                   String[]
@@ -611,13 +717,65 @@ model consent_content_templates {
   material_risks          String?
   post_op_care            String?
   expected_recovery       String?
-  statutory_reference     String?
+
+  // bilingual content (client-corpus spelling "anaesthesia" for new fields — see note above consent_forms)
+  procedure_description_en   String?
+  procedure_description_hi   String?
+  anaesthesia_en              String[]
+  anaesthesia_hi               String[]
+  risks_en               String[]
+  risks_hi                String[]
+  benefits_en             String[]
+  benefits_hi             String[]
+  alternatives_en          String[]
+  alternatives_hi           String[]
+  possible_complications_en String[]
+  possible_complications_hi  String[]
+  material_risks_en        String?
+  material_risks_hi         String?
+  post_op_care_en           String?
+  post_op_care_hi            String?
+  expected_recovery_en      String?
+  expected_recovery_hi       String?
+  statutory_reference     String?  @default("Digital Personal Data Protection Act, 2023")
+
+  // fields new to the client's 118-form corpus (field-gap analysis), bilingual where textual
+  diagnosis_plain_language_en      String?
+  diagnosis_plain_language_hi      String?
+  consequences_of_no_treatment_en  String?
+  consequences_of_no_treatment_hi  String?
+  consented_contingencies_en       String[]
+  consented_contingencies_hi       String[]
+  cost_category             String?   // minor | intermediate | major | complex
+  cost_conditional_note_en  String?
+  cost_conditional_note_hi  String?
+  specimen_handling_statement_en   String?
+  specimen_handling_statement_hi   String?
+  is_lateralizable           Boolean  @default(false)
+  site_side_instruction_en   String?
+  site_side_instruction_hi   String?
+  conversion_to_open_possible Boolean @default(false)
+  conversion_consequences_en  String?
+  conversion_consequences_hi  String?
+  staging_stage_number       Int?
+  staging_total_stages       Int?
+  technique_options_en       String[]
+  technique_options_hi       String[]
+  lifelong_follow_up_flag    Boolean  @default(false)
+  lifelong_follow_up_note_en String?
+  lifelong_follow_up_note_hi String?
+  pre_op_prep_en             String?
+  pre_op_prep_hi             String?
+
+  hi_content_status       String   @default("missing") // missing | seeded | reviewed
+
   is_active               Boolean  @default(true)
   created_by_admin_id     String?
   created_at              DateTime @default(now())
   updated_at              DateTime @default(now())
 
   @@index([name])
+  @@index([procedure])
 }
 
 model consent_layout_templates {
@@ -629,4 +787,7 @@ model consent_layout_templates {
   is_default  Boolean  @default(false)
   created_at  DateTime @default(now())
   updated_at  DateTime @default(now())
+
+  // future: add hospital_id FK here for per-hospital layout override;
+  // consent_forms.hospital_id already exists as the join anchor.
 }
