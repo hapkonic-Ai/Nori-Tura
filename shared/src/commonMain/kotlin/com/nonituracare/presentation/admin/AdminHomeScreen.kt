@@ -1,7 +1,10 @@
 package com.nonituracare.presentation.admin
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,21 +14,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.dashboard_greeting_banner
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.LocalHospital
+import androidx.compose.material.icons.outlined.MedicalServices
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,12 +50,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nonituracare.data.dto.DoctorDto
 import com.nonituracare.presentation.components.Avatar
+import com.nonituracare.presentation.components.BottomNavItem
 import com.nonituracare.presentation.components.BrandTopBar
 import com.nonituracare.presentation.components.EmptyState
 import com.nonituracare.presentation.components.ErrorState
 import com.nonituracare.presentation.components.KpiTile
 import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.LongPressCardPreview
+import com.nonituracare.presentation.components.NorituraBottomNav
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.presentation.components.NorituraSurfaceCard
 import com.nonituracare.presentation.components.SectionTitle
@@ -61,6 +76,14 @@ fun AdminHomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    val bottomNavItems = listOf(
+        BottomNavItem("Dashboard", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
+        BottomNavItem("Nurses", Icons.Outlined.PersonAdd, Icons.Filled.PersonAdd),
+        BottomNavItem("Hospitals", Icons.Outlined.LocalHospital, Icons.Filled.LocalHospital),
+        BottomNavItem("Content", Icons.Outlined.Description, Icons.Filled.Description),
+        BottomNavItem("Templates", Icons.Outlined.MedicalServices, Icons.Filled.MedicalServices)
+    )
+
     NorituraScaffold(
         topBar = {
             BrandTopBar(
@@ -77,197 +100,175 @@ fun AdminHomeScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            NorituraBottomNav(
+                items = bottomNavItems,
+                selectedIndex = 0,
+                onItemSelected = { index ->
+                    when (index) {
+                        1 -> onNavigateToNurses()
+                        2 -> onNavigateToHospitals()
+                        3 -> onNavigateToContentTemplates()
+                        4 -> onNavigateToSurgicalTemplates()
+                    }
+                }
+            )
         }
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Doctor Approvals",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-            )
-            Text(
-                text = "Review and approve pending doctor registrations.",
-                color = NorituraColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                ) {
+                    Image(
+                        painter = painterResource(Res.drawable.dashboard_greeting_banner),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                    )
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Doctor Approvals",
+                            color = NorituraColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "Review and approve pending doctor registrations.",
+                            color = NorituraColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
 
             when (val state = uiState) {
                 is AdminViewModel.UiState.Loading -> {
-                    LoadingState(
-                        message = "Loading approvals...",
-                        modifier = Modifier.weight(1f)
-                    )
+                    item {
+                        LoadingState(
+                            message = "Loading approvals...",
+                            modifier = Modifier.fillParentMaxHeight(0.6f)
+                        )
+                    }
                 }
 
                 is AdminViewModel.UiState.Error -> {
-                    ErrorState(
-                        message = state.message,
-                        onRetry = { viewModel.loadDashboard() },
-                        modifier = Modifier.weight(1f)
-                    )
+                    item {
+                        ErrorState(
+                            message = state.message,
+                            onRetry = { viewModel.loadDashboard() },
+                            modifier = Modifier.fillParentMaxHeight(0.6f)
+                        )
+                    }
                 }
 
                 is AdminViewModel.UiState.Success -> {
                     val dashboard = state.dashboard
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        KpiTile(
-                            label = "Pending",
-                            value = dashboard.pendingCount.toString(),
-                            icon = Icons.Default.Person,
-                            iconTint = NorituraColors.Warning,
-                            accentColor = NorituraColors.Warning,
-                            modifier = Modifier.weight(1f)
-                        )
-                        KpiTile(
-                            label = "Total Doctors",
-                            value = dashboard.totalCount.toString(),
-                            icon = Icons.Default.MedicalServices,
-                            iconTint = NorituraColors.PrimaryBlue,
-                            accentColor = NorituraColors.PrimaryBlue,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    SectionTitle(title = "Platform")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        KpiTile(
-                            label = "Hospitals",
-                            value = dashboard.stats.hospitals.toString(),
-                            icon = Icons.Default.LocalHospital,
-                            iconTint = NorituraColors.AccentGreen,
-                            accentColor = NorituraColors.AccentGreen,
-                            modifier = Modifier.weight(1f)
-                        )
-                        KpiTile(
-                            label = "Nurses",
-                            value = "${dashboard.stats.nurses.active}/${dashboard.stats.nurses.total}",
-                            icon = Icons.Default.Person,
-                            iconTint = NorituraColors.PrimaryBlue,
-                            accentColor = NorituraColors.PrimaryBlue,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        KpiTile(
-                            label = "Patients",
-                            value = dashboard.stats.patients.toString(),
-                            icon = Icons.Default.Person,
-                            iconTint = NorituraColors.AccentGreen,
-                            accentColor = NorituraColors.AccentGreen,
-                            modifier = Modifier.weight(1f)
-                        )
-                        KpiTile(
-                            label = "Active Admissions",
-                            value = dashboard.stats.admissions.active.toString(),
-                            icon = Icons.Default.MedicalServices,
-                            iconTint = NorituraColors.Warning,
-                            accentColor = NorituraColors.Warning,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onNavigateToNurses,
-                            modifier = Modifier.weight(1f)
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PersonAdd,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                            KpiTile(
+                                label = "Pending",
+                                value = dashboard.pendingCount.toString(),
+                                icon = Icons.Default.Person,
+                                iconTint = NorituraColors.Warning,
+                                accentColor = NorituraColors.Warning,
+                                modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Nurses")
-                        }
-                        OutlinedButton(
-                            onClick = onNavigateToHospitals,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocalHospital,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                            KpiTile(
+                                label = "Total Doctors",
+                                value = dashboard.totalCount.toString(),
+                                icon = Icons.Default.MedicalServices,
+                                iconTint = NorituraColors.PrimaryBlue,
+                                accentColor = NorituraColors.PrimaryBlue,
+                                modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Hospitals")
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onNavigateToContentTemplates,
-                            modifier = Modifier.weight(1f)
+                    item { SectionTitle(title = "Platform") }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Description,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                            KpiTile(
+                                label = "Hospitals",
+                                value = dashboard.stats.hospitals.toString(),
+                                icon = Icons.Default.LocalHospital,
+                                iconTint = NorituraColors.AccentGreen,
+                                accentColor = NorituraColors.AccentGreen,
+                                modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Content Templates")
+                            KpiTile(
+                                label = "Nurses",
+                                value = "${dashboard.stats.nurses.active}/${dashboard.stats.nurses.total}",
+                                icon = Icons.Default.Person,
+                                iconTint = NorituraColors.PrimaryBlue,
+                                accentColor = NorituraColors.PrimaryBlue,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
-                        OutlinedButton(
-                            onClick = onNavigateToSurgicalTemplates,
-                            modifier = Modifier.weight(1f)
+                    }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.MedicalServices,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                            KpiTile(
+                                label = "Patients",
+                                value = dashboard.stats.patients.toString(),
+                                icon = Icons.Default.Person,
+                                iconTint = NorituraColors.AccentGreen,
+                                accentColor = NorituraColors.AccentGreen,
+                                modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Doctors' Templates")
+                            KpiTile(
+                                label = "Active Admissions",
+                                value = dashboard.stats.admissions.active.toString(),
+                                icon = Icons.Default.MedicalServices,
+                                iconTint = NorituraColors.Warning,
+                                accentColor = NorituraColors.Warning,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
 
-                    SectionTitle(
-                        title = "Pending Registrations",
-                        actionLabel = "Refresh",
-                        onAction = { viewModel.loadDashboard() }
-                    )
+                    item {
+                        SectionTitle(
+                            title = "Pending Registrations",
+                            actionLabel = "Refresh",
+                            onAction = { viewModel.loadDashboard() }
+                        )
+                    }
 
                     if (dashboard.pendingDoctors.isEmpty()) {
-                        EmptyState(
-                            title = "No pending registrations",
-                            subtitle = "All doctor registrations have been reviewed.",
-                            modifier = Modifier.weight(1f)
-                        )
+                        item {
+                            EmptyState(
+                                title = "No pending registrations",
+                                subtitle = "All doctor registrations have been reviewed.",
+                                modifier = Modifier.fillParentMaxHeight(0.4f)
+                            )
+                        }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)
-                        ) {
-                            items(dashboard.pendingDoctors, key = { it.id }) { doctor ->
-                                DoctorApprovalCard(
-                                    doctor = doctor,
-                                    onApprove = { viewModel.approveDoctor(doctor.id) }
-                                )
-                            }
+                        items(dashboard.pendingDoctors, key = { it.id }) { doctor ->
+                            DoctorApprovalCard(
+                                doctor = doctor,
+                                onApprove = { viewModel.approveDoctor(doctor.id) }
+                            )
                         }
                     }
                 }

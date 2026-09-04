@@ -57,6 +57,8 @@ import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.presentation.components.NorituraSurfaceCard
 import com.nonituracare.presentation.components.StatusChip
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_patients
 
 @Composable
 fun AdminNursesScreen(
@@ -101,7 +103,8 @@ fun AdminNursesScreen(
                     EmptyState(
                         title = "No nurse logins yet",
                         subtitle = "Tap + to create one for a hospital and doctor.",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        illustration = Res.drawable.empty_patients
                     )
                 } else {
                     LazyColumn(

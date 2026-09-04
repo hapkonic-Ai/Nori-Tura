@@ -44,6 +44,8 @@ import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.presentation.components.NorituraSurfaceCard
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_admissions
 
 @Composable
 fun AdminHospitalsScreen(
@@ -92,7 +94,8 @@ fun AdminHospitalsScreen(
                     EmptyState(
                         title = "No hospitals yet",
                         subtitle = "Tap + to add one.",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        illustration = Res.drawable.empty_admissions
                     )
                 } else {
                     LazyColumn(
