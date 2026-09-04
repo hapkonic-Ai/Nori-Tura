@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The app has no dark-mode design (every screen hardcodes light colors), so
+      Android's automatic "Force Dark" rendering-layer color inversion — on by
+      default since API 29, aggressive on OEM skins like MIUI/One UI/ColorOS —
+      must be disabled. Left on, it selectively inverts pixels of some elements
+      (e.g. text field input, buttons) while leaving others alone, since it
+      operates on rendered output rather than per-widget.
+    -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>

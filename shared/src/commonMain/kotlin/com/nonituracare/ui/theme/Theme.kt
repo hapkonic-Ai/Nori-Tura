@@ -1,6 +1,5 @@
 package com.nonituracare.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -53,7 +52,12 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun NorituraTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Every screen hardcodes light NorituraColors values directly rather than
+    // reading from MaterialTheme.colorScheme, so there's no real dark-mode
+    // redesign to switch into — following the system setting here just breaks
+    // default Material3 components (e.g. OutlinedTextField text turns white on
+    // our light backgrounds). Force light until the app actually supports dark mode.
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
