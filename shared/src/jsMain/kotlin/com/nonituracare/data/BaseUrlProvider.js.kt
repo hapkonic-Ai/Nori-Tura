@@ -1,3 +1,3 @@
 package com.nonituracare.data
 
-actual fun getBaseUrl(): String = "http://localhost:8001"
+actual fun getBaseUrl(): String = "https://nori-tura.primeworld.tech"

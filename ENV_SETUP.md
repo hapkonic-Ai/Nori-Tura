@@ -47,12 +47,15 @@ See `sdk-versions.txt` for the exact SDK components that must be installed.
 
 ## Backend URL Configuration
 
-The app uses a production URL reference as the default/fallback for all platforms:
+The app uses a production URL reference as the default/fallback for all platforms.
+This is the self-hosted deployment (see `docker-compose.deploy.yml`), not the
+older Render deployment — the Render instance is stale/unreachable and should
+not be used.
 
-- **Production base URL:** `https://nori-tura.onrender.com`
-- **Android debug:** `http://10.0.2.2:8000` (set in `shared/build.gradle.kts`)
-- **Android release:** `https://nori-tura.onrender.com` (set in `shared/build.gradle.kts`)
-- **iOS:** `https://nori-tura.onrender.com` (set in `iosApp/iosApp/Info.plist` as `BASE_URL`)
+- **Production base URL:** `https://nori-tura.primeworld.tech`
+- **Android debug:** `https://nori-tura.primeworld.tech` (set in `shared/build.gradle.kts`)
+- **Android release:** `https://nori-tura.primeworld.tech` (set in `shared/build.gradle.kts`)
+- **iOS:** `https://nori-tura.primeworld.tech` (set in `iosApp/iosApp/Info.plist` as `BASE_URL`)
 
 To point a local build at a different backend, override the value in the
 platform-specific location above. The production URL should remain the

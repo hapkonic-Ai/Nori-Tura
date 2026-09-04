@@ -88,15 +88,15 @@ android {
 
     defaultConfig {
         minSdk = 24
-        buildConfigField("String", "BASE_URL", "\"https://nori-tura.onrender.com\"")
+        buildConfigField("String", "BASE_URL", "\"https://nori-tura.primeworld.tech\"")
     }
 
     buildTypes {
         getByName("debug") {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8001\"")
+            buildConfigField("String", "BASE_URL", "\"https://nori-tura.primeworld.tech\"")
         }
         getByName("release") {
-            buildConfigField("String", "BASE_URL", "\"https://nori-tura.onrender.com\"")
+            buildConfigField("String", "BASE_URL", "\"https://nori-tura.primeworld.tech\"")
         }
     }
 
