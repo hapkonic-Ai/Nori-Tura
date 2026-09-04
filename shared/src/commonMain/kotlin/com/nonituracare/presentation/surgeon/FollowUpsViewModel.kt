@@ -22,20 +22,38 @@ class FollowUpsViewModel(
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    // Tracks in-flight "mark attended" calls per record so the card can show
+    // a spinner on just that row instead of reloading the whole screen.
+    private val _markingIds = MutableStateFlow<Set<String>>(emptySet())
+    val markingIds: StateFlow<Set<String>> = _markingIds.asStateFlow()
+
     init {
         loadFollowUps()
     }
 
-    fun loadFollowUps(date: String? = null) {
+    fun loadFollowUps() {
         _uiState.value = UiState.Loading
         viewModelScope.launch {
-            repository.listFollowUps(date)
+            repository.listFollowUps()
                 .onSuccess { records ->
                     _uiState.value = UiState.Success(records)
                 }
                 .onFailure { error ->
                     _uiState.value = UiState.Error(error.message ?: "Failed to load follow-ups")
                 }
+        }
+    }
+
+    fun markAttended(recordId: String) {
+        val current = (_uiState.value as? UiState.Success)?.records ?: return
+        _markingIds.value = _markingIds.value + recordId
+        viewModelScope.launch {
+            repository.markAttended(recordId)
+                .onSuccess {
+                    _uiState.value = UiState.Success(current.filter { it.id != recordId })
+                }
+                .onFailure { /* leave the card as-is; the spinner clears below and the button is tappable again */ }
+            _markingIds.value = _markingIds.value - recordId
         }
     }
 }

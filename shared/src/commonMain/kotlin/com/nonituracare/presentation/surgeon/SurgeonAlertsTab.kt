@@ -35,11 +35,14 @@ import com.nonituracare.presentation.components.LongPressCardPreview
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.ui.theme.NorituraColors
 import com.nonituracare.util.formatDateTime
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_alerts
 
 @Composable
 fun SurgeonAlertsTab(
     modifier: Modifier = Modifier,
     viewModel: AlertsViewModel = viewModel { AlertsViewModel() },
+    onBack: (() -> Unit)? = null,
     onNavigateToConsent: (String) -> Unit = {},
     onNavigateToAppointment: (String) -> Unit = {},
     onNavigateToReview: (String) -> Unit = {},
@@ -53,6 +56,7 @@ fun SurgeonAlertsTab(
             BrandTopBar(
                 initials = "DR",
                 title = "Alerts",
+                onBack = onBack,
                 notificationCount = 0
             )
         }
@@ -91,6 +95,23 @@ private fun AlertsList(
     onNavigateToAdmission: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isAllEmpty = alerts.pendingConsents.isEmpty() &&
+        alerts.todayAppointments.isEmpty() &&
+        alerts.pendingReviews.isEmpty() &&
+        alerts.activeAdmissions.isEmpty()
+
+    if (isAllEmpty) {
+        EmptyState(
+            title = "No alerts",
+            subtitle = "You're all caught up — nothing needs your attention right now.",
+            modifier = modifier
+                .fillMaxSize()
+                .background(NorituraColors.Background),
+            illustration = Res.drawable.empty_alerts
+        )
+        return
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()

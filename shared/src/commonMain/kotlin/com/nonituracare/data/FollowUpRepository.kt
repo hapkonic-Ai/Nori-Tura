@@ -16,13 +16,15 @@ class FollowUpRepository(
     private val client: HttpClient = ApiClient.client
 ) {
 
-    suspend fun listFollowUps(date: String? = null): Result<List<OpdRecordDto>> = safeApiCall {
-        val path = if (date.isNullOrBlank()) {
-            "/opd/follow-ups"
-        } else {
-            "/opd/follow-ups?follow_up_date=$date"
-        }
-        client.get(path).body()
+    /** Every not-yet-attended follow-up for the current doctor, past and
+     * future — there's no date filter any more, the caller (the follow-ups
+     * screen) splits the list into overdue vs. upcoming itself. */
+    suspend fun listFollowUps(): Result<List<OpdRecordDto>> = safeApiCall {
+        client.get("/opd/follow-ups").body()
+    }
+
+    suspend fun markAttended(recordId: String): Result<OpdRecordDto> = safeApiCall {
+        client.post("/opd/follow-ups/$recordId/attendance").body()
     }
 
     suspend fun getPreview(recordId: String): Result<WhatsAppPreviewDto> = safeApiCall {
