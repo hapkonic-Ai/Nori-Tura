@@ -1,6 +1,8 @@
 import os
-from fastapi import FastAPI
+from pathlib import Path
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
@@ -94,3 +96,17 @@ app.include_router(reports.router)
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "nonituracare-api"}
+
+
+# Fast2SMS domain verification requires this token to be publicly reachable at
+# the site root (e.g. https://nori-tura.primeworld.tech/fast2sms_verify.txt).
+# It is a proof-of-ownership token, not a credential — it must be world-readable
+# by design, so no auth on this route.
+_FAST2SMS_VERIFY_PATH = Path(__file__).resolve().parent.parent / "fast2sms_verify.txt"
+
+
+@app.get("/fast2sms_verify.txt", response_class=PlainTextResponse)
+async def fast2sms_domain_verification():
+    if not _FAST2SMS_VERIFY_PATH.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    return _FAST2SMS_VERIFY_PATH.read_text(encoding="utf-8").strip()
