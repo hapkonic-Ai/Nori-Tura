@@ -1,5 +1,6 @@
 package com.nonituracare.presentation.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.noni_tura_logo
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun NorituraScaffold(
@@ -117,11 +121,21 @@ fun BrandTopBar(
 ) {
     NorituraTopBar(
         title = {
-            Text(
-                text = title,
-                color = NorituraColors.PrimaryBlue,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Image(
+                    painter = painterResource(Res.drawable.noni_tura_logo),
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp)
+                )
+                Text(
+                    text = title,
+                    color = NorituraColors.PrimaryBlue,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                )
+            }
         },
         onBack = onBack,
         avatar = {

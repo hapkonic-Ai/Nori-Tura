@@ -1,8 +1,8 @@
 package com.nonituracare.presentation.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,11 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -24,7 +23,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -37,12 +35,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nonituracare.presentation.components.PhoneInputField
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.noni_tura_logo_long
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun LoginScreen(
@@ -187,33 +187,17 @@ fun LoginScreen(
 private fun BrandHeader() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(NorituraColors.PrimaryBlueLight),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.LocalHospital,
-                contentDescription = "SurgiCare",
-                tint = NorituraColors.PrimaryBlue,
-                modifier = Modifier.size(44.dp)
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "SurgiCare",
-                color = NorituraColors.PrimaryBlue,
-                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold)
-            )
-            Text(
-                text = "Powered by NonituraCare",
-                color = NorituraColors.TextTertiary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
+        Image(
+            painter = painterResource(Res.drawable.noni_tura_logo_long),
+            contentDescription = "Noni Tura Surgical Care",
+            modifier = Modifier.width(220.dp)
+        )
+        Text(
+            text = "Powered by NonituraCare",
+            color = NorituraColors.TextTertiary,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
