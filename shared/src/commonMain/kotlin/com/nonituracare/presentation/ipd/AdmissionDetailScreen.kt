@@ -1,6 +1,8 @@
 package com.nonituracare.presentation.ipd
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +23,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -53,9 +58,13 @@ import com.nonituracare.data.UploadedMedia
 import com.nonituracare.data.dto.AdmissionDto
 import com.nonituracare.data.dto.DischargeSummaryCreateRequest
 import com.nonituracare.data.dto.IntraOpNoteCreateRequest
+import com.nonituracare.data.dto.OtNoteCreateRequest
+import com.nonituracare.data.dto.OtNoteDto
+import com.nonituracare.data.dto.OtNoteTemplateDto
 import com.nonituracare.data.dto.PostOpNoteCreateRequest
 import com.nonituracare.data.dto.PreOpNoteCreateRequest
 import com.nonituracare.data.dto.SurgicalTemplateDto
+import com.nonituracare.data.dto.TeamMemberDto
 import com.nonituracare.data.dto.WardRoundNoteCreateRequest
 import com.nonituracare.presentation.components.AuthenticatedUrlImageRow
 import com.nonituracare.presentation.components.BrandTopBar
@@ -72,6 +81,10 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_ot_notes
+import noritura.shared.generated.resources.success_discharge
+import noritura.shared.generated.resources.empty_consents
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +97,7 @@ fun AdmissionDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val templates by viewModel.templates.collectAsState()
+    val otNoteTemplates by viewModel.otNoteTemplates.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState) {
@@ -130,6 +144,7 @@ fun AdmissionDetailScreen(
                     AdmissionDetailContent(
                         admission = state.admission,
                         templates = templates,
+                        otNoteTemplates = otNoteTemplates,
                         viewModel = viewModel,
                         onNavigateToConsentForm = onNavigateToConsentForm,
                         onNavigateToConsentView = onNavigateToConsentView
@@ -144,15 +159,16 @@ fun AdmissionDetailScreen(
 private fun AdmissionDetailContent(
     admission: AdmissionDto,
     templates: List<SurgicalTemplateDto>,
+    otNoteTemplates: List<OtNoteTemplateDto>,
     viewModel: AdmissionDetailViewModel,
     onNavigateToConsentForm: () -> Unit,
     onNavigateToConsentView: (String) -> Unit
 ) {
-    var showPreOp by remember { mutableStateOf(false) }
-    var showIntraOp by remember { mutableStateOf(false) }
-    var showPostOp by remember { mutableStateOf(false) }
+    var showOtNote by remember { mutableStateOf(false) }
     var showWardRound by remember { mutableStateOf(false) }
     var showDischarge by remember { mutableStateOf(false) }
+    var previewOtNote by remember { mutableStateOf<OtNoteDto?>(null) }
+    var previewConsent by remember { mutableStateOf<com.nonituracare.data.dto.ConsentFormDto?>(null) }
 
     val statusColor = when (admission.status?.lowercase()) {
         "pre-op" -> NorituraColors.PreOp
@@ -210,48 +226,69 @@ private fun AdmissionDetailContent(
             }
         }
 
-        SectionTitle("Pre-Op Notes")
-        for (note in admission.preOpNotes ?: emptyList()) {
-            NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
-                Text("Procedure: ${note.procedure}", fontWeight = FontWeight.SemiBold)
-                note.approach?.let { Text("Approach: $it") }
-                note.anaesthesia?.let { Text("Anaesthesia: $it") }
-                if (note.investigations.isNotEmpty()) {
-                    Text("Investigations: ${note.investigations.joinToString()}")
+        // Historical admissions only — new admissions use the unified OT Notes
+        // section below. These render read-only; there's no "Add" button for
+        // any of the three since OT Notes replaces them going forward.
+        if (!admission.preOpNotes.isNullOrEmpty()) {
+            SectionTitle("Pre-Op Notes (legacy)")
+            for (note in admission.preOpNotes) {
+                NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
+                    Text("Procedure: ${note.procedure}", fontWeight = FontWeight.SemiBold)
+                    note.approach?.let { Text("Approach: $it") }
+                    note.anaesthesia?.let { Text("Anaesthesia: $it") }
+                    if (note.investigations.isNotEmpty()) {
+                        Text("Investigations: ${note.investigations.joinToString()}")
+                    }
+                    note.riskLevel?.let { Text("Risk: $it") }
                 }
-                note.riskLevel?.let { Text("Risk: $it") }
             }
-        }
-        OutlinedButton(onClick = { showPreOp = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Add Pre-Op Note")
         }
 
-        SectionTitle("Intra-Op Notes")
-        for (note in admission.intraOpNotes ?: emptyList()) {
-            NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
-                Text("Procedure: ${note.procedureDone}", fontWeight = FontWeight.SemiBold)
-                note.findings?.let { Text("Findings: $it") }
-                note.technique?.let { Text("Technique: $it") }
-                note.complications?.let { Text("Complications: $it") }
-                note.bloodLoss?.let { Text("Blood Loss: $it") }
+        if (!admission.intraOpNotes.isNullOrEmpty()) {
+            SectionTitle("Intra-Op Notes (legacy)")
+            for (note in admission.intraOpNotes) {
+                NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
+                    Text("Procedure: ${note.procedureDone}", fontWeight = FontWeight.SemiBold)
+                    note.findings?.let { Text("Findings: $it") }
+                    note.technique?.let { Text("Technique: $it") }
+                    note.complications?.let { Text("Complications: $it") }
+                    note.bloodLoss?.let { Text("Blood Loss: $it") }
+                }
             }
-        }
-        OutlinedButton(onClick = { showIntraOp = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Add Intra-Op Note")
         }
 
-        SectionTitle("Post-Op Notes")
-        for (note in admission.postOpNotes ?: emptyList()) {
-            NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
-                Text("Day ${note.dayNumber}: ${note.condition}", fontWeight = FontWeight.SemiBold)
-                Text("Vitals: ${note.vitalsJson.entries.joinToString { "${it.key}=${it.value}" }}")
-                note.woundStatus?.let { Text("Wound: $it") }
-                note.painScore?.let { Text("Pain: $it/10") }
-                note.diet?.let { Text("Diet: $it") }
+        if (!admission.postOpNotes.isNullOrEmpty()) {
+            SectionTitle("Post-Op Notes (legacy)")
+            for (note in admission.postOpNotes) {
+                NoteCard(imageUrls = note.imageUrls, videoUrls = note.videoUrls) {
+                    Text("Day ${note.dayNumber}: ${note.condition}", fontWeight = FontWeight.SemiBold)
+                    Text("Vitals: ${note.vitalsJson.entries.joinToString { "${it.key}=${it.value}" }}")
+                    note.woundStatus?.let { Text("Wound: $it") }
+                    note.painScore?.let { Text("Pain: $it/10") }
+                    note.diet?.let { Text("Diet: $it") }
+                }
             }
         }
-        OutlinedButton(onClick = { showPostOp = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Add Post-Op Note")
+
+        SectionTitle("OT Notes")
+        if (admission.otNotes.isNullOrEmpty()) {
+            com.nonituracare.presentation.components.EmptyState(
+                title = "No OT notes yet",
+                subtitle = "Add an operative note once surgery is underway.",
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+                illustration = Res.drawable.empty_ot_notes
+            )
+        } else {
+            for (note in admission.otNotes) {
+                OtNoteCard(
+                    note = note,
+                    onClick = { previewOtNote = note },
+                    onLongClick = { previewOtNote = note }
+                )
+            }
+        }
+        OutlinedButton(onClick = { showOtNote = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Add OT Note")
         }
 
         SectionTitle("Ward Round Notes")
@@ -273,6 +310,13 @@ private fun AdmissionDetailContent(
 
         SectionTitle("Discharge Summary")
         (admission.dischargeSummaries ?: emptyList()).firstOrNull()?.let { summary ->
+            androidx.compose.foundation.Image(
+                painter = org.jetbrains.compose.resources.painterResource(
+                    Res.drawable.success_discharge
+                ),
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth(0.45f).height(90.dp)
+            )
             NoteCard(imageUrls = summary.imageUrls, videoUrls = summary.videoUrls) {
                 Text("Condition: ${summary.conditionAtDischarge}", fontWeight = FontWeight.SemiBold)
                 Text("Procedure: ${summary.procedureSummary}")
@@ -287,11 +331,21 @@ private fun AdmissionDetailContent(
         }
 
         SectionTitle("Consent Forms")
-        for (consent in admission.consentForms ?: emptyList()) {
-            ConsentListCard(
-                consent = consent,
-                onClick = { consent.id.let(onNavigateToConsentView) }
+        if (admission.consentForms.isNullOrEmpty()) {
+            com.nonituracare.presentation.components.EmptyState(
+                title = "No consent forms yet",
+                subtitle = "Generate one before proceeding with surgery.",
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+                illustration = Res.drawable.empty_consents
             )
+        } else {
+            for (consent in admission.consentForms) {
+                ConsentListCard(
+                    consent = consent,
+                    onClick = { consent.id.let(onNavigateToConsentView) },
+                    onLongClick = { previewConsent = consent }
+                )
+            }
         }
         OutlinedButton(onClick = onNavigateToConsentForm, modifier = Modifier.fillMaxWidth()) {
             Text("Add Consent Form")
@@ -300,51 +354,35 @@ private fun AdmissionDetailContent(
 
     val fullScreenDialogProps = DialogProperties(usePlatformDefaultWidth = false)
 
-    if (showPreOp) {
+    if (showOtNote) {
         androidx.compose.ui.window.Dialog(
-            onDismissRequest = { showPreOp = false },
+            onDismissRequest = { showOtNote = false },
             properties = fullScreenDialogProps
         ) {
-            PreOpForm(
-                templates = templates,
-                onDismiss = { showPreOp = false },
+            OtNoteForm(
+                templates = otNoteTemplates,
+                onDismiss = { showOtNote = false },
                 onSave = { request ->
-                    viewModel.createPreOpNote(request)
-                    showPreOp = false
+                    viewModel.createOtNote(request)
+                    showOtNote = false
                 }
             )
         }
     }
 
-    if (showIntraOp) {
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { showIntraOp = false },
-            properties = fullScreenDialogProps
-        ) {
-            IntraOpForm(
-                templates = templates,
-                onDismiss = { showIntraOp = false },
-                onSave = { request ->
-                    viewModel.createIntraOpNote(request)
-                    showIntraOp = false
-                }
-            )
-        }
+    previewOtNote?.let { note ->
+        OtNotePreviewDialog(note = note, onDismiss = { previewOtNote = null })
     }
 
-    if (showPostOp) {
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { showPostOp = false },
-            properties = fullScreenDialogProps
-        ) {
-            PostOpForm(
-                onDismiss = { showPostOp = false },
-                onSave = { request ->
-                    viewModel.createPostOpNote(request)
-                    showPostOp = false
-                }
-            )
-        }
+    previewConsent?.let { consent ->
+        ConsentPreviewDialog(
+            consent = consent,
+            onDismiss = { previewConsent = null },
+            onViewFull = {
+                previewConsent = null
+                consent.id.let(onNavigateToConsentView)
+            }
+        )
     }
 
     if (showWardRound) {
@@ -444,16 +482,62 @@ private fun NoteCard(
     }
 }
 
+/** Card for a unified OT note. Both tap and long-press open the same preview
+ * dialog (there's no separate full-screen view yet) — long-press is the
+ * discoverable "peek" gesture users expect on record cards generally. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ConsentListCard(
-    consent: com.nonituracare.data.dto.ConsentFormDto,
-    onClick: () -> Unit
+private fun OtNoteCard(
+    note: OtNoteDto,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = onClick
 ) {
-    val statusColor = if (consent.status == "signed") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(note.procedure, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = (note.status ?: "draft").replaceFirstChar { it.uppercase() },
+                    color = if (note.status == "submitted") MaterialTheme.colorScheme.primary else NorituraColors.TextTertiary,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+            }
+            note.approach?.let { Text("Approach: $it", style = MaterialTheme.typography.bodySmall) }
+            Text(
+                "${note.procedureSteps.size} step(s) · ${note.imageUrls.size + note.videoUrls.size} attachment(s)",
+                style = MaterialTheme.typography.bodySmall,
+                color = NorituraColors.TextTertiary
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ConsentListCard(
+    consent: com.nonituracare.data.dto.ConsentFormDto,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
+) {
+    // "signed" only appears on historical rows from before in-app e-signing was
+    // removed; new consents are done once generated (no further signing step).
+    val isDone = consent.status == "signed" || consent.status == "generated" || consent.pdfUrl != null
+    val statusColor = if (isDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -482,204 +566,300 @@ private fun ConsentListCard(
     }
 }
 
+
 @Composable
-private fun PreOpForm(
-    templates: List<SurgicalTemplateDto>,
+private fun OtNoteForm(
+    templates: List<OtNoteTemplateDto>,
     onDismiss: () -> Unit,
-    onSave: (PreOpNoteCreateRequest) -> Unit
+    onSave: (OtNoteCreateRequest) -> Unit
 ) {
     var procedure by remember { mutableStateOf("") }
     var approach by remember { mutableStateOf("") }
     var anaesthesia by remember { mutableStateOf("") }
-    var investigations by remember { mutableStateOf("") }
-    var riskLevel by remember { mutableStateOf("") }
-    var instructions by remember { mutableStateOf("") }
+    var preopDiagnosis by remember { mutableStateOf("") }
+    var postopDiagnosis by remember { mutableStateOf("") }
+    var operationPerformed by remember { mutableStateOf("") }
+    var positionPreparation by remember { mutableStateOf("") }
+    var incisionApproach by remember { mutableStateOf("") }
+    var findings by remember { mutableStateOf("") }
+    var steps by remember { mutableStateOf(listOf("")) }
+    var closure by remember { mutableStateOf("") }
+    var specimen by remember { mutableStateOf("") }
+    var implants by remember { mutableStateOf("") }
+    var drains by remember { mutableStateOf("") }
+    var estimatedBloodLoss by remember { mutableStateOf("") }
+    var counts by remember { mutableStateOf("") }
+    var complications by remember { mutableStateOf("") }
+    var postopPlan by remember { mutableStateOf("") }
+    var teamRows by remember { mutableStateOf(listOf("" to "")) }
     var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
     var showTemplatePicker by remember { mutableStateOf(false) }
+    var appliedTemplateId by remember { mutableStateOf<String?>(null) }
 
     if (showTemplatePicker) {
-        TemplatePickerDialog(
-            mine = templates,
+        OtNoteTemplatePickerDialog(
+            templates = templates,
             onDismiss = { showTemplatePicker = false },
-            onSelect = { result ->
-                (result as? TemplatePickerResult.Surgical)?.template?.let {
-                    procedure = it.procedure
-                    approach = it.approach ?: approach
-                    anaesthesia = it.anaesthesia.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: anaesthesia
-                    investigations = (investigations.split(",").map { it.trim() }.filter { it.isNotBlank() } +
-                        it.investigations).distinct().joinToString(", ")
-                    riskLevel = it.riskLevel ?: riskLevel
-                    instructions = it.specialInstructions ?: instructions
-                }
+            onSelect = { template ->
+                procedure = template.procedure
+                approach = template.approach ?: approach
+                anaesthesia = template.anaesthesia ?: anaesthesia
+                preopDiagnosis = template.preopDiagnosis ?: preopDiagnosis
+                postopDiagnosis = template.postopDiagnosis ?: postopDiagnosis
+                operationPerformed = template.operationPerformed ?: operationPerformed
+                positionPreparation = template.positionPreparation ?: positionPreparation
+                incisionApproach = template.incisionApproach ?: incisionApproach
+                if (template.procedureSteps.isNotEmpty()) steps = template.procedureSteps
+                closure = template.closure ?: closure
+                specimen = template.specimen ?: specimen
+                implants = template.implants ?: implants
+                drains = template.drains ?: drains
+                estimatedBloodLoss = template.estimatedBloodLoss ?: estimatedBloodLoss
+                counts = template.counts ?: counts
+                complications = template.standardComplications ?: complications
+                postopPlan = template.postopPlan ?: postopPlan
+                appliedTemplateId = template.id
                 showTemplatePicker = false
-            },
-            showCustomOption = false
+            }
         )
     }
 
     FormCard(
-        title = "Pre-Op Note",
+        title = "OT Note",
         onDismiss = onDismiss,
         onSave = {
             val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
             onSave(
-                PreOpNoteCreateRequest(
+                OtNoteCreateRequest(
+                    templateId = appliedTemplateId,
                     procedure = procedure,
                     approach = approach.takeIf { it.isNotBlank() },
                     anaesthesia = anaesthesia.takeIf { it.isNotBlank() },
-                    investigations = investigations.split(",").map { it.trim() }.filter { it.isNotBlank() },
-                    riskLevel = riskLevel.takeIf { it.isNotBlank() },
-                    specialInstructions = instructions.takeIf { it.isNotBlank() },
+                    preopDiagnosis = preopDiagnosis.takeIf { it.isNotBlank() },
+                    postopDiagnosis = postopDiagnosis.takeIf { it.isNotBlank() },
+                    operationPerformed = operationPerformed.takeIf { it.isNotBlank() },
+                    positionPreparation = positionPreparation.takeIf { it.isNotBlank() },
+                    incisionApproach = incisionApproach.takeIf { it.isNotBlank() },
+                    findings = findings.takeIf { it.isNotBlank() },
+                    procedureSteps = steps.map { it.trim() }.filter { it.isNotBlank() },
+                    closure = closure.takeIf { it.isNotBlank() },
+                    specimen = specimen.takeIf { it.isNotBlank() },
+                    implants = implants.takeIf { it.isNotBlank() },
+                    drains = drains.takeIf { it.isNotBlank() },
+                    estimatedBloodLoss = estimatedBloodLoss.takeIf { it.isNotBlank() },
+                    counts = counts.takeIf { it.isNotBlank() },
+                    complications = complications.takeIf { it.isNotBlank() },
+                    postopPlan = postopPlan.takeIf { it.isNotBlank() },
+                    teamMembers = teamRows.filter { it.first.isNotBlank() && it.second.isNotBlank() }
+                        .map { TeamMemberDto(role = it.first, name = it.second) },
                     imageUrls = imageUrls,
-                    videoUrls = videoUrls
+                    videoUrls = videoUrls,
+                    status = "submitted"
                 )
             )
         },
         saveEnabled = procedure.isNotBlank()
     ) {
-        OutlinedButton(
-            onClick = { showTemplatePicker = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        OutlinedButton(onClick = { showTemplatePicker = true }, modifier = Modifier.fillMaxWidth()) {
             Text("Apply from Template")
         }
         FormTextField(procedure, { procedure = it }, "Procedure *", autocomplete = true)
-        FormTextField(approach, { approach = it }, "Approach", autocomplete = true)
+        FormTextField(approach, { approach = it }, "Approach")
         FormTextField(anaesthesia, { anaesthesia = it }, "Anaesthesia", autocomplete = true)
-        FormTextField(investigations, { investigations = it }, "Investigations (comma separated)", autocomplete = true)
-        FormTextField(riskLevel, { riskLevel = it }, "Risk Level")
-        FormTextField(instructions, { instructions = it }, "Special Instructions", autocomplete = true)
-        ImageAttachmentPicker(
-            items = mediaItems,
-            onItemsChange = { mediaItems = it },
-            label = "Attach images / video",
-            maxItems = 5,
-            allowVideo = true
-        )
-    }
-}
-
-@Composable
-private fun IntraOpForm(
-    templates: List<SurgicalTemplateDto>,
-    onDismiss: () -> Unit,
-    onSave: (IntraOpNoteCreateRequest) -> Unit
-) {
-    var procedure by remember { mutableStateOf("") }
-    var findings by remember { mutableStateOf("") }
-    var technique by remember { mutableStateOf("") }
-    var complications by remember { mutableStateOf("") }
-    var bloodLoss by remember { mutableStateOf("") }
-    var otStart by remember { mutableStateOf("") }
-    var otEnd by remember { mutableStateOf("") }
-    var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
-    var showTemplatePicker by remember { mutableStateOf(false) }
-
-    if (showTemplatePicker) {
-        TemplatePickerDialog(
-            mine = templates,
-            onDismiss = { showTemplatePicker = false },
-            onSelect = { result ->
-                (result as? TemplatePickerResult.Surgical)?.template?.let {
-                    procedure = it.procedure
-                    technique = it.technique ?: technique
-                }
-                showTemplatePicker = false
-            },
-            showCustomOption = false
-        )
-    }
-
-    FormCard(
-        title = "Intra-Op Note",
-        onDismiss = onDismiss,
-        onSave = {
-            val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
-            onSave(
-                IntraOpNoteCreateRequest(
-                    procedureDone = procedure,
-                    findings = findings.takeIf { it.isNotBlank() },
-                    technique = technique.takeIf { it.isNotBlank() },
-                    complications = complications.takeIf { it.isNotBlank() },
-                    bloodLoss = bloodLoss.takeIf { it.isNotBlank() },
-                    otStart = otStart.takeIf { it.isNotBlank() },
-                    otEnd = otEnd.takeIf { it.isNotBlank() },
-                    imageUrls = imageUrls,
-                    videoUrls = videoUrls
-                )
-            )
-        },
-        saveEnabled = procedure.isNotBlank()
-    ) {
-        OutlinedButton(
-            onClick = { showTemplatePicker = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Apply from Template")
-        }
-        FormTextField(procedure, { procedure = it }, "Procedure Done *", autocomplete = true)
+        FormTextField(preopDiagnosis, { preopDiagnosis = it }, "Pre-operative Diagnosis", autocomplete = true)
+        FormTextField(postopDiagnosis, { postopDiagnosis = it }, "Post-operative Diagnosis", autocomplete = true)
+        FormTextField(operationPerformed, { operationPerformed = it }, "Operation Performed", autocomplete = true)
+        FormTextField(positionPreparation, { positionPreparation = it }, "Position & Preparation")
+        FormTextField(incisionApproach, { incisionApproach = it }, "Incision / Approach")
         FormTextField(findings, { findings = it }, "Findings", autocomplete = true)
-        FormTextField(technique, { technique = it }, "Technique", autocomplete = true)
+
+        Text("Procedure Steps", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
+        steps.forEachIndexed { index, step ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("${index + 1}.", modifier = Modifier.padding(top = 14.dp))
+                OutlinedTextField(
+                    value = step,
+                    onValueChange = { updated -> steps = steps.toMutableList().also { it[index] = updated } },
+                    modifier = Modifier.weight(1f),
+                    minLines = 1,
+                    maxLines = 4
+                )
+                IconButton(onClick = { steps = steps.toMutableList().also { it.removeAt(index) }.ifEmpty { listOf("") } }) {
+                    Icon(Icons.Filled.Close, contentDescription = "Remove step")
+                }
+            }
+        }
+        TextButton(onClick = { steps = steps + "" }) {
+            Text("+ Add Step")
+        }
+
+        FormTextField(closure, { closure = it }, "Closure", autocomplete = true)
+        FormTextField(specimen, { specimen = it }, "Specimen")
+        FormTextField(implants, { implants = it }, "Implants")
+        FormTextField(drains, { drains = it }, "Drains")
+        FormTextField(estimatedBloodLoss, { estimatedBloodLoss = it }, "Estimated Blood Loss")
+        FormTextField(counts, { counts = it }, "Counts (swab / instrument / needle)")
         FormTextField(complications, { complications = it }, "Complications", autocomplete = true)
-        FormTextField(bloodLoss, { bloodLoss = it }, "Blood Loss")
-        FormTextField(otStart, { otStart = it }, "OT Start (ISO)")
-        FormTextField(otEnd, { otEnd = it }, "OT End (ISO)")
+        FormTextField(postopPlan, { postopPlan = it }, "Post-operative Plan", autocomplete = true)
+
+        Text("Team", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
+        teamRows.forEachIndexed { index, (role, name) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = role,
+                    onValueChange = { updated -> teamRows = teamRows.toMutableList().also { it[index] = updated to name } },
+                    label = { Text("Role") },
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { updated -> teamRows = teamRows.toMutableList().also { it[index] = role to updated } },
+                    label = { Text("Name") },
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { teamRows = teamRows.toMutableList().also { it.removeAt(index) }.ifEmpty { listOf("" to "") } }) {
+                    Icon(Icons.Filled.Close, contentDescription = "Remove team member")
+                }
+            }
+        }
+        TextButton(onClick = { teamRows = teamRows + ("" to "") }) {
+            Text("+ Add Team Member")
+        }
+
         ImageAttachmentPicker(
             items = mediaItems,
             onItemsChange = { mediaItems = it },
             label = "Attach images / video",
-            maxItems = 5,
+            maxItems = 10,
             allowVideo = true
         )
     }
 }
 
 @Composable
-private fun PostOpForm(
+private fun OtNoteTemplatePickerDialog(
+    templates: List<OtNoteTemplateDto>,
     onDismiss: () -> Unit,
-    onSave: (PostOpNoteCreateRequest) -> Unit
+    onSelect: (OtNoteTemplateDto) -> Unit
 ) {
-    var day by remember { mutableStateOf("1") }
-    var condition by remember { mutableStateOf("") }
-    var vitals by remember { mutableStateOf("") }
-    var wound by remember { mutableStateOf("") }
-    var pain by remember { mutableStateOf("") }
-    var diet by remember { mutableStateOf("") }
-    var mediaItems by remember { mutableStateOf(listOf<UploadedMedia>()) }
+    val (globalTemplates, myTemplates) = templates.partition { it.isGlobal }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Choose an OT Note Template", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    if (myTemplates.isNotEmpty()) {
+                        Text("My Templates", style = MaterialTheme.typography.labelLarge, color = NorituraColors.TextTertiary)
+                        for (t in myTemplates) {
+                            TemplatePickerRow(t, onSelect)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    if (globalTemplates.isNotEmpty()) {
+                        Text("Global Library", style = MaterialTheme.typography.labelLarge, color = NorituraColors.TextTertiary)
+                        for (t in globalTemplates) {
+                            TemplatePickerRow(t, onSelect)
+                        }
+                    }
+                    if (templates.isEmpty()) {
+                        Text("No templates available yet.", color = NorituraColors.TextTertiary)
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
 
-    FormCard(
-        title = "Post-Op Note",
-        onDismiss = onDismiss,
-        onSave = {
-            val (imageUrls, videoUrls) = mediaItems.partitionByMimeType()
-            onSave(
-                PostOpNoteCreateRequest(
-                    dayNumber = day.toIntOrNull() ?: 1,
-                    condition = condition,
-                    vitalsJson = parseKeyValue(vitals),
-                    woundStatus = wound.takeIf { it.isNotBlank() },
-                    painScore = pain.toIntOrNull(),
-                    diet = diet.takeIf { it.isNotBlank() },
-                    imageUrls = imageUrls,
-                    videoUrls = videoUrls
-                )
-            )
-        },
-        saveEnabled = condition.isNotBlank() && day.toIntOrNull() != null
+@Composable
+private fun TemplatePickerRow(template: OtNoteTemplateDto, onSelect: (OtNoteTemplateDto) -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onSelect(template) },
+        colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface)
     ) {
-        FormTextField(day, { day = it }, "Day Number *")
-        FormTextField(condition, { condition = it }, "Condition *", autocomplete = true)
-        FormTextField(vitals, { vitals = it }, "Vitals (key=value, comma)")
-        FormTextField(wound, { wound = it }, "Wound Status", autocomplete = true)
-        FormTextField(pain, { pain = it }, "Pain Score (0-10)")
-        FormTextField(diet, { diet = it }, "Diet", autocomplete = true)
-        ImageAttachmentPicker(
-            items = mediaItems,
-            onItemsChange = { mediaItems = it },
-            label = "Attach images / video",
-            maxItems = 5,
-            allowVideo = true
-        )
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(template.name, fontWeight = FontWeight.SemiBold)
+            Text(
+                template.procedure,
+                style = MaterialTheme.typography.bodySmall,
+                color = NorituraColors.TextTertiary
+            )
+        }
+    }
+}
+
+@Composable
+private fun OtNotePreviewDialog(note: OtNoteDto, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(note.procedure) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                note.approach?.let { PreviewRow("Approach", it) }
+                note.anaesthesia?.let { PreviewRow("Anaesthesia", it) }
+                note.preopDiagnosis?.let { PreviewRow("Pre-op Diagnosis", it) }
+                note.findings?.let { PreviewRow("Findings", it) }
+                if (note.procedureSteps.isNotEmpty()) {
+                    Text("Steps", fontWeight = FontWeight.SemiBold)
+                    note.procedureSteps.forEachIndexed { i, s -> Text("${i + 1}. $s", style = MaterialTheme.typography.bodySmall) }
+                }
+                note.complications?.let { PreviewRow("Complications", it) }
+                note.postopPlan?.let { PreviewRow("Post-op Plan", it) }
+                if (note.imageUrls.isNotEmpty()) {
+                    Text("Images (${note.imageUrls.size})", fontWeight = FontWeight.SemiBold)
+                    AuthenticatedUrlImageRow(urls = note.imageUrls)
+                }
+                if (note.videoUrls.isNotEmpty()) {
+                    Text("Videos (${note.videoUrls.size})", fontWeight = FontWeight.SemiBold)
+                    MediaUrlChipGrid(urls = note.videoUrls)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
+@Composable
+private fun ConsentPreviewDialog(
+    consent: com.nonituracare.data.dto.ConsentFormDto,
+    onDismiss: () -> Unit,
+    onViewFull: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(consent.formType) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                PreviewRow("Status", consent.status?.replaceFirstChar { it.uppercase() } ?: "Pending")
+                PreviewRow("Language", consent.language ?: "English")
+                PreviewRow("Generated", consent.generatedAt?.take(10) ?: "-")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onViewFull) { Text("View Full") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
+@Composable
+private fun PreviewRow(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = NorituraColors.TextTertiary)
+        Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

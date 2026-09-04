@@ -3,10 +3,14 @@ package com.nonituracare.presentation.ipd
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nonituracare.data.IpdRepository
+import com.nonituracare.data.OtNoteTemplateRepository
 import com.nonituracare.data.SurgicalTemplateRepository
 import com.nonituracare.data.dto.AdmissionDto
 import com.nonituracare.data.dto.DischargeSummaryCreateRequest
 import com.nonituracare.data.dto.IntraOpNoteCreateRequest
+import com.nonituracare.data.dto.OtNoteCreateRequest
+import com.nonituracare.data.dto.OtNoteMediaAddRequest
+import com.nonituracare.data.dto.OtNoteTemplateDto
 import com.nonituracare.data.dto.PostOpNoteCreateRequest
 import com.nonituracare.data.dto.PreOpNoteCreateRequest
 import com.nonituracare.data.dto.SurgicalTemplateDto
@@ -19,7 +23,8 @@ import kotlinx.coroutines.launch
 class AdmissionDetailViewModel(
     private val admissionId: String,
     private val repository: IpdRepository = IpdRepository(),
-    private val templateRepository: SurgicalTemplateRepository = SurgicalTemplateRepository()
+    private val templateRepository: SurgicalTemplateRepository = SurgicalTemplateRepository(),
+    private val otNoteTemplateRepository: OtNoteTemplateRepository = OtNoteTemplateRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
@@ -28,9 +33,13 @@ class AdmissionDetailViewModel(
     private val _templates = MutableStateFlow<List<SurgicalTemplateDto>>(emptyList())
     val templates: StateFlow<List<SurgicalTemplateDto>> = _templates.asStateFlow()
 
+    private val _otNoteTemplates = MutableStateFlow<List<OtNoteTemplateDto>>(emptyList())
+    val otNoteTemplates: StateFlow<List<OtNoteTemplateDto>> = _otNoteTemplates.asStateFlow()
+
     init {
         loadAdmission()
         loadTemplates()
+        loadOtNoteTemplates()
     }
 
     fun loadTemplates() {
@@ -38,6 +47,14 @@ class AdmissionDetailViewModel(
             templateRepository.listTemplates()
                 .onSuccess { _templates.value = it }
                 .onFailure { _templates.value = emptyList() }
+        }
+    }
+
+    fun loadOtNoteTemplates() {
+        viewModelScope.launch {
+            otNoteTemplateRepository.listTemplates()
+                .onSuccess { _otNoteTemplates.value = it }
+                .onFailure { _otNoteTemplates.value = emptyList() }
         }
     }
 
@@ -100,6 +117,26 @@ class AdmissionDetailViewModel(
                 .onSuccess { loadAdmission() }
                 .onFailure { error ->
                     _uiState.value = UiState.Error(error.message ?: "Failed to discharge patient")
+                }
+        }
+    }
+
+    fun createOtNote(request: OtNoteCreateRequest) {
+        viewModelScope.launch {
+            repository.createOtNote(admissionId, request)
+                .onSuccess { loadAdmission() }
+                .onFailure { error ->
+                    _uiState.value = UiState.Error(error.message ?: "Failed to save OT note")
+                }
+        }
+    }
+
+    fun addOtNoteMedia(noteId: String, request: OtNoteMediaAddRequest) {
+        viewModelScope.launch {
+            repository.addOtNoteMedia(admissionId, noteId, request)
+                .onSuccess { loadAdmission() }
+                .onFailure { error ->
+                    _uiState.value = UiState.Error(error.message ?: "Failed to attach media")
                 }
         }
     }

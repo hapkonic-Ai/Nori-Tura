@@ -28,6 +28,7 @@ data class AdmissionDto(
     @SerialName("ward_round_notes") val wardRoundNotes: List<WardRoundNoteDto>? = null,
     @SerialName("discharge_summaries") val dischargeSummaries: List<DischargeSummaryDto>? = null,
     @SerialName("consent_forms") val consentForms: List<ConsentFormDto>? = null,
+    @SerialName("ot_notes") val otNotes: List<OtNoteDto>? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 

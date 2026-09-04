@@ -12,10 +12,14 @@ import com.nonituracare.data.dto.PreOpNoteCreateRequest
 import com.nonituracare.data.dto.PreOpNoteDto
 import com.nonituracare.data.dto.WardRoundNoteCreateRequest
 import com.nonituracare.data.dto.WardRoundNoteDto
+import com.nonituracare.data.dto.OtNoteCreateRequest
+import com.nonituracare.data.dto.OtNoteDto
+import com.nonituracare.data.dto.OtNoteMediaAddRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -69,6 +73,24 @@ class IpdRepository(
 
     suspend fun createDischargeSummary(admissionId: String, request: DischargeSummaryCreateRequest): Result<DischargeSummaryDto> = safeApiCall {
         client.post("/ipd/admissions/$admissionId/discharge") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
+
+    suspend fun createOtNote(admissionId: String, request: OtNoteCreateRequest): Result<OtNoteDto> = safeApiCall {
+        client.post("/ipd/admissions/$admissionId/ot-notes") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+    }
+
+    suspend fun getOtNote(admissionId: String, noteId: String): Result<OtNoteDto> = safeApiCall {
+        client.get("/ipd/admissions/$admissionId/ot-notes/$noteId").body()
+    }
+
+    suspend fun addOtNoteMedia(admissionId: String, noteId: String, request: OtNoteMediaAddRequest): Result<OtNoteDto> = safeApiCall {
+        client.post("/ipd/admissions/$admissionId/ot-notes/$noteId/media") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
