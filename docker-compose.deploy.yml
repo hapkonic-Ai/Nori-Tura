@@ -20,6 +20,28 @@ services:
       retries: 5
     # No host port mapping; keeps 5432 free for Prime World Ledger.
 
+  minio:
+    image: minio/minio:RELEASE.2024-06-13T22-53-53Z
+    container_name: nonitura-minio
+    environment:
+      MINIO_ROOT_USER: nonitura
+      MINIO_ROOT_PASSWORD: nonitura123
+    ports:
+      - "9500:9000"
+    volumes:
+      - nonitura_minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - nonitura-network
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Host port 9500 exposes the S3 API directly (http://<server-ip>:9500) so
+    # the mobile app can load presigned media URLs. Console (9001) is not
+    # exposed publicly — use `docker compose exec minio` or an SSH tunnel.
+
   api:
     build:
       context: .
@@ -29,6 +51,8 @@ services:
       - ./backend/.env
     depends_on:
       postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     networks:
       - nonitura-network
@@ -54,6 +78,7 @@ services:
 
 volumes:
   nonitura_postgres_data:
+  nonitura_minio_data:
 
 networks:
   nonitura-network:
