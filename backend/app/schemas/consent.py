@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, field_validator
 
 
 class ConsentFormCreate(BaseModel):
@@ -54,7 +54,32 @@ class ConsentFormCreate(BaseModel):
     # Specific consents
     consent_for_anesthesia: bool = True
     consent_for_blood_products: bool = False
-    consent_for_photography: bool = False
+
+    # Per-generation capture fields (nurse-supplied when generating the PDF,
+    # not reusable template content). Replaces the old single
+    # `consent_for_photography` boolean with the three independent consents
+    # the client's consent-form corpus actually asks for.
+    blood_transfusion_consent: Optional[str] = None  # "consented" | "refused" | None
+    consent_for_photo_medical_record: bool = False
+    consent_for_photo_deidentified_teaching: bool = False
+    consent_for_photo_publication: bool = False
+    specimen_handling_consented: Optional[bool] = None
+    interpreter_used: bool = False
+
+    @field_validator("language")
+    @classmethod
+    def _validate_language(cls, value: Optional[str]) -> str:
+        value = value or "English"
+        if value not in ("English", "Hindi"):
+            raise ValueError('language must be "English" or "Hindi"')
+        return value
+
+    @field_validator("blood_transfusion_consent")
+    @classmethod
+    def _validate_blood_transfusion_consent(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in ("consented", "refused"):
+            raise ValueError('blood_transfusion_consent must be "consented" or "refused"')
+        return value
 
 
 class ConsentSuggestRequest(BaseModel):
@@ -64,36 +89,6 @@ class ConsentSuggestRequest(BaseModel):
     diagnosis: str
     patient_age: Optional[int] = None
     patient_gender: Optional[str] = None
-
-
-class ConsentOtpVerifyRequest(BaseModel):
-    """Request body for signing a consent form via parent OTP verification.
-
-    When witness details are provided, the witness must also complete OTP
-    verification (``witness_mobile`` + ``witness_otp`` become required).
-    """
-
-    otp: str = Field(..., min_length=6, max_length=6)
-    witness_name: Optional[str] = Field(None, min_length=2)
-    witness_relationship: Optional[str] = None
-    witness_mobile: Optional[str] = Field(None, pattern=r"^\+91[0-9]{10}$")
-    witness_otp: Optional[str] = Field(None, min_length=6, max_length=6)
-    signer_attested: bool = False
-
-    @model_validator(mode="after")
-    def _witness_requires_otp(self):
-        if self.witness_name:
-            if not self.witness_mobile:
-                raise ValueError("witness_mobile is required when witness_name is provided")
-            if not self.witness_otp:
-                raise ValueError("witness_otp is required when witness_name is provided")
-        return self
-
-
-class ConsentWitnessOtpRequest(BaseModel):
-    """Request body for sending an OTP to the witness's mobile."""
-
-    witness_mobile: str = Field(..., pattern=r"^\+91[0-9]{10}$")
 
 
 class ConsentFormResponse(BaseModel):

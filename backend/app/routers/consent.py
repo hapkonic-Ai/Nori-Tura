@@ -12,10 +12,10 @@ from app.core.auth_deps import (
     CurrentUser,
     resolve_doctor_id,
 )
-from app.services.consent_service import generate_consent_pdf, generate_signed_consent_pdf
+from app.services.consent_service import generate_consent_pdf
 from app.services.rag_service import get_consent_content
 from app.core.config import get_settings
-from app.schemas.consent import ConsentFormCreate, ConsentOtpVerifyRequest, ConsentSuggestRequest, ConsentWitnessOtpRequest
+from app.schemas.consent import ConsentFormCreate, ConsentSuggestRequest
 from app.schemas.consent_acknowledgment import (
     ConsentAcknowledgmentRequest,
     ConsentAcknowledgmentResponse,
@@ -70,6 +70,101 @@ def _apply_surgical_template(template) -> dict:
         defaults["post_op_care"] = template.post_op_care
     if template.expected_recovery:
         defaults["expected_recovery"] = template.expected_recovery
+
+    return defaults
+
+
+def _join_as_bullets(value) -> str:
+    """Join a list field into text for the (white-space: pre-line) template.
+
+    A single-item list (the common case for risks/benefits/alternatives,
+    which are usually one sentence in this corpus) renders as plain text.
+    Multi-item lists (e.g. possible_complications with 15-25 entries) get a
+    bullet per line so they read as a list instead of a run-on paragraph.
+    """
+    if not isinstance(value, list):
+        return value
+    if len(value) > 1:
+        return "\n".join(f"• {item}" for item in value)
+    return "\n".join(value)
+
+
+def _apply_content_template(content_template, language: str) -> dict:
+    """Map a consent_content_templates record into consent form defaults.
+
+    Content fields are stored as bilingual `_en`/`_hi` siblings (plus a
+    legacy single-language column kept for backward compatibility). This
+    picks the column matching `language`, falling back to the legacy column
+    for content templates that haven't been migrated to bilingual columns
+    yet, so old templates keep working.
+    """
+    defaults: dict = {}
+    suffix = "_hi" if language == "Hindi" else "_en"
+
+    text_fields = [
+        "procedure_description",
+        "material_risks",
+        "post_op_care",
+        "expected_recovery",
+        "diagnosis_plain_language",
+        "consequences_of_no_treatment",
+        "cost_conditional_note",
+        "specimen_handling_statement",
+        "site_side_instruction",
+        "conversion_consequences",
+        "lifelong_follow_up_note",
+        "pre_op_prep",
+    ]
+    list_fields = ["risks", "benefits", "alternatives", "possible_complications"]
+    joined_list_fields = ["consented_contingencies", "technique_options"]
+
+    for field in text_fields:
+        value = getattr(content_template, f"{field}{suffix}", None) or getattr(content_template, field, None)
+        if value:
+            defaults[field] = value
+
+    for field in list_fields:
+        value = getattr(content_template, f"{field}{suffix}", None) or getattr(content_template, field, None)
+        if value:
+            defaults[field] = _join_as_bullets(value)
+
+    for field in joined_list_fields:
+        value = getattr(content_template, f"{field}{suffix}", None)
+        if value:
+            defaults[field] = ", ".join(value) if isinstance(value, list) else value
+
+    anaesthesia_value = getattr(content_template, f"anaesthesia{suffix}", None) or content_template.anesthesia
+    if anaesthesia_value:
+        defaults["anesthesia"] = ", ".join(anaesthesia_value) if isinstance(anaesthesia_value, list) else anaesthesia_value
+
+    if content_template.procedure:
+        defaults["procedure"] = content_template.procedure
+    if content_template.statutory_reference:
+        defaults["statutory_reference"] = content_template.statutory_reference
+    if content_template.cost_category:
+        defaults["cost_category"] = content_template.cost_category
+    if content_template.is_lateralizable:
+        defaults["is_lateralizable"] = True
+    if content_template.conversion_to_open_possible:
+        defaults["conversion_to_open_possible"] = True
+    if content_template.staging_stage_number and content_template.staging_total_stages:
+        defaults["staging_stage_number"] = content_template.staging_stage_number
+        defaults["staging_total_stages"] = content_template.staging_total_stages
+    if content_template.lifelong_follow_up_flag:
+        defaults["lifelong_follow_up_flag"] = True
+
+    # A content template can carry approach/technique/special_instructions
+    # too, same as a surgical template — fold them into procedure_description
+    # the same way, unless an explicit procedure_description already won.
+    description_parts = []
+    if content_template.approach:
+        description_parts.append(f"Approach: {content_template.approach}")
+    if content_template.technique:
+        description_parts.append(f"Technique: {content_template.technique}")
+    if content_template.special_instructions:
+        description_parts.append(content_template.special_instructions)
+    if description_parts and "procedure_description" not in defaults:
+        defaults["procedure_description"] = "\n\n".join(description_parts)
 
     return defaults
 
@@ -240,6 +335,11 @@ async def create_consent_form(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Consent content template not found or inactive",
             )
+        if req.language == "Hindi" and content_template.hi_content_status == "missing":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Hindi content is not yet available for this consent template",
+            )
 
     # Load optional surgical template and map its fields to consent defaults
     template_defaults: dict = {}
@@ -259,45 +359,10 @@ async def create_consent_form(
             )
         template_defaults.update(_apply_surgical_template(surgical_template))
 
-    # Merge consent content template defaults after surgical template so either can be used
+    # Merge consent content template defaults (language-selected) after surgical
+    # template so either can be used; content template wins on overlapping fields.
     if content_template:
-        for field in [
-            "procedure",
-            "procedure_description",
-            "anesthesia",
-            "risks",
-            "benefits",
-            "alternatives",
-            "possible_complications",
-            "material_risks",
-            "post_op_care",
-            "expected_recovery",
-            "statutory_reference",
-        ]:
-            value = getattr(content_template, field)
-            # Truthy, not just non-None: an unset list field defaults to `[]` (never
-            # None) on this model, and would otherwise be treated as "explicitly set
-            # to empty," clobbering a surgical template's real value with "".
-            if value:
-                if field in ["risks", "benefits", "alternatives", "possible_complications"]:
-                    template_defaults[field] = "\n".join(value) if isinstance(value, list) else value
-                elif field == "anesthesia":
-                    template_defaults[field] = ", ".join(value) if isinstance(value, list) else value
-                else:
-                    template_defaults[field] = value
-
-        # A content template can now carry approach/technique/special_instructions
-        # too, same as a surgical template — fold them into procedure_description
-        # the same way, unless an explicit procedure_description already won.
-        content_description_parts = []
-        if content_template.approach:
-            content_description_parts.append(f"Approach: {content_template.approach}")
-        if content_template.technique:
-            content_description_parts.append(f"Technique: {content_template.technique}")
-        if content_template.special_instructions:
-            content_description_parts.append(content_template.special_instructions)
-        if content_description_parts and not content_template.procedure_description:
-            template_defaults["procedure_description"] = "\n\n".join(content_description_parts)
+        template_defaults.update(_apply_content_template(content_template, req.language or "English"))
 
     # Query consent RAG for procedure-specific clinical content (risks, complications,
     # alternatives, recovery). RAG output acts as the final default; request fields,
@@ -390,7 +455,28 @@ async def create_consent_form(
         "alternatives": req.alternatives or template_defaults.get("alternatives") or rag_content.get("alternatives", ""),
         "post_op_care": req.post_op_care or template_defaults.get("post_op_care") or rag_content.get("post_op_care", ""),
         "expected_recovery": req.expected_recovery or template_defaults.get("expected_recovery") or rag_content.get("expected_recovery", ""),
+
+        # New client-corpus fields — template-supplied only (no per-request override yet)
+        "diagnosis_plain_language": template_defaults.get("diagnosis_plain_language", ""),
+        "consequences_of_no_treatment": template_defaults.get("consequences_of_no_treatment", ""),
+        "consented_contingencies": template_defaults.get("consented_contingencies", ""),
+        "cost_category": template_defaults.get("cost_category", ""),
+        "cost_conditional_note": template_defaults.get("cost_conditional_note", ""),
+        "specimen_handling_statement": template_defaults.get("specimen_handling_statement", ""),
+        "site_side_instruction": template_defaults.get("site_side_instruction") if template_defaults.get("is_lateralizable") else "",
+        "conversion_to_open_possible": bool(template_defaults.get("conversion_to_open_possible")),
+        "conversion_consequences": template_defaults.get("conversion_consequences", ""),
+        "staging_stage_number": template_defaults.get("staging_stage_number"),
+        "staging_total_stages": template_defaults.get("staging_total_stages"),
+        "technique_options": template_defaults.get("technique_options", ""),
+        "lifelong_follow_up_flag": bool(template_defaults.get("lifelong_follow_up_flag")),
+        "lifelong_follow_up_note": template_defaults.get("lifelong_follow_up_note", ""),
+        "pre_op_prep": template_defaults.get("pre_op_prep", ""),
+
         "refusal_consequences": (
+            "अगर सहमति नहीं दी जाती है, तो इलाज करने वाला डॉक्टर इसके परिणाम समझाएगा, जिसमें रोगी की हालत का "
+            "बिगड़ना, लगातार दर्द, अपंगता, या अन्य गंभीर परिणाम शामिल हो सकते हैं।"
+            if (req.language or "English") == "Hindi" else
             "If consent is refused, the treating doctor will explain the consequences, which may include "
             "worsening of the patient's condition, persistent pain, disability, or other serious outcomes."
         ),
@@ -402,14 +488,19 @@ async def create_consent_form(
         # Specific consents
         "consent_for_anesthesia": "Yes" if req.consent_for_anesthesia else "No",
         "consent_for_blood_products": "Yes" if req.consent_for_blood_products else "No",
-        "consent_for_photography": "Yes" if req.consent_for_photography else "No",
+        "blood_transfusion_consent": req.blood_transfusion_consent,
+        "photo_consent_medical_record": req.consent_for_photo_medical_record,
+        "photo_consent_deidentified_teaching": req.consent_for_photo_deidentified_teaching,
+        "photo_consent_publication": req.consent_for_photo_publication,
+        "specimen_handling_consented": req.specimen_handling_consented,
+        "interpreter_used": req.interpreter_used,
 
         # Privacy / statutory text — RAG can supply procedure-specific guideline references
         "privacy_statement": (
             "Personal and medical information will be kept confidential and used only for treatment, "
             "billing, quality assurance, and as required by law."
         ),
-        "statutory_reference": rag_content.get(
+        "statutory_reference": template_defaults.get("statutory_reference") or rag_content.get(
             "applicable_guidelines",
             "This consent is obtained in accordance with the principles of informed consent laid down by "
             "the National Medical Commission (NMC) and NABH standards for patient rights."
@@ -427,7 +518,7 @@ async def create_consent_form(
             "form_type": form_data["form_type"],
             "content_json": Json(form_data),
             "generated_by": user.role,
-            "status": "pending",
+            "status": "generated",
 
             # Enhanced metadata
             "consent_number": consent_number,
@@ -448,6 +539,14 @@ async def create_consent_form(
             "expected_recovery": form_data["expected_recovery"],
             "possible_complications": form_data["possible_complications"],
             "material_risks": form_data["material_risks"],
+
+            # Per-generation capture fields
+            "blood_transfusion_consent": req.blood_transfusion_consent,
+            "photo_consent_medical_record": req.consent_for_photo_medical_record,
+            "photo_consent_deidentified_teaching": req.consent_for_photo_deidentified_teaching,
+            "photo_consent_publication": req.consent_for_photo_publication,
+            "specimen_handling_consented": req.specimen_handling_consented,
+            "interpreter_used": req.interpreter_used,
         }
     )
 
@@ -461,13 +560,23 @@ async def create_consent_form(
     filename = f"consent_{consent.id}_{now.isoformat()}"
     pdf_url = _upload_consent_pdf(pdf_bytes, filename)
 
+    download_time = datetime.now(timezone.utc)
     updated = await prisma.consent_forms.update(
         where={"id": consent.id},
         data={
             "content_json": Json(form_data),
             "pdf_url": pdf_url,
             "pdf_hash": pdf_hash,
+            "downloaded_at": download_time,
+            "downloaded_by_user_id": user.nurse_id or user.doctor_id,
+            "download_count": {"increment": 1},
         },
+    )
+    await _log_consent_audit(
+        updated,
+        "pdf_downloaded",
+        user,
+        detail={"language": req.language or "English", "stage": "generated"},
     )
 
     return {"consent_form": updated, "pdf_url": pdf_url}
@@ -569,247 +678,102 @@ async def _log_consent_audit(
     )
 
 
-@router.post("/forms/{consent_id}/request-otp")
-async def request_consent_otp(
+
+
+@router.get("/forms/{consent_id}/download")
+async def download_consent_form_pdf(
     consent_id: str,
+    language: Optional[str] = None,
     user: CurrentUser = Depends(get_current_user),
 ):
-    """Send a 6-digit OTP to the patient's parent phone for consent signing.
+    """Download the consent PDF for a patient/admission.
 
-    The OTP is bound to this consent form (purpose="consent_sign",
-    context_id=consent_id) so it cannot be replayed for login or for another
-    consent form.
+    Nurses and doctors use this to fetch the printable form; parents can also
+    read their own child's forms via `_require_consent_access`. If `language`
+    differs from the language the form was originally generated in, the PDF
+    is regenerated on the fly from `content_json` merged with the other
+    language's content-template columns (mirrors admin.py's
+    `/admin/consent-forms/{id}/download`, but reachable by nurses).
     """
-    from app.services.otp_service import create_otp_session
-
     consent = await prisma.consent_forms.find_first(where={"id": consent_id})
     if not consent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
     await _require_consent_access(user, consent)
 
-    if consent.status != "pending":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
+    requested_language = language or consent.language or "English"
+    if requested_language not in ("English", "Hindi"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='language must be "English" or "Hindi"')
 
-    patient = await prisma.patients.find_first(where={"id": consent.patient_id})
-    if not patient or not patient.parent_phone:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient has no registered parent phone")
-
-    returned_otp = await create_otp_session(
-        patient.parent_phone,
-        role="patient_parent",
-        purpose="consent_sign",
-        context_id=consent_id,
-    )
-    await _log_consent_audit(
-        consent,
-        "parent_otp_requested",
-        user,
-        signer_phone=_mask_phone(patient.parent_phone),
-    )
-
-    return {
-        "message": "OTP sent successfully",
-        "expires_in_minutes": settings.OTP_EXPIRY_MINUTES,
-        "phone": _mask_phone(patient.parent_phone),
-        "dev_otp": returned_otp,
-    }
-
-
-@router.post("/forms/{consent_id}/request-witness-otp")
-async def request_witness_otp(
-    consent_id: str,
-    req: ConsentWitnessOtpRequest,
-    user: CurrentUser = Depends(get_current_user),
-):
-    """Send a 6-digit OTP to the witness's mobile for consent signing.
-
-    The OTP is bound to this consent form (purpose="consent_witness",
-    context_id=consent_id) so it cannot be replayed for login, the parent
-    consent OTP, or another consent form.
-    """
-    from app.services.otp_service import create_otp_session
-
-    consent = await prisma.consent_forms.find_first(where={"id": consent_id})
-    if not consent:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
-    await _require_consent_access(user, consent)
-
-    if consent.status != "pending":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
-
-    returned_otp = await create_otp_session(
-        req.witness_mobile,
-        role="consent_witness",
-        purpose="consent_witness",
-        context_id=consent_id,
-    )
-    await _log_consent_audit(
-        consent,
-        "witness_otp_requested",
-        user,
-        signer_phone=_mask_phone(req.witness_mobile),
-    )
-
-    return {
-        "message": "OTP sent successfully",
-        "expires_in_minutes": settings.OTP_EXPIRY_MINUTES,
-        "phone": _mask_phone(req.witness_mobile),
-        "dev_otp": returned_otp,
-    }
-
-
-@router.post("/forms/{consent_id}/verify-otp")
-async def verify_consent_otp_and_sign(
-    consent_id: str,
-    req: ConsentOtpVerifyRequest,
-    user: CurrentUser = Depends(get_current_user),
-):
-    """Verify the parent OTP and mark the consent form as signed."""
-    from app.services.otp_service import verify_otp
-
-    consent = await prisma.consent_forms.find_first(where={"id": consent_id})
-    if not consent:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consent form not found")
-    await _require_consent_access(user, consent)
-
-    if consent.status != "pending":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consent form already signed")
-
-    patient = await prisma.patients.find_first(where={"id": consent.patient_id})
-    if not patient or not patient.parent_phone:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient has no registered parent phone")
-
-    if not req.signer_attested:
-        await _log_consent_audit(
-            consent,
-            "sign_rejected_no_attestation",
-            user,
-            signer_phone=_mask_phone(patient.parent_phone),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Signer attestation is required before signing",
-        )
-
-    # Check both OTPs without consuming either; only when both are valid are
-    # the sessions marked verified. This keeps the flow retryable when the
-    # witness OTP is mistyped (the parent OTP stays valid).
-    try:
-        await verify_otp(
-            patient.parent_phone,
-            req.otp,
-            purpose="consent_sign",
-            context_id=consent_id,
-            mark_verified=False,
-        )
-    except ValueError as e:
-        await _log_consent_audit(
-            consent,
-            "sign_rejected_invalid_otp",
-            user,
-            signer_phone=_mask_phone(patient.parent_phone),
-            detail={"reason": str(e)},
-        )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-    if req.witness_name:
-        try:
-            await verify_otp(
-                req.witness_mobile,
-                req.witness_otp,
-                purpose="consent_witness",
-                context_id=consent_id,
-                mark_verified=False,
-            )
-        except ValueError as e:
-            await _log_consent_audit(
-                consent,
-                "sign_rejected_invalid_witness_otp",
-                user,
-                signer_phone=_mask_phone(req.witness_mobile),
-                detail={"reason": str(e)},
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Witness OTP: {e}",
-            )
-
-    witness_verified = False
-    await verify_otp(
-        patient.parent_phone,
-        req.otp,
-        purpose="consent_sign",
-        context_id=consent_id,
-    )
-    if req.witness_name:
-        await verify_otp(
-            req.witness_mobile,
-            req.witness_otp,
-            purpose="consent_witness",
-            context_id=consent_id,
-        )
-        witness_verified = True
-
-    signed_at = datetime.now(timezone.utc)
-    masked_phone = _mask_phone(patient.parent_phone)
     form_data = consent.content_json if isinstance(consent.content_json, dict) else dict(consent.content_json or {})
     form_data["consent_id"] = consent.id
-    form_data["status"] = "Signed"
 
-    # Load layout template used when the form was created
     layout_html = None
     layout_template_name = form_data.get("layout_template_name")
     if layout_template_name:
-        layout = await prisma.consent_layout_templates.find_first(
-            where={"name": layout_template_name}
-        )
+        layout = await prisma.consent_layout_templates.find_first(where={"name": layout_template_name})
         if layout:
             layout_html = layout.html
 
-    signed_pdf_result = generate_signed_consent_pdf(
-        form_data=form_data,
-        parent_auth_method="otp",
-        parent_auth_phone=masked_phone,
-        witness_name=req.witness_name,
-        witness_relationship=req.witness_relationship,
-        witness_mobile=req.witness_mobile,
-        witness_verified=witness_verified,
-        signer_attested=req.signer_attested,
-        signed_at=signed_at.isoformat(),
-        template_html=layout_html,
-    )
-    signed_pdf_bytes = signed_pdf_result["pdf_bytes"]
-    signed_pdf_hash = signed_pdf_result["pdf_hash"]
-    signed_filename = f"signed_consent_{consent_id}_{signed_at.isoformat()}"
-    signed_pdf_url = _upload_consent_pdf(signed_pdf_bytes, signed_filename)
+    # Same-language re-download: prefer the already-generated PDF URL rather
+    # than re-rendering, when we have one.
+    if requested_language == consent.language and consent.pdf_url:
+        pdf_url = consent.pdf_url
+        download_time = datetime.now(timezone.utc)
+        await prisma.consent_forms.update(
+            where={"id": consent.id},
+            data={
+                "downloaded_at": download_time,
+                "downloaded_by_user_id": user.nurse_id or user.doctor_id,
+                "download_count": {"increment": 1},
+            },
+        )
+        await _log_consent_audit(consent, "pdf_downloaded", user, detail={"language": requested_language, "stage": "redownload"})
+        return {"pdf_url": pdf_url}
 
-    updated = await prisma.consent_forms.update(
-        where={"id": consent_id},
+    # Different-language (or no cached URL): re-render from the content template
+    # in the requested language, without mutating the stored content_json.
+    if requested_language != consent.language:
+        content_template = None
+        procedure = form_data.get("procedure")
+        if procedure:
+            content_template = await prisma.consent_content_templates.find_first(
+                where={"procedure": procedure, "is_active": True}
+            )
+        if content_template:
+            if requested_language == "Hindi" and content_template.hi_content_status == "missing":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Hindi content is not yet available for this consent's procedure",
+                )
+            form_data = {**form_data, **_apply_content_template(content_template, requested_language)}
+        form_data["language"] = requested_language
+
+    pdf_result = generate_consent_pdf(form_data, template_html=layout_html)
+    pdf_bytes = pdf_result["pdf_bytes"]
+
+    # Upload the regenerated PDF so the response is a plain URL — the same
+    # shape as POST /consent/forms's response, which the frontend already
+    # knows how to open via its cross-platform `openUrl` helper. This avoids
+    # needing a separate authenticated byte-stream-to-file-save path in the
+    # Kotlin Multiplatform client (Android/iOS/web each have their own APIs
+    # for that, none of which exist in this app yet).
+    filename = f"consent_{consent.id}_{requested_language.lower()}_{datetime.now(timezone.utc).isoformat()}"
+    pdf_url = _upload_consent_pdf(pdf_bytes, filename)
+
+    download_time = datetime.now(timezone.utc)
+    await prisma.consent_forms.update(
+        where={"id": consent.id},
         data={
-            "parent_auth_method": "otp",
-            "parent_auth_phone": masked_phone,
-            "otp_verified_at": signed_at,
-            "witness_name": req.witness_name,
-            "witness_relationship": req.witness_relationship,
-            "witness_mobile": req.witness_mobile,
-            "witness_verified_at": signed_at if witness_verified else None,
-            "signer_attested_at": signed_at,
-            "signed_at": signed_at,
-            "signed_pdf_url": signed_pdf_url,
-            "signed_pdf_hash": signed_pdf_hash,
-            "status": "signed",
+            "downloaded_at": download_time,
+            "downloaded_by_user_id": user.nurse_id or user.doctor_id,
+            "download_count": {"increment": 1},
         },
     )
     await _log_consent_audit(
         consent,
-        "signed",
+        "pdf_downloaded",
         user,
-        signer_phone=masked_phone,
-        detail={
-            "parent_auth_method": "otp",
-            "witness_present": bool(req.witness_name),
-            "witness_verified": witness_verified,
-            "signer_attested": True,
-            "signed_pdf_hash": signed_pdf_hash,
-        },
+        detail={"language": requested_language, "stage": "regenerated"},
     )
-    return updated
+
+    return {"pdf_url": pdf_url}

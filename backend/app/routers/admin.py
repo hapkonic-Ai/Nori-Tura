@@ -81,6 +81,8 @@ class ConsentContentTemplateCreate(BaseModel):
     risk_level: Optional[str] = None
     special_instructions: Optional[str] = None
     investigations: List[str] = []
+
+    # legacy single-language fields — kept writable for old callers, no longer read by PDF generation
     procedure_description: Optional[str] = None
     anesthesia: List[str] = []
     risks: List[str] = []
@@ -90,7 +92,56 @@ class ConsentContentTemplateCreate(BaseModel):
     material_risks: Optional[str] = None
     post_op_care: Optional[str] = None
     expected_recovery: Optional[str] = None
+
+    # bilingual content
+    procedure_description_en: Optional[str] = None
+    procedure_description_hi: Optional[str] = None
+    anaesthesia_en: List[str] = []
+    anaesthesia_hi: List[str] = []
+    risks_en: List[str] = []
+    risks_hi: List[str] = []
+    benefits_en: List[str] = []
+    benefits_hi: List[str] = []
+    alternatives_en: List[str] = []
+    alternatives_hi: List[str] = []
+    possible_complications_en: List[str] = []
+    possible_complications_hi: List[str] = []
+    material_risks_en: Optional[str] = None
+    material_risks_hi: Optional[str] = None
+    post_op_care_en: Optional[str] = None
+    post_op_care_hi: Optional[str] = None
+    expected_recovery_en: Optional[str] = None
+    expected_recovery_hi: Optional[str] = None
     statutory_reference: Optional[str] = None
+
+    diagnosis_plain_language_en: Optional[str] = None
+    diagnosis_plain_language_hi: Optional[str] = None
+    consequences_of_no_treatment_en: Optional[str] = None
+    consequences_of_no_treatment_hi: Optional[str] = None
+    consented_contingencies_en: List[str] = []
+    consented_contingencies_hi: List[str] = []
+    cost_category: Optional[str] = None
+    cost_conditional_note_en: Optional[str] = None
+    cost_conditional_note_hi: Optional[str] = None
+    specimen_handling_statement_en: Optional[str] = None
+    specimen_handling_statement_hi: Optional[str] = None
+    is_lateralizable: bool = False
+    site_side_instruction_en: Optional[str] = None
+    site_side_instruction_hi: Optional[str] = None
+    conversion_to_open_possible: bool = False
+    conversion_consequences_en: Optional[str] = None
+    conversion_consequences_hi: Optional[str] = None
+    staging_stage_number: Optional[int] = None
+    staging_total_stages: Optional[int] = None
+    technique_options_en: List[str] = []
+    technique_options_hi: List[str] = []
+    lifelong_follow_up_flag: bool = False
+    lifelong_follow_up_note_en: Optional[str] = None
+    lifelong_follow_up_note_hi: Optional[str] = None
+    pre_op_prep_en: Optional[str] = None
+    pre_op_prep_hi: Optional[str] = None
+    hi_content_status: str = "missing"
+
     is_active: bool = True
 
 
@@ -102,6 +153,7 @@ class ConsentContentTemplateUpdate(BaseModel):
     risk_level: Optional[str] = None
     special_instructions: Optional[str] = None
     investigations: Optional[List[str]] = None
+
     procedure_description: Optional[str] = None
     anesthesia: Optional[List[str]] = None
     risks: Optional[List[str]] = None
@@ -111,7 +163,55 @@ class ConsentContentTemplateUpdate(BaseModel):
     material_risks: Optional[str] = None
     post_op_care: Optional[str] = None
     expected_recovery: Optional[str] = None
+
+    procedure_description_en: Optional[str] = None
+    procedure_description_hi: Optional[str] = None
+    anaesthesia_en: Optional[List[str]] = None
+    anaesthesia_hi: Optional[List[str]] = None
+    risks_en: Optional[List[str]] = None
+    risks_hi: Optional[List[str]] = None
+    benefits_en: Optional[List[str]] = None
+    benefits_hi: Optional[List[str]] = None
+    alternatives_en: Optional[List[str]] = None
+    alternatives_hi: Optional[List[str]] = None
+    possible_complications_en: Optional[List[str]] = None
+    possible_complications_hi: Optional[List[str]] = None
+    material_risks_en: Optional[str] = None
+    material_risks_hi: Optional[str] = None
+    post_op_care_en: Optional[str] = None
+    post_op_care_hi: Optional[str] = None
+    expected_recovery_en: Optional[str] = None
+    expected_recovery_hi: Optional[str] = None
     statutory_reference: Optional[str] = None
+
+    diagnosis_plain_language_en: Optional[str] = None
+    diagnosis_plain_language_hi: Optional[str] = None
+    consequences_of_no_treatment_en: Optional[str] = None
+    consequences_of_no_treatment_hi: Optional[str] = None
+    consented_contingencies_en: Optional[List[str]] = None
+    consented_contingencies_hi: Optional[List[str]] = None
+    cost_category: Optional[str] = None
+    cost_conditional_note_en: Optional[str] = None
+    cost_conditional_note_hi: Optional[str] = None
+    specimen_handling_statement_en: Optional[str] = None
+    specimen_handling_statement_hi: Optional[str] = None
+    is_lateralizable: Optional[bool] = None
+    site_side_instruction_en: Optional[str] = None
+    site_side_instruction_hi: Optional[str] = None
+    conversion_to_open_possible: Optional[bool] = None
+    conversion_consequences_en: Optional[str] = None
+    conversion_consequences_hi: Optional[str] = None
+    staging_stage_number: Optional[int] = None
+    staging_total_stages: Optional[int] = None
+    technique_options_en: Optional[List[str]] = None
+    technique_options_hi: Optional[List[str]] = None
+    lifelong_follow_up_flag: Optional[bool] = None
+    lifelong_follow_up_note_en: Optional[str] = None
+    lifelong_follow_up_note_hi: Optional[str] = None
+    pre_op_prep_en: Optional[str] = None
+    pre_op_prep_hi: Optional[str] = None
+    hi_content_status: Optional[str] = None
+
     is_active: Optional[bool] = None
 
 

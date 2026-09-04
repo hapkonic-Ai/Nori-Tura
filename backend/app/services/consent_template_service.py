@@ -11,9 +11,14 @@ async def ensure_default_layout_templates() -> None:
     """Seed/sync the built-in consent layout templates from the filesystem.
 
     The built-in "base" and "signed" templates always track the code shipped in
-    templates/consents so that PDF rendering fixes (e.g. the OTP attestation
-    block) take effect for forms referencing them. Custom templates created
-    via the admin UI use other names and are left untouched.
+    templates/consents so that PDF rendering fixes take effect for forms
+    referencing them. Custom templates created via the admin UI use other
+    names and are left untouched.
+
+    "signed" is kept in sync even though new consent forms are no longer
+    digitally signed on the platform (nurses print and get the form signed
+    by hand) — it is still used by admin.py's download endpoint to
+    regenerate historical pre-cutover forms whose status is "signed".
     """
     for name, filename in [("base", "consent_base.html"), ("signed", "consent_signed.html")]:
         template_path = _TEMPLATES_DIR / filename
