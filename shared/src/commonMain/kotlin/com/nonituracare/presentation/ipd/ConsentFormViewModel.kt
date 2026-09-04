@@ -46,12 +46,16 @@ class ConsentFormViewModel(
     }
 
     /** Maps whatever the template picker returned into consent form fields. */
-    fun applyPickerResult(result: TemplatePickerResult): PrefilledConsentFields =
+    fun applyPickerResult(result: TemplatePickerResult, language: String = "English"): PrefilledConsentFields =
         when (result) {
             is TemplatePickerResult.Blank -> PrefilledConsentFields()
             is TemplatePickerResult.Surgical -> applyTemplate(result.template)
-            is TemplatePickerResult.Content -> applyContentTemplate(result.template)
+            is TemplatePickerResult.Content -> applyContentTemplate(result.template, language)
         }
+
+    /** Whether the given content template has Hindi content available yet. */
+    fun hasHindiContent(template: ContentTemplateDto): Boolean =
+        template.hiContentStatus != "missing"
 
     /**
      * Maps a surgical template into the subset of consent form fields that can be
@@ -81,11 +85,29 @@ class ConsentFormViewModel(
         )
     }
 
-    /** Same mapping as [applyTemplate], but from an admin-curated global template. */
-    private fun applyContentTemplate(template: ContentTemplateDto): PrefilledConsentFields {
+    /**
+     * Same mapping as [applyTemplate], but from an admin-curated global template.
+     * Picks the `_en`/`_hi` bilingual column for [language], falling back to the
+     * legacy single-language column for templates not yet migrated.
+     */
+    private fun applyContentTemplate(template: ContentTemplateDto, language: String): PrefilledConsentFields {
+        val hindi = language == "Hindi"
+        val procedureDescription = (if (hindi) template.procedureDescriptionHi else template.procedureDescriptionEn)
+            ?: template.procedureDescription
+        val anesthesiaList = (if (hindi) template.anaesthesiaHi else template.anaesthesiaEn).takeIf { it.isNotEmpty() }
+            ?: template.anesthesia
+        val risksList = (if (hindi) template.risksHi else template.risksEn).takeIf { it.isNotEmpty() } ?: template.risks
+        val benefitsList = (if (hindi) template.benefitsHi else template.benefitsEn).takeIf { it.isNotEmpty() } ?: template.benefits
+        val alternativesList = (if (hindi) template.alternativesHi else template.alternativesEn).takeIf { it.isNotEmpty() } ?: template.alternatives
+        val complicationsList = (if (hindi) template.possibleComplicationsHi else template.possibleComplicationsEn).takeIf { it.isNotEmpty() }
+            ?: template.possibleComplications
+        val materialRisks = (if (hindi) template.materialRisksHi else template.materialRisksEn) ?: template.materialRisks
+        val postOpCare = (if (hindi) template.postOpCareHi else template.postOpCareEn) ?: template.postOpCare
+        val expectedRecovery = (if (hindi) template.expectedRecoveryHi else template.expectedRecoveryEn) ?: template.expectedRecovery
+
         val descriptionParts = buildList {
-            if (!template.procedureDescription.isNullOrBlank()) {
-                add(template.procedureDescription)
+            if (!procedureDescription.isNullOrBlank()) {
+                add(procedureDescription)
             } else {
                 template.approach?.takeIf { it.isNotBlank() }?.let { add("Approach: $it") }
                 template.technique?.takeIf { it.isNotBlank() }?.let { add("Technique: $it") }
@@ -96,16 +118,17 @@ class ConsentFormViewModel(
         return PrefilledConsentFields(
             formType = template.name,
             procedure = template.procedure,
-            anesthesia = template.anesthesia.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "",
+            anesthesia = anesthesiaList.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "",
             procedureDescription = descriptionParts.joinToString("\n\n"),
-            risks = template.risks.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
-            materialRisks = template.materialRisks
-                ?: template.possibleComplications.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
-            possibleComplications = template.possibleComplications.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
-            benefits = template.benefits.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
-            alternatives = template.alternatives.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
-            postOpCare = template.postOpCare ?: "",
-            expectedRecovery = template.expectedRecovery ?: ""
+            risks = risksList.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            materialRisks = materialRisks
+                ?: complicationsList.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            possibleComplications = complicationsList.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            benefits = benefitsList.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            alternatives = alternativesList.takeIf { it.isNotEmpty() }?.joinToString("\n") ?: "",
+            postOpCare = postOpCare ?: "",
+            expectedRecovery = expectedRecovery ?: "",
+            contentTemplateId = template.id
         )
     }
 
@@ -144,6 +167,7 @@ class ConsentFormViewModel(
         val benefits: String = "",
         val alternatives: String = "",
         val postOpCare: String = "",
-        val expectedRecovery: String = ""
+        val expectedRecovery: String = "",
+        val contentTemplateId: String? = null
     )
 }

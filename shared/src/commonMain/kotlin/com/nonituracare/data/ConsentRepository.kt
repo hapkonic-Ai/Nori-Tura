@@ -2,13 +2,11 @@ package com.nonituracare.data
 
 import com.nonituracare.data.dto.ConsentFormCreateRequest
 import com.nonituracare.data.dto.ConsentFormDto
-import com.nonituracare.data.dto.ConsentOtpRequestResponse
-import com.nonituracare.data.dto.ConsentOtpVerifyRequest
-import com.nonituracare.data.dto.ConsentWitnessOtpRequest
 import kotlinx.serialization.SerialName
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -28,24 +26,24 @@ class ConsentRepository(
         client.get("/consent/forms/$id").body()
     }
 
-    suspend fun requestConsentOtp(id: String): Result<ConsentOtpRequestResponse> = safeApiCall {
-        client.post("/consent/forms/$id/request-otp").body()
-    }
-
-    suspend fun requestWitnessOtp(id: String, request: ConsentWitnessOtpRequest): Result<ConsentOtpRequestResponse> = safeApiCall {
-        client.post("/consent/forms/$id/request-witness-otp") {
-            contentType(ContentType.Application.Json)
-            setBody(request)
-        }.body()
-    }
-
-    suspend fun verifyConsentOtp(id: String, request: ConsentOtpVerifyRequest): Result<ConsentFormDto> = safeApiCall {
-        client.post("/consent/forms/$id/verify-otp") {
-            contentType(ContentType.Application.Json)
-            setBody(request)
+    /**
+     * Fetches the download URL/response for a consent PDF, optionally in a
+     * different language than it was originally generated in. When the
+     * server already has a cached PDF URL for the requested language, this
+     * returns JSON `{pdf_url}`; otherwise it streams the regenerated PDF
+     * bytes (see [ConsentDownloadResult]).
+     */
+    suspend fun getConsentDownloadUrl(id: String, language: String? = null): Result<ConsentDownloadUrlResponse> = safeApiCall {
+        client.get("/consent/forms/$id/download") {
+            language?.let { parameter("language", it) }
         }.body()
     }
 }
+
+@kotlinx.serialization.Serializable
+data class ConsentDownloadUrlResponse(
+    @SerialName("pdf_url") val pdfUrl: String? = null
+)
 
 @kotlinx.serialization.Serializable
 data class ConsentFormResponse(

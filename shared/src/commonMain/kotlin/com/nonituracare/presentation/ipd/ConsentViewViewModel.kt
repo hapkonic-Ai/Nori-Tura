@@ -4,13 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nonituracare.data.ConsentRepository
 import com.nonituracare.data.dto.ConsentFormDto
-import com.nonituracare.data.dto.ConsentOtpVerifyRequest
-import com.nonituracare.data.dto.ConsentWitnessOtpRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Read-only consent view: this consent was already generated (and, in the
+ * printed copy, physically signed by hand). The app never signs it — this
+ * screen just shows what was generated and lets the nurse download/open the
+ * PDF again, optionally in the other language.
+ */
 class ConsentViewViewModel(
     private val consentId: String,
     private val repository: ConsentRepository = ConsentRepository()
@@ -19,11 +23,8 @@ class ConsentViewViewModel(
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    private val _otpState = MutableStateFlow<OtpState>(OtpState.Idle)
-    val otpState: StateFlow<OtpState> = _otpState.asStateFlow()
-
-    private val _witnessOtpState = MutableStateFlow<OtpState>(OtpState.Idle)
-    val witnessOtpState: StateFlow<OtpState> = _witnessOtpState.asStateFlow()
+    private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
+    val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
     init {
         loadConsent()
@@ -42,60 +43,26 @@ class ConsentViewViewModel(
         }
     }
 
-    fun requestOtp() {
-        _otpState.value = OtpState.Sending
+    /** Fetches a fresh download URL, optionally re-rendering in [language]. */
+    fun downloadPdf(language: String? = null) {
+        _downloadState.value = DownloadState.Loading
         viewModelScope.launch {
-            repository.requestConsentOtp(consentId)
+            repository.getConsentDownloadUrl(consentId, language)
                 .onSuccess { response ->
-                    _otpState.value = OtpState.Sent(
-                        phone = response.phone,
-                        devOtp = response.devOtp
-                    )
+                    if (response.pdfUrl != null) {
+                        _downloadState.value = DownloadState.Ready(response.pdfUrl)
+                    } else {
+                        _downloadState.value = DownloadState.Error("PDF is not available yet")
+                    }
                 }
                 .onFailure { error ->
-                    _otpState.value = OtpState.Error(error.message ?: "Failed to send OTP")
+                    _downloadState.value = DownloadState.Error(error.message ?: "Failed to download consent PDF")
                 }
         }
     }
 
-    fun requestWitnessOtp(witnessMobile: String) {
-        _witnessOtpState.value = OtpState.Sending
-        viewModelScope.launch {
-            repository.requestWitnessOtp(consentId, ConsentWitnessOtpRequest(witnessMobile))
-                .onSuccess { response ->
-                    _witnessOtpState.value = OtpState.Sent(
-                        phone = response.phone,
-                        devOtp = response.devOtp
-                    )
-                }
-                .onFailure { error ->
-                    _witnessOtpState.value = OtpState.Error(error.message ?: "Failed to send witness OTP")
-                }
-        }
-    }
-
-    fun resetWitnessOtp() {
-        _witnessOtpState.value = OtpState.Idle
-    }
-
-    fun verifyOtp(request: ConsentOtpVerifyRequest) {
-        _otpState.value = OtpState.Verifying
-        viewModelScope.launch {
-            repository.verifyConsentOtp(consentId, request)
-                .onSuccess { consent ->
-                    _otpState.value = OtpState.Idle
-                    _uiState.value = UiState.Success(consent)
-                }
-                .onFailure { error ->
-                    _otpState.value = OtpState.Error(error.message ?: "Failed to verify OTP")
-                }
-        }
-    }
-
-    fun resetOtpError() {
-        if (_otpState.value is OtpState.Error) {
-            _otpState.value = OtpState.Idle
-        }
+    fun resetDownloadState() {
+        _downloadState.value = DownloadState.Idle
     }
 
     sealed class UiState {
@@ -104,11 +71,10 @@ class ConsentViewViewModel(
         data class Error(val message: String) : UiState()
     }
 
-    sealed class OtpState {
-        object Idle : OtpState()
-        object Sending : OtpState()
-        data class Sent(val phone: String, val devOtp: String?) : OtpState()
-        object Verifying : OtpState()
-        data class Error(val message: String) : OtpState()
+    sealed class DownloadState {
+        object Idle : DownloadState()
+        object Loading : DownloadState()
+        data class Ready(val pdfUrl: String) : DownloadState()
+        data class Error(val message: String) : DownloadState()
     }
 }

@@ -41,5 +41,17 @@ data class ConsentFormCreateRequest(
     // Specific consents
     @SerialName("consent_for_anesthesia") val consentForAnesthesia: Boolean = true,
     @SerialName("consent_for_blood_products") val consentForBloodProducts: Boolean = false,
-    @SerialName("consent_for_photography") val consentForPhotography: Boolean = false
+
+    // Per-generation capture fields — filled in by the nurse when generating the
+    // PDF (no more in-app e-signing; the printed form is signed by hand).
+    @SerialName("blood_transfusion_consent") val bloodTransfusionConsent: String? = null, // "consented" | "refused"
+    @SerialName("consent_for_photo_medical_record") val consentForPhotoMedicalRecord: Boolean = false,
+    @SerialName("consent_for_photo_deidentified_teaching") val consentForPhotoDeidentifiedTeaching: Boolean = false,
+    @SerialName("consent_for_photo_publication") val consentForPhotoPublication: Boolean = false,
+    @SerialName("specimen_handling_consented") val specimenHandlingConsented: Boolean? = null,
+    @SerialName("interpreter_used") val interpreterUsed: Boolean = false,
+
+    // Templates (content_template_id lets the backend select bilingual _en/_hi
+    // content columns per `language`)
+    @SerialName("content_template_id") val contentTemplateId: String? = null
 )

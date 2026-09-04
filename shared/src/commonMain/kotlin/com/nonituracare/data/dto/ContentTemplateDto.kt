@@ -29,7 +29,29 @@ data class ContentTemplateDto(
     @SerialName("expected_recovery") val expectedRecovery: String? = null,
     @SerialName("statutory_reference") val statutoryReference: String? = null,
     @SerialName("is_active") val isActive: Boolean = true,
-    @SerialName("created_at") val createdAt: String? = null
+    @SerialName("created_at") val createdAt: String? = null,
+
+    // Bilingual content (falls back to the legacy single-language fields above
+    // when a template hasn't been migrated to bilingual columns yet)
+    @SerialName("procedure_description_en") val procedureDescriptionEn: String? = null,
+    @SerialName("procedure_description_hi") val procedureDescriptionHi: String? = null,
+    @SerialName("anaesthesia_en") val anaesthesiaEn: List<String> = emptyList(),
+    @SerialName("anaesthesia_hi") val anaesthesiaHi: List<String> = emptyList(),
+    @SerialName("risks_en") val risksEn: List<String> = emptyList(),
+    @SerialName("risks_hi") val risksHi: List<String> = emptyList(),
+    @SerialName("benefits_en") val benefitsEn: List<String> = emptyList(),
+    @SerialName("benefits_hi") val benefitsHi: List<String> = emptyList(),
+    @SerialName("alternatives_en") val alternativesEn: List<String> = emptyList(),
+    @SerialName("alternatives_hi") val alternativesHi: List<String> = emptyList(),
+    @SerialName("possible_complications_en") val possibleComplicationsEn: List<String> = emptyList(),
+    @SerialName("possible_complications_hi") val possibleComplicationsHi: List<String> = emptyList(),
+    @SerialName("material_risks_en") val materialRisksEn: String? = null,
+    @SerialName("material_risks_hi") val materialRisksHi: String? = null,
+    @SerialName("post_op_care_en") val postOpCareEn: String? = null,
+    @SerialName("post_op_care_hi") val postOpCareHi: String? = null,
+    @SerialName("expected_recovery_en") val expectedRecoveryEn: String? = null,
+    @SerialName("expected_recovery_hi") val expectedRecoveryHi: String? = null,
+    @SerialName("hi_content_status") val hiContentStatus: String = "missing"
 )
 
 @Serializable

@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -19,18 +19,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,11 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.nonituracare.data.AuthRepository
-import com.nonituracare.data.dto.ConsentOtpVerifyRequest
+import com.nonituracare.data.dto.ConsentFormDto
 import kotlinx.serialization.json.JsonObject
 import com.nonituracare.presentation.components.BrandTopBar
 import com.nonituracare.presentation.components.ErrorState
@@ -51,7 +48,21 @@ import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.ui.theme.NorituraColors
 import com.nonituracare.util.openUrl
+import androidx.compose.foundation.Image
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.success_consent_generated
+import org.jetbrains.compose.resources.painterResource
 
+/**
+ * Read-only view of a generated consent form.
+ *
+ * Consent forms are no longer signed inside the app: a nurse generates and
+ * downloads the PDF here, prints it, and it gets signed by hand at the
+ * hospital. This screen therefore never collects a signature or OTP — it
+ * shows what was generated and offers a download/re-download in either
+ * language. `status == "signed"` only ever appears on historical rows from
+ * before this change and is shown as a read-only banner.
+ */
 @Composable
 fun ConsentViewScreen(
     consentId: String,
@@ -61,8 +72,15 @@ fun ConsentViewScreen(
     topBarTitle: String = "Consent Form"
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val otpState by viewModel.otpState.collectAsState()
-    val witnessOtpState by viewModel.witnessOtpState.collectAsState()
+    val downloadState by viewModel.downloadState.collectAsState()
+
+    LaunchedEffect(downloadState) {
+        val ready = downloadState as? ConsentViewViewModel.DownloadState.Ready
+        if (ready != null) {
+            openUrl(ready.pdfUrl)
+            viewModel.resetDownloadState()
+        }
+    }
 
     NorituraScaffold(
         topBar = {
@@ -90,16 +108,8 @@ fun ConsentViewScreen(
             is ConsentViewViewModel.UiState.Success -> {
                 ConsentViewContent(
                     consent = state.consent,
-                    otpState = otpState,
-                    witnessOtpState = witnessOtpState,
-                    onRequestOtp = { viewModel.requestOtp() },
-                    onRequestWitnessOtp = { witnessMobile ->
-                        viewModel.requestWitnessOtp(witnessMobile)
-                    },
-                    onResetWitnessOtp = { viewModel.resetWitnessOtp() },
-                    onVerifyOtp = { request ->
-                        viewModel.verifyOtp(request)
-                    }
+                    downloadState = downloadState,
+                    onDownload = { language -> viewModel.downloadPdf(language) }
                 )
             }
         }
@@ -108,31 +118,14 @@ fun ConsentViewScreen(
 
 @Composable
 private fun ConsentViewContent(
-    consent: com.nonituracare.data.dto.ConsentFormDto,
-    otpState: ConsentViewViewModel.OtpState,
-    witnessOtpState: ConsentViewViewModel.OtpState,
-    onRequestOtp: () -> Unit,
-    onRequestWitnessOtp: (String) -> Unit,
-    onResetWitnessOtp: () -> Unit,
-    onVerifyOtp: (ConsentOtpVerifyRequest) -> Unit
+    consent: ConsentFormDto,
+    downloadState: ConsentViewViewModel.DownloadState,
+    onDownload: (String?) -> Unit
 ) {
-    val isSigned = consent.status == "signed"
+    val isHistoricallySigned = consent.status == "signed"
     val content = consent.contentJson
-
-    var otp by remember { mutableStateOf("") }
-    var witnessOtp by remember { mutableStateOf("") }
-    var witnessOn by remember { mutableStateOf(false) }
-    var witnessName by remember { mutableStateOf(consent.witnessName ?: "") }
-    var witnessRelationship by remember { mutableStateOf(consent.witnessRelationship ?: "") }
-    var witnessMobile by remember { mutableStateOf(consent.witnessMobile ?: "") }
-    var acknowledged by remember { mutableStateOf(false) }
-    var signerAttested by remember { mutableStateOf(false) }
-    val witnessPhoneValid = witnessMobile.matches(Regex("^\\+91[0-9]{10}$"))
-    // The handover notice is an instruction to hospital staff only; a parent
-    // viewing this screen on their own device must not see it.
-    val isStaff = remember {
-        AuthRepository().getRole()?.lowercase() in listOf("surgeon", "nurse")
-    }
+    var selectedLanguage by remember { mutableStateOf(consent.language ?: "English") }
+    val isDownloading = downloadState is ConsentViewViewModel.DownloadState.Loading
 
     Column(
         modifier = Modifier
@@ -175,7 +168,14 @@ private fun ConsentViewContent(
                 }
                 InfoRowCompact(label = "Parent / Guardian", value = content.string("parent_name") ?: "-")
                 InfoRowCompact(label = "Parent Phone", value = content.string("parent_phone") ?: "-")
-                StatusChip(label = if (isSigned) "Signed" else "Pending", isSigned = isSigned)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatusChip(label = consent.language ?: "English", tone = NorituraColors.PrimaryBlue)
+                    if (isHistoricallySigned) {
+                        StatusChip(label = "Signed (historical)", tone = NorituraColors.PostOp)
+                    } else {
+                        StatusChip(label = "Generated", tone = NorituraColors.PostOp)
+                    }
+                }
             }
         }
 
@@ -193,296 +193,84 @@ private fun ConsentViewContent(
             ParagraphBlock(label = "Post-operative Care", text = content.string("post_op_care"))
         }
 
-        ConsentDocumentSection(title = "Rights & Additional Consents") {
-            ParagraphBlock(label = "Refusal Consequences", text = content.string("refusal_consequences"))
-            ParagraphBlock(label = "Right to Withdraw", text = content.string("right_to_withdraw"))
-            ParagraphBlock(label = "Privacy", text = content.string("privacy_statement"))
+        ConsentDocumentSection(title = "Specific Consents") {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 InfoRowCompact(label = "Anesthesia", value = content.string("consent_for_anesthesia") ?: "-")
                 InfoRowCompact(label = "Blood Products", value = content.string("consent_for_blood_products") ?: "-")
-                InfoRowCompact(label = "Photography", value = content.string("consent_for_photography") ?: "-")
             }
-        }
-
-        ConsentDocumentSection(title = "Declarations") {
-            ParagraphBlock(label = "Parent / Guardian Declaration", text = content.string("parent_guardian_declaration"))
-            ParagraphBlock(label = "Doctor Declaration", text = content.string("doctor_declaration"))
-            ParagraphBlock(label = "Statutory Reference", text = content.string("statutory_reference"))
-        }
-
-        if (!isSigned) {
-            consent.pdfUrl?.let { pdfUrl ->
-                OutlinedButton(
-                    onClick = { openUrl(pdfUrl) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("View Generated PDF")
-                }
-            }
-
-            Text(
-                text = "Parent Verification",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            InfoRowCompact(
+                label = "Blood transfusion",
+                value = consent.bloodTransfusionConsent ?: "Not applicable / not asked"
             )
+            InfoRowCompact(
+                label = "Photography",
+                value = listOfNotNull(
+                    "Medical record".takeIf { consent.photoConsentMedicalRecord },
+                    "Teaching/audit".takeIf { consent.photoConsentDeidentifiedTeaching },
+                    "Publication".takeIf { consent.photoConsentPublication }
+                ).joinToString(", ").ifBlank { "None" }
+            )
+        }
 
+        if (!isHistoricallySigned) {
             Text(
-                text = "An OTP will be sent to the parent / guardian's registered phone number. Signing happens only after the parent shares the OTP.",
+                text = "This form is printed and signed by hand at the hospital — it is not signed on the platform.",
                 color = NorituraColors.TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
 
-            when (val state = otpState) {
-                is ConsentViewViewModel.OtpState.Sent -> {
-                    Text(
-                        text = "OTP sent to ${state.phone}",
-                        color = NorituraColors.PostOp,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                    )
-                    state.devOtp?.let {
-                        Text(
-                            text = "Dev OTP: $it",
-                            color = NorituraColors.TextTertiary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    if (isStaff) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = NorituraColors.PrimaryBlueLight),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Text(
-                                text = "Hand the device to the parent / patient to review the summary and enter their OTP.",
-                                color = NorituraColors.PrimaryBlue,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
-                }
-                is ConsentViewViewModel.OtpState.Error -> {
-                    Text(
-                        text = state.message,
-                        color = NorituraColors.PreOp,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                else -> {}
-            }
-
-            OutlinedButton(
-                onClick = onRequestOtp,
-                enabled = otpState !is ConsentViewViewModel.OtpState.Sending &&
-                    otpState !is ConsentViewViewModel.OtpState.Verifying,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (otpState is ConsentViewViewModel.OtpState.Sent) "Resend OTP"
-                    else if (otpState is ConsentViewViewModel.OtpState.Sending) "Sending OTP…"
-                    else "Send OTP"
-                )
-            }
-
-            OutlinedTextField(
-                value = otp,
-                onValueChange = { input ->
-                    if (input.length <= 6 && input.all { it.isDigit() }) otp = input
-                },
-                label = { Text("6-digit OTP") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            Text(
+                text = "Download language",
+                style = MaterialTheme.typography.labelMedium,
+                color = NorituraColors.TextSecondary
             )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Add witness (optional)",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                )
-                Switch(
-                    checked = witnessOn,
-                    onCheckedChange = { checked ->
-                        witnessOn = checked
-                        if (!checked) {
-                            witnessName = ""
-                            witnessRelationship = ""
-                            witnessMobile = ""
-                            witnessOtp = ""
-                            onResetWitnessOtp()
-                        }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = NorituraColors.Surface,
-                        checkedTrackColor = NorituraColors.PrimaryBlue,
-                        uncheckedThumbColor = NorituraColors.TextTertiary
-                    )
-                )
-            }
-
-            AnimatedVisibility(visible = witnessOn) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = witnessName,
-                        onValueChange = { witnessName = it },
-                        label = { Text("Witness Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = witnessRelationship,
-                        onValueChange = { witnessRelationship = it },
-                        label = { Text("Relationship to Patient") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = witnessMobile,
-                        onValueChange = {
-                            if (it != witnessMobile) {
-                                witnessOtp = ""
-                                onResetWitnessOtp()
-                            }
-                            witnessMobile = it
-                        },
-                        label = { Text("Witness Phone (+91…)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (!witnessPhoneValid) {
-                        Text(
-                            text = "Enter a valid +91 mobile number to verify the witness",
-                            color = NorituraColors.TextTertiary,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    } else {
-                        when (val wState = witnessOtpState) {
-                            is ConsentViewViewModel.OtpState.Sent -> {
-                                Text(
-                                    text = "Witness OTP sent to ${wState.phone}",
-                                    color = NorituraColors.PostOp,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                )
-                                wState.devOtp?.let {
-                                    Text(
-                                        text = "Dev OTP: $it",
-                                        color = NorituraColors.TextTertiary,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                            is ConsentViewViewModel.OtpState.Error -> {
-                                Text(
-                                    text = wState.message,
-                                    color = NorituraColors.PreOp,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            else -> {}
-                        }
-
-                        OutlinedButton(
-                            onClick = { onRequestWitnessOtp(witnessMobile) },
-                            enabled = witnessOtpState !is ConsentViewViewModel.OtpState.Sending &&
-                                witnessOtpState !is ConsentViewViewModel.OtpState.Verifying,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                if (witnessOtpState is ConsentViewViewModel.OtpState.Sent) "Resend Witness OTP"
-                                else if (witnessOtpState is ConsentViewViewModel.OtpState.Sending) "Sending OTP…"
-                                else "Send OTP to Witness"
-                            )
-                        }
-
-                        OutlinedTextField(
-                            value = witnessOtp,
-                            onValueChange = { input ->
-                                if (input.length <= 6 && input.all { it.isDigit() }) witnessOtp = input
-                            },
-                            label = { Text("Witness 6-digit OTP") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                listOf("English", "Hindi").forEachIndexed { index, option ->
+                    SegmentedButton(
+                        selected = selectedLanguage == option,
+                        onClick = { selectedLanguage = option },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = 2)
+                    ) {
+                        Text(option)
                     }
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = acknowledged,
-                    onCheckedChange = { acknowledged = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = NorituraColors.PrimaryBlue,
-                        uncheckedColor = NorituraColors.Outline
-                    )
-                )
+            if (downloadState is ConsentViewViewModel.DownloadState.Error) {
                 Text(
-                    text = "I have read and understood the information above and voluntarily consent to the procedure.",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = signerAttested,
-                    onCheckedChange = { signerAttested = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = NorituraColors.PrimaryBlue,
-                        uncheckedColor = NorituraColors.Outline
-                    )
-                )
-                Text(
-                    text = "I have read the consent terms and am entering the OTP myself.",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 4.dp)
+                    text = downloadState.message,
+                    color = NorituraColors.PreOp,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
 
             Button(
-                onClick = {
-                    onVerifyOtp(
-                        ConsentOtpVerifyRequest(
-                            otp = otp,
-                            witnessName = witnessName.takeIf { witnessOn && it.isNotBlank() },
-                            witnessRelationship = witnessRelationship.takeIf { witnessOn && it.isNotBlank() },
-                            witnessMobile = witnessMobile.takeIf { witnessOn && witnessPhoneValid },
-                            witnessOtp = witnessOtp.takeIf { witnessOn && it.length == 6 },
-                            signerAttested = signerAttested
-                        )
-                    )
-                },
-                enabled = otp.length == 6 &&
-                    acknowledged &&
-                    signerAttested &&
-                    (!witnessOn || (witnessName.isNotBlank() && witnessPhoneValid && witnessOtp.length == 6)) &&
-                    (otpState is ConsentViewViewModel.OtpState.Sent ||
-                        otpState is ConsentViewViewModel.OtpState.Error) &&
-                    otpState !is ConsentViewViewModel.OtpState.Verifying,
+                onClick = { onDownload(selectedLanguage) },
+                enabled = !isDownloading,
                 colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.PrimaryBlue),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    if (otpState is ConsentViewViewModel.OtpState.Verifying) "Verifying…"
-                    else "Verify OTP & Sign Consent"
+                if (isDownloading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Download PDF ($selectedLanguage)")
+                }
+            }
+
+            consent.pdfUrl?.let { pdfUrl ->
+                Image(
+                    painter = painterResource(Res.drawable.success_consent_generated),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(110.dp)
                 )
+                OutlinedButton(
+                    onClick = { openUrl(pdfUrl) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Open Last Generated PDF")
+                }
             }
         } else {
             SignedSuccessCard(consent = consent)
@@ -557,7 +345,7 @@ private fun InfoRowCompact(label: String, value: String) {
 
 @Composable
 private fun SignedSuccessCard(
-    consent: com.nonituracare.data.dto.ConsentFormDto
+    consent: ConsentFormDto
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -579,7 +367,7 @@ private fun SignedSuccessCard(
                     tint = NorituraColors.PostOp
                 )
                 Text(
-                    text = "Consent signed successfully",
+                    text = "Consent signed electronically (historical record)",
                     color = NorituraColors.PostOp,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
@@ -636,16 +424,15 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun StatusChip(label: String, isSigned: Boolean) {
-    val color = if (isSigned) NorituraColors.PostOp else NorituraColors.PreOp
+private fun StatusChip(label: String, tone: androidx.compose.ui.graphics.Color) {
     Card(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.12f)),
+        colors = CardDefaults.cardColors(containerColor = tone.copy(alpha = 0.12f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Text(
             text = label,
-            color = color,
+            color = tone,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
         )

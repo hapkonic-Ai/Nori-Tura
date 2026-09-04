@@ -23,6 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,7 +60,9 @@ fun ConsentFormScreen(
     val contentTemplates by viewModel.contentTemplates.collectAsState()
 
     var selectedTemplateName by remember { mutableStateOf<String?>(null) }
+    var selectedContentTemplate by remember { mutableStateOf<com.nonituracare.data.dto.ContentTemplateDto?>(null) }
     var showTemplatePicker by remember { mutableStateOf(false) }
+    var language by remember { mutableStateOf("English") }
 
     // Core clinical fields
     var formType by remember { mutableStateOf("") }
@@ -90,7 +96,12 @@ fun ConsentFormScreen(
     // Specific consents
     var consentForAnesthesia by remember { mutableStateOf(true) }
     var consentForBloodProducts by remember { mutableStateOf(false) }
-    var consentForPhotography by remember { mutableStateOf(false) }
+    var bloodTransfusionChoice by remember { mutableStateOf<String?>(null) } // "consented" | "refused" | null
+    var photoConsentMedicalRecord by remember { mutableStateOf(false) }
+    var photoConsentDeidentifiedTeaching by remember { mutableStateOf(false) }
+    var photoConsentPublication by remember { mutableStateOf(false) }
+    var specimenHandlingConsented by remember { mutableStateOf<Boolean?>(null) }
+    var interpreterUsed by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         if (uiState is ConsentFormViewModel.UiState.Success) {
@@ -111,7 +122,13 @@ fun ConsentFormScreen(
                     is TemplatePickerResult.Surgical -> result.template.name
                     is TemplatePickerResult.Content -> result.template.name
                 }
-                val fields = viewModel.applyPickerResult(result)
+                selectedContentTemplate = (result as? TemplatePickerResult.Content)?.template
+                // A newly picked template may not have Hindi content yet — fall back
+                // to English rather than silently generating an empty Hindi form.
+                if (selectedContentTemplate?.let { !viewModel.hasHindiContent(it) } == true) {
+                    language = "English"
+                }
+                val fields = viewModel.applyPickerResult(result, language)
                 formType = fields.formType
                 procedure = fields.procedure
                 anesthesia = fields.anesthesia
@@ -160,6 +177,47 @@ fun ConsentFormScreen(
                 selectedTemplateName = selectedTemplateName,
                 onClick = { showTemplatePicker = true }
             )
+
+            // ── Language Selector ────────────────────────────────────────
+            val hindiAvailable = selectedContentTemplate?.let { viewModel.hasHindiContent(it) } ?: true
+            ConsentSection(title = "Consent Form Language") {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf("English", "Hindi").forEachIndexed { index, option ->
+                        SegmentedButton(
+                            selected = language == option,
+                            onClick = {
+                                if (option == "Hindi" && !hindiAvailable) return@SegmentedButton
+                                language = option
+                                selectedContentTemplate?.let { template ->
+                                    val fields = viewModel.applyPickerResult(TemplatePickerResult.Content(template), language)
+                                    formType = fields.formType
+                                    procedure = fields.procedure
+                                    anesthesia = fields.anesthesia
+                                    procedureDescription = fields.procedureDescription
+                                    risks = fields.risks
+                                    materialRisks = fields.materialRisks
+                                    possibleComplications = fields.possibleComplications
+                                    benefits = fields.benefits
+                                    alternatives = fields.alternatives
+                                    postOpCare = fields.postOpCare
+                                    expectedRecovery = fields.expectedRecovery
+                                }
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                            enabled = option == "English" || hindiAvailable
+                        ) {
+                            Text(option)
+                        }
+                    }
+                }
+                if (!hindiAvailable) {
+                    Text(
+                        text = "Hindi content isn't available yet for this procedure template.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NorituraColors.TextTertiary
+                    )
+                }
+            }
 
             // ── Core Info ──────────────────────────────────────────────
             ConsentSection(title = "Core Information") {
@@ -330,10 +388,49 @@ fun ConsentFormScreen(
                     checked = consentForBloodProducts,
                     onCheckedChange = { consentForBloodProducts = it }
                 )
+
+                Text(
+                    text = "Blood transfusion",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NorituraColors.TextSecondary
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = bloodTransfusionChoice == "consented", onClick = { bloodTransfusionChoice = "consented" })
+                    Text("Consented", modifier = Modifier.padding(end = 16.dp))
+                    RadioButton(selected = bloodTransfusionChoice == "refused", onClick = { bloodTransfusionChoice = "refused" })
+                    Text("Refused")
+                }
+
+                Text(
+                    text = "Photography / video use",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NorituraColors.TextSecondary
+                )
                 ConsentCheckbox(
-                    text = "Consent for clinical photography / recording for treatment records",
-                    checked = consentForPhotography,
-                    onCheckedChange = { consentForPhotography = it }
+                    text = "Medical record",
+                    checked = photoConsentMedicalRecord,
+                    onCheckedChange = { photoConsentMedicalRecord = it }
+                )
+                ConsentCheckbox(
+                    text = "De-identified teaching / audit use",
+                    checked = photoConsentDeidentifiedTeaching,
+                    onCheckedChange = { photoConsentDeidentifiedTeaching = it }
+                )
+                ConsentCheckbox(
+                    text = "Publication / presentation",
+                    checked = photoConsentPublication,
+                    onCheckedChange = { photoConsentPublication = it }
+                )
+
+                ConsentCheckbox(
+                    text = "Consent for specimen / tissue handling and lawful disposal",
+                    checked = specimenHandlingConsented == true,
+                    onCheckedChange = { specimenHandlingConsented = it }
+                )
+                ConsentCheckbox(
+                    text = "An interpreter was used to explain this consent",
+                    checked = interpreterUsed,
+                    onCheckedChange = { interpreterUsed = it }
                 )
             }
 
@@ -369,9 +466,16 @@ fun ConsentFormScreen(
                             doctorQualification = doctorQualification.takeIf { it.isNotBlank() },
                             doctorRegistrationNumber = doctorRegNo.takeIf { it.isNotBlank() },
                             guardianRelationship = guardianRelationship.takeIf { it.isNotBlank() },
+                            language = language,
                             consentForAnesthesia = consentForAnesthesia,
                             consentForBloodProducts = consentForBloodProducts,
-                            consentForPhotography = consentForPhotography
+                            bloodTransfusionConsent = bloodTransfusionChoice,
+                            consentForPhotoMedicalRecord = photoConsentMedicalRecord,
+                            consentForPhotoDeidentifiedTeaching = photoConsentDeidentifiedTeaching,
+                            consentForPhotoPublication = photoConsentPublication,
+                            specimenHandlingConsented = specimenHandlingConsented,
+                            interpreterUsed = interpreterUsed,
+                            contentTemplateId = selectedContentTemplate?.id
                         )
                     )
                 },

@@ -46,5 +46,15 @@ data class ConsentFormDto(
     @SerialName("procedure_description") val procedureDescription: String? = null,
     @SerialName("expected_recovery") val expectedRecovery: String? = null,
     @SerialName("possible_complications") val possibleComplications: String? = null,
-    @SerialName("material_risks") val materialRisks: String? = null
+    @SerialName("material_risks") val materialRisks: String? = null,
+
+    // Per-generation capture fields (no e-signing — physically signed after printing)
+    @SerialName("blood_transfusion_consent") val bloodTransfusionConsent: String? = null,
+    @SerialName("photo_consent_medical_record") val photoConsentMedicalRecord: Boolean = false,
+    @SerialName("photo_consent_deidentified_teaching") val photoConsentDeidentifiedTeaching: Boolean = false,
+    @SerialName("photo_consent_publication") val photoConsentPublication: Boolean = false,
+    @SerialName("specimen_handling_consented") val specimenHandlingConsented: Boolean? = null,
+    @SerialName("interpreter_used") val interpreterUsed: Boolean = false,
+    @SerialName("downloaded_at") val downloadedAt: String? = null,
+    @SerialName("download_count") val downloadCount: Int = 0
 )
