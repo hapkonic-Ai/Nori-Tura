@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <title>Informed Consent Form</title>
   <style>
+    @font-face {
+      font-family: "Noto Sans Devanagari";
+      src: url("fonts/NotoSansDevanagari-Regular.ttf");
+      font-weight: normal;
+      font-style: normal;
+    }
+
     @page {
       size: A4;
       margin: 18mm 16mm 28mm 16mm;
@@ -27,7 +34,7 @@
     }
 
     body {
-      font-family: "DejaVu Sans", Arial, sans-serif;
+      font-family: "Noto Sans Devanagari", "DejaVu Sans", Arial, sans-serif;
       font-size: 10.5pt;
       line-height: 1.5;
       color: #222;
@@ -176,11 +183,13 @@
 
     .info-value {
       width: 65%;
+      white-space: pre-line;
     }
 
     .clinical-section p {
       margin: 6px 0;
       text-align: justify;
+      white-space: pre-line;
     }
 
     .numbered-clauses {
@@ -216,6 +225,7 @@
     .declaration-text {
       font-style: italic;
       margin: 0 0 8px 0;
+      white-space: pre-line;
     }
 
     .declaration-meta {
@@ -277,6 +287,7 @@
   </style>
 </head>
 <body>
+  {% set hi = language == "Hindi" %}
 
   <!-- Running letterhead -->
   <div id="letterhead">
@@ -286,9 +297,9 @@
     {% endif %}
     {% if hospital_contact or hospital_registration_number %}
     <div>
-      {% if hospital_contact %}<span class="hospital-contact">Contact: {{ hospital_contact }}</span>{% endif %}
+      {% if hospital_contact %}<span class="hospital-contact">{{ "संपर्क" if hi else "Contact" }}: {{ hospital_contact }}</span>{% endif %}
       {% if hospital_contact and hospital_registration_number %} | {% endif %}
-      {% if hospital_registration_number %}<span class="hospital-reg">Reg. No.: {{ hospital_registration_number }}</span>{% endif %}
+      {% if hospital_registration_number %}<span class="hospital-reg">{{ "रजि. नं." if hi else "Reg. No." }}: {{ hospital_registration_number }}</span>{% endif %}
     </div>
     {% endif %}
   </div>
@@ -297,10 +308,14 @@
   <div id="footer">
     <div class="footer-row">
       <div class="footer-left">
-        <div><strong>Document Verification Hash:</strong> <span class="hash-line">{{ pdf_hash_truncated | default("NOT AVAILABLE", true) }}</span></div>
+        <div><strong>{{ "दस्तावेज़ सत्यापन हैश" if hi else "Document Verification Hash" }}:</strong> <span class="hash-line">{{ pdf_hash_truncated | default("NOT AVAILABLE", true) }}</span></div>
         <div class="compliance-note">
+          {% if hi %}
+          यह सहमति फॉर्म एनएमसी (NMC) और एनएबीएच (NABH) के सूचित सहमति मानकों के अनुसार तैयार किया गया है।
+          {% else %}
           This consent form is prepared in accordance with NMC and NABH standards for informed consent.
-          {% if consent_id %}Consent ID: {{ consent_id }}{% endif %}
+          {% endif %}
+          {% if consent_id %}{{ "सहमति आईडी" if hi else "Consent ID" }}: {{ consent_id }}{% endif %}
         </div>
       </div>
       <div class="footer-right">
@@ -313,26 +328,26 @@
 
   <!-- Document title -->
   <div class="document-title">
-    <h1>Informed Consent for Pediatric Surgical Procedure</h1>
+    <h1>{{ "बाल शल्य चिकित्सा प्रक्रिया के लिए सूचित सहमति" if hi else "Informed Consent for Pediatric Surgical Procedure" }}</h1>
     <div class="subtitle">{{ form_type | default("Surgical Consent", true) }}</div>
   </div>
 
   <!-- Metadata bar -->
   <div class="metadata-bar">
     <div class="metadata-row">
-      <div class="metadata-item"><span class="metadata-label">Consent No.:</span> {{ consent_number | default("—", true) }}</div>
-      <div class="metadata-item"><span class="metadata-label">Version:</span> {{ version | default("v2.1", true) }}</div>
-      <div class="metadata-item"><span class="metadata-label">Generated:</span> {{ generated_at | default("—", true) }}</div>
-      <div class="metadata-item"><span class="metadata-label">Language:</span> {{ language | default("English", true) }}</div>
-      <div class="metadata-item"><span class="metadata-label">Status:</span> {{ status | default("Pending", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">{{ "सहमति संख्या" if hi else "Consent No." }}:</span> {{ consent_number | default("—", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">{{ "संस्करण" if hi else "Version" }}:</span> {{ version | default("v2.1", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">{{ "तैयार किया गया" if hi else "Generated" }}:</span> {{ generated_at | default("—", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">{{ "भाषा" if hi else "Language" }}:</span> {{ language | default("English", true) }}</div>
+      <div class="metadata-item"><span class="metadata-label">{{ "स्थिति" if hi else "Status" }}:</span> {{ status | default("Pending", true) }}</div>
     </div>
   </div>
 
   <!-- Patient Information -->
-  <h2>1. Patient Information</h2>
+  <h2>1. {{ "रोगी की जानकारी" if hi else "Patient Information" }}</h2>
   <div class="info-grid">
     <div class="info-row">
-      <div class="info-label">Name</div>
+      <div class="info-label">{{ "नाम" if hi else "Name" }}</div>
       <div class="info-value">{{ patient_name | default("—", true) }}</div>
     </div>
     <div class="info-row">
@@ -340,79 +355,176 @@
       <div class="info-value">{{ patient_uhid | default("—", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Age / Gender</div>
+      <div class="info-label">{{ "उम्र / लिंग" if hi else "Age / Gender" }}</div>
       <div class="info-value">{{ age | default("—", true) }} / {{ gender | default("—", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Admission Number</div>
+      <div class="info-label">{{ "भर्ती संख्या" if hi else "Admission Number" }}</div>
       <div class="info-value">{{ admission_number | default("—", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Department</div>
+      <div class="info-label">{{ "विभाग" if hi else "Department" }}</div>
       <div class="info-value">{{ department | default("Pediatric Surgery", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Ward / Room</div>
+      <div class="info-label">{{ "वार्ड / कमरा" if hi else "Ward / Room" }}</div>
       <div class="info-value">{{ ward_room | default("—", true) }}</div>
     </div>
   </div>
 
   <!-- Guardian Information -->
-  <h2>2. Parent / Guardian Information</h2>
+  <h2>2. {{ "माता-पिता / अभिभावक की जानकारी" if hi else "Parent / Guardian Information" }}</h2>
   <div class="info-grid">
     <div class="info-row">
-      <div class="info-label">Name</div>
+      <div class="info-label">{{ "नाम" if hi else "Name" }}</div>
       <div class="info-value">{{ parent_name | default("—", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Relationship to Patient</div>
+      <div class="info-label">{{ "रोगी से रिश्ता" if hi else "Relationship to Patient" }}</div>
       <div class="info-value">{{ guardian_relationship | default("Parent / Guardian", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Mobile Number</div>
+      <div class="info-label">{{ "मोबाइल नंबर" if hi else "Mobile Number" }}</div>
       <div class="info-value">{{ parent_phone | default("—", true) }}</div>
     </div>
   </div>
+  <p class="small muted">
+    {% if hi %}
+    भारत में 18 साल से कम उम्र का बच्चा सर्जरी के लिए खुद सहमति नहीं दे सकता; माता-पिता / कानूनी अभिभावक बच्चे की ओर से सहमति देते हैं। डॉक्टर इस व्यक्ति के अधिकार की पुष्टि नीचे दी गई डॉक्टर की घोषणा में करता है।
+    {% else %}
+    A child under 18 cannot consent to surgery in India; the parent / legal guardian consents on the child's behalf. The doctor confirms this person's authority in the Doctor Declaration section below.
+    {% endif %}
+  </p>
 
   <!-- Doctor Information -->
-  <h2>3. Treating Doctor Information</h2>
+  <h2>3. {{ "इलाज करने वाले डॉक्टर की जानकारी" if hi else "Treating Doctor Information" }}</h2>
   <div class="info-grid">
     <div class="info-row">
-      <div class="info-label">Doctor Name</div>
+      <div class="info-label">{{ "डॉक्टर का नाम" if hi else "Doctor Name" }}</div>
       <div class="info-value">{{ surgeon_name | default("—", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Qualification</div>
+      <div class="info-label">{{ "योग्यता" if hi else "Qualification" }}</div>
       <div class="info-value">{{ doctor_qualification | default("—", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Registration Number</div>
+      <div class="info-label">{{ "पंजीकरण संख्या" if hi else "Registration Number" }}</div>
       <div class="info-value">{{ doctor_registration_number | default("—", true) }}</div>
     </div>
     <div class="info-row">
-      <div class="info-label">Department</div>
+      <div class="info-label">{{ "विभाग" if hi else "Department" }}</div>
       <div class="info-value">{{ department | default("Pediatric Surgery", true) }}</div>
     </div>
   </div>
 
   <!-- Clinical Information -->
-  <h2>4. Clinical Information</h2>
+  <h2>4. {{ "चिकित्सीय जानकारी" if hi else "Clinical Information" }}</h2>
   <div class="clinical-section">
-    <p><strong>Diagnosis:</strong> {{ diagnosis | default("—", true) }}</p>
-    <p><strong>Proposed Procedure:</strong> {{ procedure | default("—", true) }}</p>
-    <p><strong>Procedure Description:</strong> {{ procedure_description | default("A detailed explanation of the proposed surgical procedure has been provided to the parent/guardian.", true) }}</p>
-    <p><strong>Anesthesia:</strong> {{ anesthesia | default("—", true) }}</p>
-    <p><strong>Expected Benefits:</strong> {{ benefits | default("—", true) }}</p>
-    <p><strong>Material Risks:</strong> {{ material_risks | default(risks | default("—", true), true) }}</p>
-    <p><strong>Possible Complications:</strong> {{ possible_complications | default("—", true) }}</p>
-    <p><strong>Alternative Treatment Options:</strong> {{ alternatives | default("—", true) }}</p>
-    <p><strong>Consequences of Refusing Treatment:</strong> {{ refusal_consequences | default("The treating doctor will explain the consequences of refusal, which may include worsening of the patient's condition or other serious outcomes.", true) }}</p>
-    <p><strong>Expected Recovery:</strong> {{ expected_recovery | default("Expected recovery and post-operative care information has been explained to the parent/guardian.", true) }}</p>
+    <p><strong>{{ "निदान" if hi else "Diagnosis" }}:</strong> {{ diagnosis | default("—", true) }}</p>
+    <p><strong>{{ "प्रस्तावित ऑपरेशन" if hi else "Proposed Procedure" }}:</strong> {{ procedure | default("—", true) }}</p>
+    <p><strong>{{ "ऑपरेशन का विवरण" if hi else "Procedure Description" }}:</strong> {{ procedure_description | default(("प्रस्तावित ऑपरेशन के बारे में विस्तृत जानकारी माता-पिता/अभिभावक को दी गई है।" if hi else "A detailed explanation of the proposed surgical procedure has been provided to the parent/guardian."), true) }}</p>
+    <p><strong>{{ "बेहोशी की दवा" if hi else "Anesthesia" }}:</strong> {{ anesthesia | default("—", true) }}</p>
+    <p><strong>{{ "अपेक्षित फायदे" if hi else "Expected Benefits" }}:</strong> {{ benefits | default("—", true) }}</p>
+    <p><strong>{{ "महत्वपूर्ण जोखिम" if hi else "Material Risks" }}:</strong> {{ material_risks | default(risks | default("—", true), true) }}</p>
+    <p><strong>{{ "संभावित जटिलताएं" if hi else "Possible Complications" }}:</strong> {{ possible_complications | default("—", true) }}</p>
+    <p><strong>{{ "वैकल्पिक इलाज के विकल्प" if hi else "Alternative Treatment Options" }}:</strong> {{ alternatives | default("—", true) }}</p>
+    <p><strong>{{ "इलाज न कराने के परिणाम" if hi else "Consequences of Refusing Treatment" }}:</strong> {{ refusal_consequences }}</p>
+    <p><strong>{{ "ठीक होने की उम्मीद" if hi else "Expected Recovery" }}:</strong> {{ expected_recovery | default(("ठीक होने और ऑपरेशन के बाद की देखभाल की जानकारी माता-पिता/अभिभावक को बताई गई है।" if hi else "Expected recovery and post-operative care information has been explained to the parent/guardian."), true) }}</p>
+  </div>
+
+  {% if diagnosis_plain_language or consequences_of_no_treatment or consented_contingencies or site_side_instruction or staging_stage_number or technique_options or conversion_to_open_possible %}
+  <!-- Additional clinical details (client consent-corpus fields) -->
+  <h2>5. {{ "अतिरिक्त चिकित्सीय जानकारी" if hi else "Additional Clinical Details" }}</h2>
+  <div class="clinical-section">
+    {% if diagnosis_plain_language %}
+    <p><strong>{{ "निदान (सरल भाषा में)" if hi else "Diagnosis (in plain language)" }}:</strong> {{ diagnosis_plain_language }}</p>
+    {% endif %}
+    {% if consequences_of_no_treatment %}
+    <p><strong>{{ "अगर यह ऑपरेशन नहीं किया गया" if hi else "If this procedure is not done" }}:</strong> {{ consequences_of_no_treatment }}</p>
+    {% endif %}
+    {% if consented_contingencies %}
+    <p><strong>{{ "इसी ऑपरेशन के दौरान जरूरत पड़ सकने वाले अतिरिक्त कदम" if hi else "Additional steps that may be needed during the same operation" }}:</strong> {{ consented_contingencies }}</p>
+    {% endif %}
+    {% if site_side_instruction %}
+    <p><strong>Site / Side:</strong> {{ site_side_instruction }} <span class="small muted">{{ "(ऑपरेशन से पहले माता-पिता/अभिभावक के साथ भरकर पुष्टि की जाएगी)" if hi else "(to be filled in and confirmed with the parent/guardian before the procedure)" }}</span></p>
+    {% endif %}
+    {% if staging_stage_number and staging_total_stages %}
+    <p><strong>{{ "चरण" if hi else "Staging" }}:</strong> {{ ("यह कुल " ~ staging_total_stages ~ " में से चरण " ~ staging_stage_number ~ " है।") if hi else ("This is stage " ~ staging_stage_number ~ " of " ~ staging_total_stages ~ " planned procedures.") }}</p>
+    {% endif %}
+    {% if technique_options %}
+    <p><strong>{{ "तकनीक" if hi else "Technique" }}:</strong> {{ ("ऑपरेशन के समय सर्जन सबसे उपयुक्त तकनीक चुनेंगे, इनमें से: " ~ technique_options) if hi else ("The surgeon will select the most appropriate technique at the time of operation from: " ~ technique_options) }}</p>
+    {% endif %}
+    {% if conversion_to_open_possible %}
+    <p><strong>{{ "खुले ऑपरेशन में बदलना" if hi else "Conversion to open surgery" }}:</strong> {{ conversion_consequences | default(("अगर तय की गई कम-चीरे वाली (keyhole) विधि सुरक्षित रूप से पूरी नहीं की जा सकती, तो सर्जन को उसी ऑपरेशन के दौरान खुले ऑपरेशन में बदलने की जरूरत पड़ सकती है।" if hi else "If the planned minimally-invasive approach cannot be safely completed, the surgeon may need to convert to an open procedure during the same operation."), true) }}</p>
+    {% endif %}
+    {% if lifelong_follow_up_flag %}
+    <p><strong>{{ "जीवनभर फॉलो-अप" if hi else "Lifelong follow-up" }}:</strong> {{ lifelong_follow_up_note | default(("इस ऑपरेशन के बाद इलाज करने वाले डॉक्टर की सलाह अनुसार जीवनभर मेडिकल फॉलो-अप जरूरी है।" if hi else "This procedure requires lifelong medical follow-up as advised by the treating doctor."), true) }}</p>
+    {% endif %}
+    {% if pre_op_prep %}
+    <p><strong>{{ "ऑपरेशन-पूर्व तैयारी" if hi else "Pre-operative preparation" }}:</strong> {{ pre_op_prep }}</p>
+    {% endif %}
+    {% if cost_category %}
+    <p><strong>{{ "अनुमानित खर्च श्रेणी" if hi else "Estimated cost category" }}:</strong> {{ cost_category | capitalize }} ({{ "अस्पताल की दर के अनुसार" if hi else "as per hospital tariff" }}){% if cost_conditional_note %} — {{ cost_conditional_note }}{% endif %}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Specific consent captures -->
+  <h2>6. {{ "विशेष सहमतियां" if hi else "Specific Consents" }}</h2>
+  <div class="clinical-section">
+    <p>
+      {% if hi %}
+      खून चढ़ाना — जान बचा सकता है; जोखिम (प्रतिक्रिया, संक्रमण) और मना करने का खतरा समझाया गया। अगर खून से मना करने से बच्चे की जान को खतरा हो, तो अस्पताल कानून के अनुसार अदालत या सक्षम कानूनी प्राधिकरण, अथवा नैतिकता समिति की अनुमति मांग सकता है; मना करने का कारण और दी गई सलाह दर्ज की जाती है।
+      {% else %}
+      Blood transfusion — may be life-saving; risks (reaction, infection) and the danger of refusal explained. If refusing blood would endanger the child's life, the hospital may seek legal or ethics-committee authority as the law allows; the reason for refusal and the counselling given are recorded.
+      {% endif %}
+    </p>
+    <p><strong>{{ "इस ऑपरेशन के लिए निर्णय" if hi else "Decision for this procedure" }}:</strong>
+      {% if blood_transfusion_consent == "consented" %}{{ "सहमति दी गई" if hi else "Consented" }}
+      {% elif blood_transfusion_consent == "refused" %}{{ "मना किया गया — माता-पिता/अभिभावक को मना करने के परिणाम बताए गए, जिसमें अगर खून चढ़ाना चिकित्सकीय रूप से जरूरी हो जाए तो जान को खतरे की संभावना भी शामिल है।" if hi else "Refused — refusal explained to the parent/guardian, including the risk to life this may pose if a transfusion becomes medically necessary." }}
+      {% else %}{{ "लागू नहीं / नहीं पूछा गया" if hi else "Not applicable / not asked" }}
+      {% endif %}
+    </p>
+    <p>
+      {% if hi %}
+      फोटो / वीडियो — अपनी मर्जी से; इलाज इस पर निर्भर नहीं है। हर मकसद के लिए अलग से सहमति दी जाती है: चिकित्सा रिकॉर्ड, पहचान हटाकर पढ़ाई/देखभाल की गुणवत्ता की जांच, और प्रकाशन/प्रस्तुति (इसके लिए यह खास सहमति चाहिए)। कानून के अनुसार इस जानकारी की सुरक्षा की जिम्मेदारी अस्पताल की है ("डेटा फिड्यूशियरी"): {{ hospital_name | default("Hospital Name", true) }}। सहमति कभी भी वापस ली जा सकती है, सिवाय जहां कानून रिकॉर्ड रखने को कहता है, या सामग्री पहले ही प्रकाशित हो चुकी है या पूरी तरह पहचान हटाई जा चुकी है ({{ statutory_reference | default("Digital Personal Data Protection Act, 2023", true) }})।
+      {% else %}
+      Photography / video — voluntary; care does not depend on it. Consent is given separately for each purpose: medical record, de-identified teaching / audit, and publication / presentation (needs this specific consent). The hospital is legally responsible for protecting this data ("Data Fiduciary"): {{ hospital_name | default("Hospital Name", true) }}. Consent can be withdrawn at any time, except where the law requires the record to be kept, or the material is already published or fully de-identified ({{ statutory_reference | default("Digital Personal Data Protection Act, 2023", true) }}).
+      {% endif %}
+    </p>
+    <p><strong>{{ "इस ऑपरेशन के लिए निर्णय" if hi else "Decision for this procedure" }}:</strong>
+      {{ "चिकित्सा रिकॉर्ड" if hi else "Medical record" }}: {{ ("अनुमति" if hi else "Yes") if photo_consent_medical_record else ("अनुमति नहीं" if hi else "No") }};
+      {{ "पहचान हटाकर पढ़ाई/जांच" if hi else "De-identified teaching/audit" }}: {{ ("अनुमति" if hi else "Yes") if photo_consent_deidentified_teaching else ("अनुमति नहीं" if hi else "No") }};
+      {{ "प्रकाशन/प्रस्तुति" if hi else "Publication/presentation" }}: {{ ("अनुमति" if hi else "Yes") if photo_consent_publication else ("अनुमति नहीं" if hi else "No") }}
+    </p>
+    {% if specimen_handling_consented is not none %}
+    <p>
+      {{ "ऑपरेशन में निकाला गया नमूना / ऊतक जांचा जा सकता है और कानून के अनुसार उसका निपटारा किया जा सकता है।" if hi else "Specimen / tissue removed at operation may be examined and lawfully disposed of." }}
+      <strong>{{ "निर्णय" if hi else "Decision" }}:</strong>
+      {% if specimen_handling_consented %}{{ "सहमति दी गई" if hi else "Consented" }}{% else %}{{ "सहमति नहीं दी गई" if hi else "Not consented" }}{% endif %}
+    </p>
+    {% endif %}
+    <p><strong>{{ "दुभाषिया इस्तेमाल हुआ" if hi else "Interpreter used" }}:</strong> {{ ("हां" if hi else "Yes") if interpreter_used else ("नहीं" if hi else "No") }}</p>
   </div>
 
   <!-- Numbered consent clauses -->
-  <h2>5. Consent Clauses</h2>
+  <h2>7. {{ "सहमति खंड" if hi else "Consent Clauses" }}</h2>
   <ol class="numbered-clauses">
+    {% if hi %}
+    <li>मैं पुष्टि करता/करती हूं कि प्रस्तावित ऑपरेशन, अपेक्षित फायदे, महत्वपूर्ण जोखिम, संभावित जटिलताएं, उपलब्ध विकल्प, और इलाज न कराने के परिणाम मुझे <strong>हिंदी</strong> में समझाए गए हैं, जो भाषा मैं समझता/समझती हूं।</li>
+    <li>मुझे सवाल पूछने का मौका मिला है, और मेरे सभी सवालों के संतोषजनक जवाब दिए गए हैं।</li>
+    <li>मैं समझता/समझती हूं कि ऑपरेशन के नतीजे की कोई गारंटी या आश्वासन नहीं दिया गया है।</li>
+    <li>मैं इलाज के दौरान बेहोशी की दवा और अन्य आवश्यक कदमों के लिए सहमति देता/देती हूं।</li>
+    {% if consent_for_blood_products == "Yes" %}
+    <li>मैं चिकित्सकीय रूप से जरूरी होने पर खून या खून से बने उत्पाद चढ़ाने के लिए सहमति देता/देती हूं।</li>
+    {% endif %}
+    {% if photo_consent_medical_record or photo_consent_deidentified_teaching or photo_consent_publication %}
+    <li>मैं ऊपर भाग 6 में बताए गए मकसदों के लिए फोटो/वीडियो लेने और इस्तेमाल करने के लिए सहमति देता/देती हूं, जैसा अस्पताल की नीति अनुमति देती है।</li>
+    {% endif %}
+    <li>मैं समझता/समझती हूं कि मुझे ऑपरेशन शुरू होने से पहले या उसके दौरान कभी भी सहमति वापस लेने का अधिकार है, और इससे आगे के इलाज पर कोई असर नहीं पड़ेगा।</li>
+    <li>मुझे मेरे बच्चे की व्यक्तिगत और चिकित्सीय जानकारी को लेकर अस्पताल की गोपनीयता नीति के बारे में बताया गया है।</li>
+    <li>ऑपरेशन के दौरान सर्जन को कोई ऐसी चीज मिल सकती है जो पहले से मालूम नहीं थी। मैं किसी अतिरिक्त या अलग प्रक्रिया की अनुमति सिर्फ तब देता/देती हूं जब मेरे बच्चे की जान बचाने या सेहत को गंभीर नुकसान से बचाने के लिए यह जरूरी हो, और नई सहमति लेने के लिए देरी करना उचित न हो; कारण लिखा जाएगा। जो भी सुरक्षित रूप से रुक सकता है, उसके लिए नई सहमति चाहिए। मैंने किसी भी असंबंधित प्रक्रिया के लिए खुली अनुमति नहीं दी है।</li>
+    {% else %}
     <li>I confirm that the proposed procedure, expected benefits, material risks, possible complications, available alternatives, and consequences of refusing treatment have been explained to me in <strong>{{ language | default("English", true) }}</strong>, a language I understand.</li>
     <li>I have had the opportunity to ask questions, and all my questions have been answered to my satisfaction.</li>
     <li>I understand that no guarantee or assurance has been made regarding the outcome of the procedure.</li>
@@ -420,56 +532,74 @@
     {% if consent_for_blood_products == "Yes" %}
     <li>I consent to the transfusion of blood or blood products if deemed medically necessary.</li>
     {% endif %}
-    {% if consent_for_photography == "Yes" %}
-    <li>I consent to the capture and use of photographs / videos for medical records, education, or quality assurance as permitted by hospital policy.</li>
+    {% if photo_consent_medical_record or photo_consent_deidentified_teaching or photo_consent_publication %}
+    <li>I consent to the capture and use of photographs / videos for the purposes indicated in Section 6 above, as permitted by hospital policy.</li>
     {% endif %}
     <li>I understand that I have the right to withdraw consent at any time before or during the procedure without affecting future care.</li>
     <li>I have been informed of the hospital's privacy and confidentiality practices regarding my child's personal and medical information.</li>
+    <li>During the operation the surgeon may find something not known beforehand. I authorise an additional or different procedure only where it is necessary to save my child's life or prevent serious harm to health and delay to take fresh consent would be unreasonable; the reason will be recorded. Anything that can safely wait needs fresh consent. I have NOT given blanket permission for any unrelated procedure.</li>
+    {% endif %}
   </ol>
+  <p class="small muted">
+    {% if hi %}
+    यह बेहोशी की दवा देकर किया जाएगा। बेहोशी के डॉक्टर द्वारा अलग से बेहोशी की सहमति ली जाती है। यह फॉर्म उसकी जगह नहीं लेता, और उस बेहोशी की सहमति के बिना ऑपरेशन आगे नहीं बढ़ सकता।
+    {% else %}
+    Done under anaesthesia. A separate anaesthesia consent is taken by the anaesthetist. This form does not replace it, and the operation cannot proceed without that anaesthesia consent.
+    {% endif %}
+  </p>
 
   <!-- Doctor Declaration -->
-  <h2>6. Doctor Declaration</h2>
+  <h2>8. {{ "डॉक्टर की घोषणा" if hi else "Doctor Declaration" }}</h2>
   <div class="declaration-box avoid-break">
     <p class="declaration-text">
-      "I have personally explained the diagnosis, proposed procedure, expected benefits, risks, possible complications, available alternatives, and consequences of refusing treatment to the parent/guardian in a language they understand."
+      {% if hi %}
+      "मैंने बीमारी की पहचान, ऑपरेशन और उसका दायरा, फायदे, दूसरे विकल्प और महत्वपूर्ण जोखिम (सामान्य, इस ऑपरेशन से जुड़े और इस बच्चे से जुड़े) अभिभावक की समझ की भाषा में समझाए, बच्चे की ओर से सहमति देने के उनके कानूनी अधिकार की पुष्टि की, और उन्हें वापस अपने शब्दों में बताने को कहकर समझ जांची।"
+      {% else %}
+      "I explained the diagnosis, the operation and its extent, the benefits, alternatives and material risks (general, procedure-specific and this child's) in a language the guardian understands, verified their authority to consent, and checked understanding by teach-back."
+      {% endif %}
     </p>
     <div class="declaration-meta">
-      <div><strong>Doctor Name:</strong> {{ surgeon_name | default("—", true) }}</div>
-      <div><strong>Registration Number:</strong> {{ doctor_registration_number | default("—", true) }}</div>
-      <div><strong>Date / Time:</strong> {{ doctor_declaration_timestamp | default(generated_at | default("—", true), true) }}</div>
+      <div><strong>{{ "डॉक्टर का नाम" if hi else "Doctor Name" }}:</strong> {{ surgeon_name | default("—", true) }}</div>
+      <div><strong>{{ "पंजीकरण संख्या" if hi else "Registration Number" }}:</strong> {{ doctor_registration_number | default("—", true) }}</div>
+      <div><strong>{{ "तारीख / समय" if hi else "Date / Time" }}:</strong> {{ doctor_declaration_timestamp | default(generated_at | default("—", true), true) }}</div>
     </div>
   </div>
 
   <!-- Guardian Declaration -->
-  <h2>7. Parent / Guardian Declaration</h2>
+  <h2>9. {{ "माता-पिता / अभिभावक की घोषणा" if hi else "Parent / Guardian Declaration" }}</h2>
   <div class="declaration-box avoid-break">
     <p class="declaration-text">
-      "I confirm that the procedure, benefits, risks, alternatives, and consequences of refusal have been explained to me in a language that I understand. I have had the opportunity to ask questions and all my questions have been answered satisfactorily."
+      {% if hi %}
+      "यह फॉर्म मुझे हिंदी में पढ़ा / पढ़कर सुनाया और समझाया गया, जिसे मैं समझता/समझती हूं। डॉक्टर ने मेरी समझ जांचने के लिए मुझसे ऑपरेशन, उसके मुख्य जोखिम और दूसरे विकल्प अपने शब्दों में बताने को कहा। मुझे सवाल पूछने का मौका मिला है, और मुझे पता है कि ऑपरेशन शुरू होने से पहले मैं कभी भी सहमति वापस ले सकता/सकती हूं। मैं अपनी मर्जी से ऊपर बताए गए ऑपरेशन के लिए सहमति देता/देती हूं।"
+      {% else %}
+      "This form was read / read out and explained to me in a language I understand. The doctor checked my understanding by asking me to say the operation, its main risks and the alternatives back in my own words. I have been able to ask questions, and I know I may withdraw consent any time before the operation begins. I voluntarily consent to the operation described above."
+      {% endif %}
     </p>
     <div class="declaration-meta">
-      <div><strong>Parent / Guardian:</strong> {{ parent_name | default("—", true) }}</div>
-      <div><strong>Relationship:</strong> {{ guardian_relationship | default("—", true) }}</div>
-      <div><strong>Mobile:</strong> {{ parent_phone | default("—", true) }}</div>
+      <div><strong>{{ "माता-पिता / अभिभावक" if hi else "Parent / Guardian" }}:</strong> {{ parent_name | default("—", true) }}</div>
+      <div><strong>{{ "रिश्ता" if hi else "Relationship" }}:</strong> {{ guardian_relationship | default("—", true) }}</div>
+      <div><strong>{{ "मोबाइल" if hi else "Mobile" }}:</strong> {{ parent_phone | default("—", true) }}</div>
     </div>
   </div>
 
   <!-- Signature section on final page -->
   <div class="signature-section">
-    <h2>8. Signatures</h2>
+    <h2>10. {{ "हस्ताक्षर" if hi else "Signatures" }}</h2>
+    <p class="small muted">{{ "यह फॉर्म प्रिंट करने के बाद हाथ से हस्ताक्षरित किया जाता है। इसे इस प्लेटफॉर्म पर इलेक्ट्रॉनिक रूप से हस्ताक्षरित नहीं किया जाता।" if hi else "This form is signed by hand after printing. It is not signed electronically on the platform." }}</p>
     <div class="signature-grid">
       <div class="signature-block">
         <div class="signature-line">
-          <strong>Parent / Guardian Signature</strong><br>
+          <strong>{{ "माता-पिता / अभिभावक के हस्ताक्षर / अंगूठे का निशान" if hi else "Parent / Guardian Signature" }}</strong><br>
           <span class="small muted">{{ parent_name | default("", true) }}</span>
         </div>
       </div>
       <div class="signature-block">
         <div class="signature-line">
-          <strong>Witness Signature</strong><br>
+          <strong>{{ "गवाह के हस्ताक्षर" if hi else "Witness Signature" }}</strong><br>
           {% if witness_name %}
           <span class="small muted">{{ witness_name }}{% if witness_relationship %}, {{ witness_relationship }}{% endif %}{% if witness_mobile %}, {{ witness_mobile }}{% endif %}</span>
           {% else %}
-          <span class="small muted">Name, Relationship, Mobile</span>
+          <span class="small muted">{{ "नाम, रिश्ता, मोबाइल" if hi else "Name, Relationship, Mobile" }}</span>
           {% endif %}
         </div>
       </div>
@@ -477,17 +607,20 @@
     <div class="signature-grid" style="margin-top: 18px;">
       <div class="signature-block">
         <div class="signature-line">
-          <strong>Treating Doctor Signature</strong><br>
+          <strong>{{ "इलाज करने वाले डॉक्टर के हस्ताक्षर" if hi else "Treating Doctor Signature" }}</strong><br>
           <span class="small muted">{{ surgeon_name | default("", true) }}</span>
         </div>
       </div>
       <div class="signature-block">
         <div class="signature-line">
-          <strong>Date / Time</strong><br>
+          <strong>{{ "तारीख / समय" if hi else "Date / Time" }}</strong><br>
           <span class="small muted">{{ generated_at | default("", true) }}</span>
         </div>
       </div>
     </div>
+    <p class="small muted" style="margin-top: 10px;">
+      {{ "दुभाषिया (अगर दूसरी भाषा इस्तेमाल हुई हो) — हस्ताक्षर: ______________  नाम: ______  भाषा: ______  तारीख/समय: ______" if hi else "Interpreter (if another language was used) — Signature: ______________  Name: ______  Language: ______  Date/Time: ______" }}
+    </p>
   </div>
 
 </body>

@@ -37,7 +37,10 @@ def _render_pdf(html: str) -> bytes:
     """Render HTML to PDF using WeasyPrint, falling back to wkhtmltopdf, then HTML bytes."""
     try:
         from weasyprint import HTML
-        return HTML(string=html).write_pdf()
+        # base_url lets the template's @font-face rules resolve relative
+        # font file paths (e.g. fonts/NotoSansDevanagari-Regular.ttf) so
+        # Hindi (Devanagari) text renders instead of showing tofu boxes.
+        return HTML(string=html, base_url=str(_TEMPLATES_DIR)).write_pdf()
     except Exception as exc:
         logger.warning("WeasyPrint unavailable (%s); trying wkhtmltopdf fallback", exc)
 
@@ -119,7 +122,12 @@ def _build_common_context(form_data: Dict[str, Any]) -> Dict[str, Any]:
     context.setdefault("alternatives", "—")
     context.setdefault(
         "refusal_consequences",
-        "The treating doctor will explain the consequences of refusal, which may include worsening of the patient's condition or other serious outcomes.",
+        (
+            "अगर सहमति नहीं दी जाती है, तो इलाज करने वाला डॉक्टर इसके परिणाम समझाएगा, जिसमें रोगी की हालत का "
+            "बिगड़ना या अन्य गंभीर परिणाम शामिल हो सकते हैं।"
+            if context.get("language") == "Hindi" else
+            "The treating doctor will explain the consequences of refusal, which may include worsening of the patient's condition or other serious outcomes."
+        ),
     )
     context.setdefault("expected_recovery", "")
     context.setdefault("consent_for_anesthesia", "Yes")
