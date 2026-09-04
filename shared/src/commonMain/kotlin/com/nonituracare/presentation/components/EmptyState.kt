@@ -1,5 +1,6 @@
 package com.nonituracare.presentation.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.Icon
@@ -16,15 +19,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nonituracare.ui.theme.NorituraColors
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun EmptyState(
     title: String = "Nothing here",
     subtitle: String = "No items to show right now.",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Default.Inbox,
+    illustration: DrawableResource? = null
 ) {
     Column(
         modifier = modifier
@@ -33,12 +42,30 @@ fun EmptyState(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.Inbox,
-            contentDescription = "Empty",
-            tint = NorituraColors.TextTertiary,
-            modifier = Modifier.size(56.dp)
-        )
+        if (illustration != null) {
+            Image(
+                painter = painterResource(illustration),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(160.dp)
+            )
+        } else {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(NorituraColors.SurfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = "Empty",
+                    tint = NorituraColors.TextTertiary,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = title,

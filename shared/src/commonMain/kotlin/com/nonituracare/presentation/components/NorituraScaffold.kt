@@ -1,6 +1,5 @@
 package com.nonituracare.presentation.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +17,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,9 +34,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nonituracare.ui.theme.NorituraColors
-import noritura.shared.generated.resources.Res
-import noritura.shared.generated.resources.noni_tura_logo
-import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun NorituraScaffold(
@@ -116,26 +115,18 @@ fun BrandTopBar(
     title: String = "SurgiCare",
     onBack: (() -> Unit)? = null,
     notificationCount: Int = 0,
-    onNotificationClick: () -> Unit = {},
+    onNotificationClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     NorituraTopBar(
         title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Image(
-                    painter = painterResource(Res.drawable.noni_tura_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp)
-                )
-                Text(
-                    text = title,
-                    color = NorituraColors.PrimaryBlue,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
+            // Just the wordmark here — the shield mark belongs on the app icon,
+            // not repeated inline on every screen alongside the avatar and bell.
+            Text(
+                text = title,
+                color = NorituraColors.PrimaryBlue,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
         },
         onBack = onBack,
         avatar = {
@@ -157,7 +148,26 @@ fun BrandTopBar(
                 }
             }
         },
-        actions = actions
+        actions = {
+            onNotificationClick?.let { onClick ->
+                IconButton(onClick = onClick) {
+                    BadgedBox(
+                        badge = {
+                            if (notificationCount > 0) {
+                                Badge { Text(text = if (notificationCount > 99) "99+" else notificationCount.toString()) }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Notifications,
+                            contentDescription = "Alerts",
+                            tint = NorituraColors.PrimaryBlue
+                        )
+                    }
+                }
+            }
+            actions()
+        }
     )
 }
 
