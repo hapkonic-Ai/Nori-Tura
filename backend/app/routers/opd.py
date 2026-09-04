@@ -232,23 +232,56 @@ async def get_opd_record(
 
 @router.get("/follow-ups")
 async def list_follow_ups(
-    follow_up_date: Optional[date] = None,
     user: CurrentUser = Depends(get_current_nurse_or_surgeon),
 ):
-    target_date = follow_up_date or (date.today() + timedelta(days=1))
-    start = datetime.combine(target_date, time.min)
-    end = datetime.combine(target_date, time.max)
+    """All not-yet-attended follow-ups for the current doctor, past and future.
 
+    There's no appointment-booking system behind this — a follow-up is just
+    an OPD record with a suggested `follow_up_date`. It stays "pending"
+    (visible here) until someone marks it attended via
+    `/follow-ups/{id}/attendance`, or forever if the patient never comes
+    back, which is exactly the signal that makes a follow-up "overdue":
+    any pending record whose date has already passed. The frontend splits
+    the single list returned here into overdue vs. upcoming by comparing
+    each `follow_up_date` to today.
+    """
     doctor_id = await resolve_doctor_id(user)
     records = await prisma.opd_records.find_many(
         where={
             "doctor_id": doctor_id,
-            "follow_up_date": {"gte": start, "lte": end},
+            "follow_up_date": {"not": None},
+            "follow_up_status": "pending",
         },
         order={"follow_up_date": "asc"},
         include={"patient": True, "doctor": True, "medications": True, "investigations": True},
     )
     return records
+
+
+@router.post("/follow-ups/{record_id}/attendance")
+async def mark_follow_up_attendance(
+    record_id: str,
+    user: CurrentUser = Depends(get_current_nurse_or_surgeon),
+):
+    """Mark a follow-up as attended — the patient came in on (or around) the
+    suggested date. There's no un-mark; if this was a mistake, a nurse/doctor
+    can just log a fresh OPD visit, which is the real record of what happened."""
+    record = await prisma.opd_records.find_first(where={"id": record_id}, include={"patient": True})
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
+
+    doctor_id = await resolve_doctor_id(user)
+    if record.patient.doctor_id != doctor_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    updated = await prisma.opd_records.update(
+        where={"id": record_id},
+        data={
+            "follow_up_status": "attended",
+            "follow_up_attended_at": datetime.now(),
+        },
+    )
+    return updated
 
 
 def _build_follow_up_message(record) -> str:
