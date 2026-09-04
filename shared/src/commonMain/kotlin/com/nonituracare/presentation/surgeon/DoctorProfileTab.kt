@@ -51,7 +51,8 @@ import com.nonituracare.ui.theme.NorituraColors
 fun DoctorProfileTab(
     modifier: Modifier = Modifier,
     viewModel: DoctorProfileViewModel = viewModel { DoctorProfileViewModel() },
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onOpenAlerts: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -60,7 +61,8 @@ fun DoctorProfileTab(
         topBar = {
             BrandTopBar(
                 initials = "DR",
-                title = "Profile"
+                title = "Profile",
+                onNotificationClick = onOpenAlerts
             )
         }
     ) {

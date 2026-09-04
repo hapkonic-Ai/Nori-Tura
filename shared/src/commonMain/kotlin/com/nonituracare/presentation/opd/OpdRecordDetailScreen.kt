@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -95,11 +96,31 @@ private fun OpdRecordDetailContent(record: OpdRecordDto) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = record.patient?.name ?: "OPD Record",
-                color = androidx.compose.ui.graphics.Color.White,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = record.patient?.name ?: "OPD Record",
+                    color = androidx.compose.ui.graphics.Color.White,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                )
+                record.visitType?.let { visitType ->
+                    val isFollowUp = visitType.lowercase() == "follow_up"
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.22f)
+                    ) {
+                        Text(
+                            text = if (isFollowUp) "Follow-up Visit" else "New Visit",
+                            color = androidx.compose.ui.graphics.Color.White,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = record.createdAt?.let { "Date: ${formatDateTime(it)}" } ?: "Date: -",

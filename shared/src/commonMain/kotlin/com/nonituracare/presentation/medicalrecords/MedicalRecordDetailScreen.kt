@@ -39,6 +39,8 @@ import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.AuthenticatedUrlImage
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_medical_records
 
 @Composable
 fun MedicalRecordDetailScreen(
@@ -127,7 +129,8 @@ fun MedicalRecordDetailScreen(
                                 subtitle = "Images added to this record will appear here",
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 40.dp)
+                                    .padding(top = 40.dp),
+                                illustration = Res.drawable.empty_medical_records
                             )
                         }
                     } else {

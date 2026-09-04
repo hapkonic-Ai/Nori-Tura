@@ -46,7 +46,9 @@ import com.nonituracare.presentation.surgeon.PatientProfileScreen
 import com.nonituracare.presentation.surgeon.ScheduleScreen
 import com.nonituracare.presentation.surgeon.SurgeonMainScreen
 import com.nonituracare.presentation.surgeon.SurgicalTemplatesScreen
+import com.nonituracare.presentation.surgeon.OtNoteTemplatesScreen
 import com.nonituracare.presentation.surgeon.WhatsAppPreviewScreen
+import com.nonituracare.presentation.components.PulseLoadingState
 import com.nonituracare.ui.theme.NorituraTheme
 
 @Composable
@@ -60,9 +62,16 @@ fun App(
         var pendingDoctorId by remember { mutableStateOf("") }
         var pendingDoctorName by remember { mutableStateOf("") }
         var pendingHospitalContact by remember { mutableStateOf<String?>(null) }
+        var checkingAuth by remember { mutableStateOf(true) }
 
         LaunchedEffect(Unit) {
             authViewModel.checkAuthStatus()
+            checkingAuth = false
+        }
+
+        if (checkingAuth) {
+            PulseLoadingState(message = "Starting Noni Tura...")
+            return@NorituraTheme
         }
 
         LaunchedEffect(uiState) {
@@ -149,6 +158,7 @@ fun App(
                     onNavigateToAddPatient = { navController.navigate("add_patient") },
                     onNavigateToAppointments = { navController.navigate("appointments") },
                     onNavigateToSurgicalTemplates = { navController.navigate("surgical_templates") },
+                    onNavigateToOtNoteTemplates = { navController.navigate("ot_note_templates") },
                     onNavigateToFollowUpPreview = { recordId ->
                         navController.navigate("follow_up_preview/$recordId")
                     },
@@ -239,6 +249,12 @@ fun App(
 
             composable("surgical_templates") {
                 SurgicalTemplatesScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("ot_note_templates") {
+                OtNoteTemplatesScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

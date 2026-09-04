@@ -1,6 +1,8 @@
 package com.nonituracare.presentation.home
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.List
@@ -41,6 +48,9 @@ import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.presentation.components.NurseBottomNav
 import com.nonituracare.presentation.components.SectionTitle
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.dashboard_greeting_banner
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun NurseHomeScreen(
@@ -98,17 +108,36 @@ fun NurseHomeScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Welcome back, Nurse",
-                    color = NorituraColors.TextPrimary,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                )
-                Text(
-                    text = "Manage patients, appointments, and daily tasks for your supervising surgeon.",
-                    color = NorituraColors.TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn(tween(500)) + slideInVertically(tween(500)) { -it / 4 }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                ) {
+                    Image(
+                        painter = painterResource(Res.drawable.dashboard_greeting_banner),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                    )
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Welcome back, Nurse",
+                            color = NorituraColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "Manage patients, appointments, and daily tasks for your supervising surgeon.",
+                            color = NorituraColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
             }
 
             when (val state = uiState) {

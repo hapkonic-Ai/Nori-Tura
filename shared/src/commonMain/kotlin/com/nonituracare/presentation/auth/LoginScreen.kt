@@ -41,8 +41,13 @@ import androidx.compose.ui.unit.dp
 import com.nonituracare.presentation.components.PhoneInputField
 import com.nonituracare.ui.theme.NorituraColors
 import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.accent_blob_teal
+import noritura.shared.generated.resources.login_hero
 import noritura.shared.generated.resources.noni_tura_logo_long
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.ColorFilter
 
 @Composable
 fun LoginScreen(
@@ -62,15 +67,34 @@ fun LoginScreen(
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NorituraColors.Background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(40.dp))
+    Box(modifier = Modifier.fillMaxSize().background(NorituraColors.Background)) {
+        Image(
+            painter = painterResource(Res.drawable.accent_blob_teal),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth(0.7f)
+                .align(Alignment.TopEnd)
+                .alpha(0.18f)
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Image(
+            painter = painterResource(Res.drawable.login_hero),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth(0.7f)
+                .height(160.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         BrandHeader()
 
@@ -179,6 +203,7 @@ fun LoginScreen(
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
             }
+        }
         }
     }
 }

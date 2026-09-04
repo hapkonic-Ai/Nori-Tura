@@ -39,6 +39,8 @@ import com.nonituracare.presentation.components.ErrorState
 import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_medical_records
 
 private val CATEGORY_FILTERS = listOf(
     "All", "X-ray", "MRI", "CT Scan", "Ultrasound",
@@ -116,7 +118,8 @@ fun MedicalRecordsViewScreen(
                             EmptyState(
                                 title = "No medical records",
                                 subtitle = "Images uploaded during visits will appear here",
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                illustration = Res.drawable.empty_medical_records
                             )
                         }
                     } else {

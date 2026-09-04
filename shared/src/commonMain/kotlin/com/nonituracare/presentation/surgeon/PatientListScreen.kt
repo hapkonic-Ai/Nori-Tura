@@ -48,6 +48,9 @@ import com.nonituracare.presentation.components.LongPressCardPreview
 import com.nonituracare.presentation.components.SearchField
 import com.nonituracare.presentation.components.StatusChip
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_patients
+import noritura.shared.generated.resources.empty_search
 
 @Composable
 fun PatientListScreen(
@@ -56,7 +59,8 @@ fun PatientListScreen(
     onBack: () -> Unit,
     onPatientClick: (String) -> Unit,
     onAddPatient: (() -> Unit)? = null,
-    fabBottomPadding: Dp = 0.dp
+    fabBottomPadding: Dp = 0.dp,
+    onOpenAlerts: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -82,7 +86,8 @@ fun PatientListScreen(
                 initials = "DR",
                 title = "Patients",
                 onBack = onBack,
-                notificationCount = 0
+                notificationCount = 0,
+                onNotificationClick = onOpenAlerts
             )
         },
         floatingActionButton = {
@@ -186,7 +191,8 @@ fun PatientListScreen(
                             } else {
                                 "Try a different search term."
                             },
-                            modifier = Modifier.fillMaxWidth().weight(1f)
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            illustration = if (searchQuery.isBlank()) noritura.shared.generated.resources.Res.drawable.empty_patients else noritura.shared.generated.resources.Res.drawable.empty_search
                         )
                     } else {
                         LazyColumn(

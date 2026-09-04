@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -56,13 +58,17 @@ import com.nonituracare.presentation.components.ErrorState
 import com.nonituracare.presentation.components.LoadingState
 import com.nonituracare.presentation.components.LongPressCardPreview
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_admissions
+import noritura.shared.generated.resources.empty_search
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdmissionsListScreen(
     viewModel: AdmissionsListViewModel = viewModel { AdmissionsListViewModel() },
     onBack: (() -> Unit)? = null,
-    onAdmissionClick: (String) -> Unit
+    onAdmissionClick: (String) -> Unit,
+    onOpenAlerts: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val patients by viewModel.patients.collectAsState()
@@ -82,7 +88,8 @@ fun AdmissionsListScreen(
                 initials = "DR",
                 title = "IPD Admissions",
                 onBack = onBack,
-                notificationCount = 0
+                notificationCount = 0,
+                onNotificationClick = onOpenAlerts
             )
         },
         floatingActionButton = {
@@ -121,19 +128,69 @@ fun AdmissionsListScreen(
                         EmptyState(
                             title = "No admissions yet",
                             subtitle = "Tap + to admit a patient",
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            illustration = noritura.shared.generated.resources.Res.drawable.empty_admissions
                         )
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.admissions) { admission ->
-                                AdmissionCard(
-                                    admission = admission,
-                                    onClick = { admission.id?.let(onAdmissionClick) }
+                        var searchQuery by remember { mutableStateOf("") }
+                        val filtered = remember(state.admissions, searchQuery) {
+                            if (searchQuery.isBlank()) {
+                                state.admissions
+                            } else {
+                                val q = searchQuery.trim().lowercase()
+                                state.admissions.filter { admission ->
+                                    listOfNotNull(
+                                        admission.patient?.name,
+                                        admission.ward,
+                                        admission.bedNo,
+                                        admission.status,
+                                        admission.urgency
+                                    ).any { it.lowercase().contains(q) }
+                                }
+                            }
+                        }
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                placeholder = { Text("Search by patient, ward, bed, status…") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Search, contentDescription = null, tint = NorituraColors.TextTertiary)
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotBlank()) {
+                                        androidx.compose.material3.IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(Icons.Default.Close, contentDescription = "Clear search", tint = NorituraColors.TextTertiary)
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(14.dp)
+                            )
+                            if (filtered.isEmpty()) {
+                                EmptyState(
+                                    title = "No matches",
+                                    subtitle = "No admissions match \"$searchQuery\".",
+                                    icon = Icons.Default.Search,
+                                    modifier = Modifier.fillMaxSize(),
+                                    illustration = noritura.shared.generated.resources.Res.drawable.empty_search
                                 )
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(filtered) { admission ->
+                                        AdmissionCard(
+                                            admission = admission,
+                                            onClick = { admission.id?.let(onAdmissionClick) }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

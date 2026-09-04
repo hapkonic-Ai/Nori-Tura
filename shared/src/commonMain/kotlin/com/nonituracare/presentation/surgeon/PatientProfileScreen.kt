@@ -598,6 +598,15 @@ private fun OpdRecordCard(
                     }
                 }
 
+                opdRecord.visitType?.let { visitType ->
+                    val isFollowUp = visitType.lowercase() == "follow_up"
+                    com.nonituracare.presentation.components.StatusChip(
+                        label = if (isFollowUp) "Follow-up Visit" else "New Visit",
+                        color = if (isFollowUp) NorituraColors.AccentLavender else NorituraColors.PrimaryBlue,
+                        showDot = false
+                    )
+                }
+
                 // Main diagnosis
                 val mainText = opdRecord.diagnosis?.takeIf { it.isNotBlank() && it != "-" }
                     ?: opdRecord.chiefComplaint?.takeIf { it.isNotBlank() }

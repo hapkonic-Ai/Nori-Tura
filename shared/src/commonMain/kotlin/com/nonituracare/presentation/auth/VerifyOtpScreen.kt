@@ -1,5 +1,6 @@
 package com.nonituracare.presentation.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,11 +15,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.otp_verify_hero
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun VerifyOtpScreen(
@@ -52,7 +59,11 @@ fun VerifyOtpScreen(
         if (!devOtp.isNullOrBlank()) otp = devOtp
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NorituraColors.Background)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp, start = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -60,7 +71,8 @@ fun VerifyOtpScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
+                    contentDescription = "Back",
+                    tint = NorituraColors.TextPrimary
                 )
             }
         }
@@ -72,86 +84,105 @@ fun VerifyOtpScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-        Text(
-            text = "Verify OTP",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Enter the 6-digit code sent to $phone",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        if (!devOtp.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
+            Image(
+                painter = painterResource(Res.drawable.otp_verify_hero),
+                contentDescription = null,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.tertiaryContainer)
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Dev OTP:",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-                Text(
-                    text = devOtp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            }
-        }
+                    .fillMaxWidth(0.65f)
+                    .height(150.dp)
+            )
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        OutlinedTextField(
-            value = otp,
-            onValueChange = { otp = it },
-            label = { Text("OTP") },
-            placeholder = { Text("123456") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = { onVerifyOtp(phone, otp) },
-            enabled = uiState !is AuthUiState.Loading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (uiState is AuthUiState.Loading) {
-                CircularProgressIndicator()
-            } else {
-                Text("Verify")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        TextButton(
-            onClick = { onResendOtp(phone) },
-            enabled = uiState !is AuthUiState.Loading
-        ) {
-            Text("Resend OTP")
-        }
-
-        if (uiState is AuthUiState.Error) {
             Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = uiState.message,
-                color = MaterialTheme.colorScheme.error,
+                text = "Verify OTP",
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Enter the 6-digit code sent to $phone",
+                color = NorituraColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium
             )
-        }
+
+            if (!devOtp.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(NorituraColors.AccentLavenderLight)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Dev OTP:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = NorituraColors.AccentLavender
+                    )
+                    Text(
+                        text = devOtp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = NorituraColors.AccentLavender
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            OutlinedTextField(
+                value = otp,
+                onValueChange = { otp = it },
+                label = { Text("OTP") },
+                placeholder = { Text("123456") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = NorituraColors.PrimaryBlue,
+                    cursorColor = NorituraColors.PrimaryBlue
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { onVerifyOtp(phone, otp) },
+                enabled = uiState !is AuthUiState.Loading,
+                colors = ButtonDefaults.buttonColors(containerColor = NorituraColors.PrimaryBlue),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().height(54.dp)
+            ) {
+                if (uiState is AuthUiState.Loading) {
+                    CircularProgressIndicator(color = NorituraColors.Surface, modifier = Modifier.height(24.dp))
+                } else {
+                    Text("Verify", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            TextButton(
+                onClick = { onResendOtp(phone) },
+                enabled = uiState !is AuthUiState.Loading
+            ) {
+                Text("Resend OTP", color = NorituraColors.PrimaryBlue)
+            }
+
+            if (uiState is AuthUiState.Error) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = uiState.message,
+                    color = NorituraColors.Error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }

@@ -37,6 +37,8 @@ import com.nonituracare.presentation.components.LongPressCardPreview
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.presentation.components.StatusChip
 import com.nonituracare.ui.theme.NorituraColors
+import noritura.shared.generated.resources.Res
+import noritura.shared.generated.resources.empty_medical_records
 
 @Composable
 fun ParentOpdRecordsScreen(
@@ -88,7 +90,8 @@ fun ParentOpdRecordsScreen(
                         EmptyState(
                             title = "No records",
                             subtitle = "No OPD records match this filter.",
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            illustration = Res.drawable.empty_medical_records
                         )
                     } else {
                         LazyColumn(
