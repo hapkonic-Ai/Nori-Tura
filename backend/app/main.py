@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from app.core.database import connect_db, disconnect_db
 from app.jobs import start_reminder_scheduler, shutdown_reminder_scheduler
-from app.routers import auth, patients, opd, appointments, ipd, ai, consent, nurses, documents, surgical_templates, admin, doctors, schedule, alerts, uploads, media, medical_records, reports
+from app.routers import auth, patients, opd, appointments, ipd, ai, consent, nurses, documents, surgical_templates, admin, doctors, schedule, alerts, uploads, media, medical_records, reports, ot_notes
 from app.services.consent_template_service import ensure_default_layout_templates
 
 
@@ -91,6 +91,7 @@ app.include_router(uploads.router)
 app.include_router(media.router)
 app.include_router(medical_records.router)
 app.include_router(reports.router)
+app.include_router(ot_notes.router)
 
 
 @app.get("/health")

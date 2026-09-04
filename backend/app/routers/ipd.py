@@ -189,6 +189,7 @@ async def get_current_admission(user: CurrentUser = Depends(get_current_user)):
             "ward_round_notes": {"take": 1},
             "discharge_summaries": True,
             "consent_forms": {"order_by": {"generated_at": "desc"}},
+            "ot_notes": {"order_by": {"created_at": "desc"}, "take": 1},
         },
     )
     return admission
@@ -252,6 +253,7 @@ async def get_admission(
             "ward_round_notes": True,
             "discharge_summaries": True,
             "consent_forms": {"order_by": {"generated_at": "desc"}},
+            "ot_notes": {"order_by": {"created_at": "desc"}},
         },
     )
     if not admission:
