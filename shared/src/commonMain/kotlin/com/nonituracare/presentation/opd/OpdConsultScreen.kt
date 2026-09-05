@@ -173,7 +173,7 @@ fun OpdConsultScreen(
                     MedicalAutoCompleteTextField(
                         value = complaint,
                         onValueChange = { complaint = it },
-                        label = { Text("Chief Complaint") },
+                        label = { Text("Chief Complaint *") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                         maxLines = 4
@@ -184,7 +184,7 @@ fun OpdConsultScreen(
                     MedicalAutoCompleteTextField(
                         value = examination,
                         onValueChange = { examination = it },
-                        label = { Text("Examination Findings") },
+                        label = { Text("Examination Findings *") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
                         maxLines = 6
@@ -446,7 +446,7 @@ private fun MedicationRow(
         MedicalAutoCompleteTextField(
             value = medication.name,
             onValueChange = { onChange(medication.copy(name = it)) },
-            label = { Text("Name") },
+            label = { Text("Name *") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -455,14 +455,14 @@ private fun MedicationRow(
             OutlinedTextField(
                 value = medication.dose,
                 onValueChange = { onChange(medication.copy(dose = it)) },
-                label = { Text("Dose") },
+                label = { Text("Dose *") },
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(8.dp))
             OutlinedTextField(
                 value = medication.frequency,
                 onValueChange = { onChange(medication.copy(frequency = it)) },
-                label = { Text("Frequency") },
+                label = { Text("Frequency *") },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -474,7 +474,7 @@ private fun MedicationRow(
             OutlinedTextField(
                 value = medication.duration,
                 onValueChange = { onChange(medication.copy(duration = it)) },
-                label = { Text("Duration") },
+                label = { Text("Duration *") },
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -511,7 +511,7 @@ private fun InvestigationsSection(
                                 investigations.toMutableList().apply { set(index, InvestigationFormData(updated)) }
                             )
                         },
-                        label = { Text("Investigation Type") },
+                        label = { Text("Investigation Type *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )

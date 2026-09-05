@@ -181,7 +181,7 @@ fun AppointmentConfirmScreen(
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Full Name") },
+                            label = { Text("Full Name *") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
@@ -198,7 +198,7 @@ fun AppointmentConfirmScreen(
                         OutlinedTextField(
                             value = age,
                             onValueChange = { age = it.filter { c -> c.isDigit() } },
-                            label = { Text("Age") },
+                            label = { Text("Age *") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -221,7 +221,7 @@ fun AppointmentConfirmScreen(
                                 value = gender,
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Gender") },
+                                label = { Text("Gender *") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
                                 modifier = Modifier
                                     .fillMaxWidth()

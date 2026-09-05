@@ -463,7 +463,7 @@ private fun BookingDialog(
                     onValueChange = {},
                     modifier = Modifier.fillMaxWidth(),
                     readOnly = true,
-                    label = { Text("Patient") },
+                    label = { Text("Patient *") },
                     trailingIcon = {
                         TextButton(onClick = { patientMenuExpanded = true }) {
                             Text("Choose")
@@ -499,7 +499,7 @@ private fun BookingDialog(
                     onValueChange = {},
                     modifier = Modifier.fillMaxWidth(),
                     readOnly = true,
-                    label = { Text("Time") },
+                    label = { Text("Time *") },
                     trailingIcon = {
                         TextButton(onClick = { timeMenuExpanded = true }) {
                             Text("Choose")

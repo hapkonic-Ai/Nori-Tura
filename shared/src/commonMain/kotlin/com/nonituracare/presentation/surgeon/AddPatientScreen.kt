@@ -113,7 +113,7 @@ fun AddPatientScreen(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Patient Name") },
+            label = { Text("Patient Name *") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -123,7 +123,7 @@ fun AddPatientScreen(
         OutlinedTextField(
             value = age,
             onValueChange = { age = it.filter { char -> char.isDigit() } },
-            label = { Text("Age") },
+            label = { Text("Age *") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -199,7 +199,7 @@ fun AddPatientScreen(
         OutlinedTextField(
             value = parentName,
             onValueChange = { parentName = it },
-            label = { Text("Parent / Guardian Name") },
+            label = { Text("Parent / Guardian Name *") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -209,7 +209,7 @@ fun AddPatientScreen(
         OutlinedTextField(
             value = parentPhone,
             onValueChange = { parentPhone = it },
-            label = { Text("Parent Phone") },
+            label = { Text("Parent Phone *") },
             placeholder = { Text("+919876543210") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,

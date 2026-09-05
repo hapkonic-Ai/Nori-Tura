@@ -72,7 +72,7 @@ fun RegisterDoctorScreen(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Full Name") },
+            label = { Text("Full Name *") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -82,7 +82,7 @@ fun RegisterDoctorScreen(
         OutlinedTextField(
             value = phone,
             onValueChange = { phone = it },
-            label = { Text("Phone Number") },
+            label = { Text("Phone Number *") },
             placeholder = { Text("+919876543210") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
@@ -94,7 +94,7 @@ fun RegisterDoctorScreen(
         OutlinedTextField(
             value = specialty,
             onValueChange = { specialty = it },
-            label = { Text("Specialty") },
+            label = { Text("Specialty *") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
