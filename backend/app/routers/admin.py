@@ -1003,6 +1003,35 @@ async def delete_consent_content_template(
     return None
 
 
+# -------------------- OT Note Templates (global/corpus-seeded, read-only) --------------------
+# Doctors' own OT note templates are managed through /ot-note-templates
+# (app/routers/ot_notes.py). This is a read-only browse of the global
+# corpus-seeded library for the admin/superadmin dashboard.
+
+@router.get("/ot-note-templates")
+async def list_ot_note_templates_admin(
+    user: CurrentUser = Depends(get_current_staff),
+):
+    templates = await prisma.ot_note_templates.find_many(
+        where={"is_global": True},
+        order={"name": "asc"},
+    )
+    return templates
+
+
+@router.get("/ot-note-templates/{template_id}")
+async def get_ot_note_template_admin(
+    template_id: str,
+    user: CurrentUser = Depends(get_current_staff),
+):
+    template = await prisma.ot_note_templates.find_first(
+        where={"id": template_id, "is_global": True}
+    )
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return template
+
+
 # -------------------- Consent Layout Templates --------------------
 
 @router.get("/consent-layout-templates")
