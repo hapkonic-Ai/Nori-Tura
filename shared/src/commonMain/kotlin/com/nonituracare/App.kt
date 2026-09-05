@@ -21,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import com.nonituracare.presentation.admin.AdminHomeScreen
 import com.nonituracare.presentation.admin.AdminContentTemplatesScreen
 import com.nonituracare.presentation.admin.AdminSurgicalTemplatesScreen
+import com.nonituracare.presentation.admin.AdminOtNoteTemplatesScreen
 import com.nonituracare.presentation.admin.AdminHospitalsScreen
 import com.nonituracare.presentation.admin.AdminNursesScreen
 import com.nonituracare.presentation.auth.AuthUiState
@@ -328,7 +329,8 @@ fun App(
                     onNavigateToNurses = { navController.navigate("admin_nurses") },
                     onNavigateToHospitals = { navController.navigate("admin_hospitals") },
                     onNavigateToContentTemplates = { navController.navigate("admin_content_templates") },
-                    onNavigateToSurgicalTemplates = { navController.navigate("admin_surgical_templates") }
+                    onNavigateToSurgicalTemplates = { navController.navigate("admin_surgical_templates") },
+                    onNavigateToOtNoteTemplates = { navController.navigate("admin_ot_note_templates") }
                 )
             }
 
@@ -344,7 +346,8 @@ fun App(
                     onNavigateToNurses = { navController.navigate("admin_nurses") },
                     onNavigateToHospitals = { navController.navigate("admin_hospitals") },
                     onNavigateToContentTemplates = { navController.navigate("admin_content_templates") },
-                    onNavigateToSurgicalTemplates = { navController.navigate("admin_surgical_templates") }
+                    onNavigateToSurgicalTemplates = { navController.navigate("admin_surgical_templates") },
+                    onNavigateToOtNoteTemplates = { navController.navigate("admin_ot_note_templates") }
                 )
             }
 
@@ -368,6 +371,12 @@ fun App(
 
             composable("admin_surgical_templates") {
                 AdminSurgicalTemplatesScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("admin_ot_note_templates") {
+                AdminOtNoteTemplatesScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

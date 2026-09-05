@@ -72,7 +72,8 @@ fun AdminHomeScreen(
     onNavigateToNurses: () -> Unit = {},
     onNavigateToHospitals: () -> Unit = {},
     onNavigateToContentTemplates: () -> Unit = {},
-    onNavigateToSurgicalTemplates: () -> Unit = {}
+    onNavigateToSurgicalTemplates: () -> Unit = {},
+    onNavigateToOtNoteTemplates: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -124,32 +125,29 @@ fun AdminHomeScreen(
             contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
         ) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Image(
-                        painter = painterResource(Res.drawable.dashboard_greeting_banner),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                    com.nonituracare.presentation.components.ActionCard(
+                        label = "Surgical Templates",
+                        icon = Icons.Filled.MedicalServices,
+                        onClick = onNavigateToSurgicalTemplates,
+                        modifier = Modifier.weight(1f)
                     )
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "Doctor Approvals",
-                            color = NorituraColors.TextPrimary,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Review and approve pending doctor registrations.",
-                            color = NorituraColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+                    com.nonituracare.presentation.components.ActionCard(
+                        label = "OT Note Templates",
+                        icon = Icons.Filled.Description,
+                        onClick = onNavigateToOtNoteTemplates,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
+            }
+            item {
+                com.nonituracare.presentation.components.DashboardGreetingBanner(
+                    title = "Doctor Approvals",
+                    subtitle = "Review and approve pending doctor registrations."
+                )
             }
 
             when (val state = uiState) {

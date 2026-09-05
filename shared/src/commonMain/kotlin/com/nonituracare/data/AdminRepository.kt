@@ -11,6 +11,7 @@ import com.nonituracare.data.dto.HospitalCreateRequest
 import com.nonituracare.data.dto.HospitalRefDto
 import com.nonituracare.data.dto.NurseCreateRequest
 import com.nonituracare.data.dto.NurseDto
+import com.nonituracare.data.dto.OtNoteTemplateDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -129,5 +130,9 @@ class AdminRepository(
                 url.parameters.append("doctor_id", doctorId)
             }
         }.body()
+    }
+
+    suspend fun listOtNoteTemplates(): Result<List<OtNoteTemplateDto>> = safeApiCall {
+        client.get("/admin/ot-note-templates").body()
     }
 }
