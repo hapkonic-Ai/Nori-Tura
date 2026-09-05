@@ -1,18 +1,28 @@
 package com.nonituracare.presentation.surgeon
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.RateReview
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,24 +30,30 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.nonituracare.data.dto.AdmissionDto
-import com.nonituracare.data.dto.AppointmentDto
-import com.nonituracare.data.dto.ConsentAlertDto
-import com.nonituracare.data.dto.OpdRecordDto
+import com.nonituracare.data.dto.AlertsResponseDto
 import com.nonituracare.presentation.components.BrandTopBar
 import com.nonituracare.presentation.components.EmptyState
 import com.nonituracare.presentation.components.ErrorState
 import com.nonituracare.presentation.components.LoadingState
-import com.nonituracare.presentation.components.LongPressCardPreview
 import com.nonituracare.presentation.components.NorituraScaffold
 import com.nonituracare.ui.theme.NorituraColors
 import com.nonituracare.util.formatDateTime
 import noritura.shared.generated.resources.Res
 import noritura.shared.generated.resources.empty_alerts
 
+/**
+ * One flat, chronological-feeling activity feed (icon + title + subtitle +
+ * time, no boxed cards or raw "(count)" section headers) — the same shape as
+ * a normal app notification list, instead of four separately-labeled
+ * dashboards stacked on top of each other.
+ */
 @Composable
 fun SurgeonAlertsTab(
     modifier: Modifier = Modifier,
@@ -73,38 +89,98 @@ fun SurgeonAlertsTab(
                 )
             }
             is AlertsViewModel.UiState.Success -> {
-                AlertsList(
+                AlertsFeed(
                     alerts = state.alerts,
                     onNavigateToConsent = onNavigateToConsent,
                     onNavigateToAppointment = onNavigateToAppointment,
                     onNavigateToReview = onNavigateToReview,
-                    onNavigateToAdmission = onNavigateToAdmission,
-                    modifier = Modifier
+                    onNavigateToAdmission = onNavigateToAdmission
                 )
             }
         }
     }
 }
 
+private data class FeedRow(
+    val id: String,
+    val icon: ImageVector,
+    val iconTint: Color,
+    val title: String,
+    val subtitle: String,
+    val timestamp: String?,
+    val onClick: () -> Unit
+)
+
 @Composable
-private fun AlertsList(
-    alerts: com.nonituracare.data.dto.AlertsResponseDto,
+private fun AlertsFeed(
+    alerts: AlertsResponseDto,
     onNavigateToConsent: (String) -> Unit,
     onNavigateToAppointment: (String) -> Unit,
     onNavigateToReview: (String) -> Unit,
-    onNavigateToAdmission: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToAdmission: (String) -> Unit
 ) {
-    val isAllEmpty = alerts.pendingConsents.isEmpty() &&
-        alerts.todayAppointments.isEmpty() &&
-        alerts.pendingReviews.isEmpty() &&
-        alerts.activeAdmissions.isEmpty()
+    val rows = buildList {
+        alerts.pendingConsents.forEach { consent ->
+            add(
+                FeedRow(
+                    id = "consent-${consent.id}",
+                    icon = Icons.Default.Description,
+                    iconTint = NorituraColors.PrimaryBlue,
+                    title = "Consent waiting for ${consent.patientName ?: "patient"}",
+                    subtitle = consent.procedure ?: "Procedure not set",
+                    timestamp = consent.generatedAt?.let { formatDateTime(it) },
+                    onClick = { consent.id.let(onNavigateToConsent) }
+                )
+            )
+        }
+        alerts.todayAppointments.forEach { appointment ->
+            add(
+                FeedRow(
+                    id = "appt-${appointment.id}",
+                    icon = Icons.Default.CalendarMonth,
+                    iconTint = NorituraColors.AccentGreen,
+                    title = appointment.patient?.name ?: "Patient",
+                    subtitle = "${appointment.visitType?.replaceFirstChar { it.uppercase() } ?: "Visit"} today at " +
+                        (appointment.slotDatetime?.substringAfter("T")?.take(5) ?: "--:--"),
+                    timestamp = null,
+                    onClick = { appointment.id?.let(onNavigateToAppointment) }
+                )
+            )
+        }
+        alerts.pendingReviews.forEach { record ->
+            add(
+                FeedRow(
+                    id = "review-${record.id}",
+                    icon = Icons.Default.RateReview,
+                    iconTint = NorituraColors.Warning,
+                    title = "Review needed: ${record.patient?.name ?: "Patient"}",
+                    subtitle = record.chiefComplaint ?: "No complaint noted",
+                    timestamp = record.createdAt?.let { formatDateTime(it) },
+                    onClick = { record.id?.let(onNavigateToReview) }
+                )
+            )
+        }
+        alerts.activeAdmissions.forEach { admission ->
+            add(
+                FeedRow(
+                    id = "admission-${admission.id}",
+                    icon = Icons.Default.LocalHospital,
+                    iconTint = NorituraColors.AccentLavender,
+                    title = admission.patient?.name ?: "Patient",
+                    subtitle = "${admission.status?.replaceFirstChar { it.uppercase() } ?: "Admitted"} · " +
+                        "${admission.ward ?: "Ward -"} · Bed ${admission.bedNo ?: "-"}",
+                    timestamp = null,
+                    onClick = { admission.id?.let(onNavigateToAdmission) }
+                )
+            )
+        }
+    }
 
-    if (isAllEmpty) {
+    if (rows.isEmpty()) {
         EmptyState(
             title = "No alerts",
             subtitle = "You're all caught up — nothing needs your attention right now.",
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .background(NorituraColors.Background),
             illustration = Res.drawable.empty_alerts
@@ -113,217 +189,67 @@ private fun AlertsList(
     }
 
     LazyColumn(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(NorituraColors.Background)
             .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
     ) {
-        item { Spacer(modifier = Modifier.height(8.dp)) }
-
-        item {
-            AlertSectionTitle("Pending Consents (${alerts.pendingConsents.size})")
-        }
-        if (alerts.pendingConsents.isEmpty()) {
-            item { InlineAlertEmpty("No consents waiting for signature.") }
-        } else {
-            items(alerts.pendingConsents.size) { index ->
-                ConsentAlertCard(
-                    consent = alerts.pendingConsents[index],
-                    onClick = { consentId -> onNavigateToConsent(consentId) }
-                )
-            }
-        }
-
-        item {
-            AlertSectionTitle("Today's Appointments (${alerts.todayAppointments.size})")
-        }
-        if (alerts.todayAppointments.isEmpty()) {
-            item { InlineAlertEmpty("No appointments scheduled for today.") }
-        } else {
-            items(alerts.todayAppointments.size) { index ->
-                AppointmentAlertCard(
-                    appointment = alerts.todayAppointments[index],
-                    onClick = { appointmentId -> onNavigateToAppointment(appointmentId) }
-                )
-            }
-        }
-
-        item {
-            AlertSectionTitle("Pending Reviews (${alerts.pendingReviews.size})")
-        }
-        if (alerts.pendingReviews.isEmpty()) {
-            item { InlineAlertEmpty("No nurse entries waiting for review.") }
-        } else {
-            items(alerts.pendingReviews.size) { index ->
-                ReviewAlertCard(
-                    record = alerts.pendingReviews[index],
-                    onClick = { recordId -> onNavigateToReview(recordId) }
-                )
-            }
-        }
-
-        item {
-            AlertSectionTitle("Active Admissions (${alerts.activeAdmissions.size})")
-        }
-        if (alerts.activeAdmissions.isEmpty()) {
-            item { InlineAlertEmpty("No currently admitted patients.") }
-        } else {
-            items(alerts.activeAdmissions.size) { index ->
-                AdmissionAlertCard(
-                    admission = alerts.activeAdmissions[index],
-                    onClick = { admissionId -> onNavigateToAdmission(admissionId) }
-                )
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(80.dp)) }
-    }
-}
-
-@Composable
-private fun AlertSectionTitle(title: String) {
-    Text(
-        text = title,
-        color = NorituraColors.TextPrimary,
-        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-        modifier = Modifier.padding(top = 8.dp)
-    )
-}
-
-@Composable
-private fun InlineAlertEmpty(message: String) {
-    Text(
-        text = message,
-        color = NorituraColors.TextTertiary,
-        style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-}
-
-@Composable
-private fun ConsentAlertCard(
-    consent: ConsentAlertDto,
-    onClick: (String) -> Unit
-) {
-    AlertCard(onClick = { consent.id.let(onClick) }) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Consent waiting for ${consent.patientName ?: "patient"}",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                text = "Procedure: ${consent.procedure ?: "-"}",
-                color = NorituraColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            consent.generatedAt?.let {
-                Text(
-                    text = "Generated: ${formatDateTime(it)}",
-                    color = NorituraColors.TextTertiary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+        items(rows, key = { it.id }) { row ->
+            FeedRowItem(row = row)
+            HorizontalDivider(color = NorituraColors.Divider, thickness = 0.5.dp)
         }
     }
 }
 
 @Composable
-private fun AppointmentAlertCard(
-    appointment: AppointmentDto,
-    onClick: (String) -> Unit
-) {
-    AlertCard(onClick = { appointment.id?.let(onClick) }) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = appointment.patient?.name ?: "Patient",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                text = "${appointment.visitType?.replaceFirstChar { it.uppercase() } ?: "Visit"} at ${appointment.slotDatetime?.substringAfter("T")?.take(5) ?: "--:--"}",
-                color = NorituraColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-private fun ReviewAlertCard(
-    record: OpdRecordDto,
-    onClick: (String) -> Unit
-) {
-    AlertCard(onClick = { record.id?.let(onClick) }) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Review needed: ${record.patient?.name ?: "Patient"}",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                text = "Complaint: ${record.chiefComplaint ?: "-"}",
-                color = NorituraColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            record.createdAt?.let {
-                Text(
-                    text = "Recorded: ${formatDateTime(it)}",
-                    color = NorituraColors.TextTertiary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdmissionAlertCard(
-    admission: AdmissionDto,
-    onClick: (String) -> Unit
-) {
-    AlertCard(onClick = { admission.id?.let(onClick) }) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = admission.patient?.name ?: "Patient",
-                color = NorituraColors.TextPrimary,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                text = "Status: ${admission.status?.replaceFirstChar { it.uppercase() } ?: "-"}",
-                color = NorituraColors.TextSecondary,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "${admission.ward ?: "-"} • Bed ${admission.bedNo ?: "-"}",
-                color = NorituraColors.TextTertiary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-    }
-}
-
-@Composable
-private fun AlertCard(
-    onClick: () -> Unit,
-    previewTitle: String = "Alert Preview",
-    content: @Composable () -> Unit
-) {
-    LongPressCardPreview(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        previewTitle = previewTitle
+private fun FeedRowItem(row: FeedRow) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = row.onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = NorituraColors.Surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(row.iconTint.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                content()
-            }
+            Icon(
+                imageVector = row.icon,
+                contentDescription = null,
+                tint = row.iconTint,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = row.title,
+                color = NorituraColors.TextPrimary,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = row.subtitle,
+                color = NorituraColors.TextSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        row.timestamp?.let {
+            Text(
+                text = it,
+                color = NorituraColors.TextTertiary,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1
+            )
         }
     }
 }

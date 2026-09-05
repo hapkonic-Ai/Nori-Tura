@@ -49,11 +49,16 @@ fun SurgeonMainScreen(
 
     NorituraScaffold(
         bottomBar = {
-            NorituraBottomNav(
-                items = items,
-                selectedIndex = selectedTab,
-                onItemSelected = { selectedTab = it }
-            )
+            if (!showAlerts) {
+                NorituraBottomNav(
+                    items = items,
+                    selectedIndex = selectedTab,
+                    onItemSelected = {
+                        showAlerts = false
+                        selectedTab = it
+                    }
+                )
+            }
         }
     ) {
         if (showAlerts) {
