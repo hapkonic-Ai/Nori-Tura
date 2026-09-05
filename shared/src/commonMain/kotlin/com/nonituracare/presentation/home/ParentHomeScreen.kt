@@ -116,37 +116,10 @@ fun ParentHomeScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn(tween(500)) + slideInVertically(tween(500)) { -it / 4 }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                ) {
-                    Image(
-                        painter = painterResource(Res.drawable.dashboard_greeting_banner),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().height(90.dp)
-                    )
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "Family Dashboard",
-                            color = NorituraColors.TextPrimary,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Track your child's surgery journey, appointments, and records.",
-                            color = NorituraColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
+            com.nonituracare.presentation.components.DashboardGreetingBanner(
+                title = "Family Dashboard",
+                subtitle = "Track your child's surgery journey, appointments, and records."
+            )
 
             when (val state = uiState) {
                 is ParentDashboardViewModel.UiState.Loading -> {

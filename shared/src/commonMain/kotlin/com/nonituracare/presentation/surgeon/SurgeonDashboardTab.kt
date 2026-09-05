@@ -141,10 +141,9 @@ private fun DashboardContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Text(
-                text = "Welcome back, Doctor",
-                color = NorituraColors.TextSecondary,
-                style = MaterialTheme.typography.bodyLarge
+            com.nonituracare.presentation.components.DashboardGreetingBanner(
+                title = "Welcome back, Doctor",
+                subtitle = "Here's what's happening with your patients today."
             )
         }
 

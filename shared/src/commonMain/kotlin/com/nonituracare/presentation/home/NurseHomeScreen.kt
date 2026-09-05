@@ -108,37 +108,10 @@ fun NurseHomeScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn(tween(500)) + slideInVertically(tween(500)) { -it / 4 }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                ) {
-                    Image(
-                        painter = painterResource(Res.drawable.dashboard_greeting_banner),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().height(90.dp)
-                    )
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "Welcome back, Nurse",
-                            color = NorituraColors.TextPrimary,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Manage patients, appointments, and daily tasks for your supervising surgeon.",
-                            color = NorituraColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
+            com.nonituracare.presentation.components.DashboardGreetingBanner(
+                title = "Welcome back, Nurse",
+                subtitle = "Manage patients, appointments, and daily tasks for your supervising surgeon."
+            )
 
             when (val state = uiState) {
                 is NurseDashboardViewModel.UiState.Loading -> {
